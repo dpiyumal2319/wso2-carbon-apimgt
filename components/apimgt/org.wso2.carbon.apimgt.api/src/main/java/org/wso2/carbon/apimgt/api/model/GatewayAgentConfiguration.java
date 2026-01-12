@@ -54,6 +54,16 @@ public interface GatewayAgentConfiguration {
     default String getDiscoveryImplementation() {
         return null;
     }
+
+    /**
+     * Get the implementation class of the external gateway application discovery
+     *
+     * @return String implementation class name
+     */
+    default String getApplicationDiscoveryImplementation() {
+        return null;
+    }
+
     /**
      * Get vendor type of the external gateway
      *

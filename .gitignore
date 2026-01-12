@@ -2,9 +2,10 @@
 target
 .classpath
 .settings
-.project
+../.project
 *.i??
 .idea
+.vscode
 .factorypath
 *.h2.db
 *.mv.db
