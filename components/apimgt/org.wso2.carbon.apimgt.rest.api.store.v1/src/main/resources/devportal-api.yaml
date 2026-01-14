@@ -4129,6 +4129,76 @@ paths:
           -F file=@exportedApplication.zip "https://127.0.0.1:9443/api/am/devportal/v3/applications/import?preserveOwner=true&skipSubscriptions=false&appOwner=admin&skipApplicationKeys=false&update=true"'
 
   ######################################################
+  # The "Discovered Applications" resource APIs
+  ######################################################
+  /environments/{environmentId}/discovered-applications:
+    get:
+      tags:
+        - Applications
+      summary: Get discovered applications from external gateway
+      description: |
+        This operation can be used to retrieve applications discovered from an external gateway environment.
+      operationId: getDiscoveredApplications
+      parameters:
+        - $ref: '#/components/parameters/environmentId'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+        - name: query
+          in: query
+          description: |
+            **Search condition**.
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK. List of discovered applications.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoveredApplicationList'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+
+  /discovered-applications/import:
+    post:
+      tags:
+        - Applications
+      summary: Import discovered application
+      description: |
+        This operation can be used to import a discovered application from an external gateway.
+      operationId: importDiscoveredApplication
+      requestBody:
+        description: Application import request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationImportRequest'
+        required: true
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        409:
+          $ref: '#/components/responses/Conflict'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+
+  ######################################################
   # The "Subscription Collection" resource APIs
   ######################################################
   /subscriptions:
@@ -5424,6 +5494,95 @@ paths:
 
 components:
   schemas:
+    DiscoveredApplicationList:
+      title: Discovered Application List
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Number of applications returned.
+          example: 1
+        list:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscoveredApplication'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    DiscoveredApplication:
+      title: Discovered Application from external gateway
+      type: object
+      properties:
+        externalId:
+          type: string
+          description: Unique identifier from the external gateway
+        name:
+          type: string
+          description: Name of the application
+        description:
+          type: string
+          description: Description of the application
+        tier:
+          type: string
+          description: Throttling policy/tier
+        owner:
+          type: string
+          description: Owner of the application
+        createdTime:
+          type: string
+          description: Timestamp when the application was created
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+          description: Additional attributes of the application
+        keyInfoList:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscoveredApplicationKeyInfo'
+        alreadyImported:
+          type: boolean
+          description: Indicates if the application is already imported to WSO2
+        importedApplicationId:
+          type: string
+          description: UUID of the imported application if already imported
+    DiscoveredApplicationKeyInfo:
+      title: Discovered Application Key Information
+      type: object
+      properties:
+        keyType:
+          type: string
+          description: Type of key (PRODUCTION or SANDBOX)
+        keyName:
+          type: string
+          description: Name of the key
+        maskedKeyValue:
+          type: string
+          description: Masked value of the key for display
+        externalKeyReference:
+          type: string
+          description: Reference to the external key
+        createdTime:
+          type: string
+          description: Timestamp when the key was created
+        expiryTime:
+          type: string
+          description: Timestamp when the key expires
+        state:
+          type: string
+          description: State of the key
+    ApplicationImportRequest:
+      title: Application Import Request
+      type: object
+      required:
+        - environmentId
+        - referenceArtifact
+      properties:
+        environmentId:
+          type: string
+          description: Gateway environment ID
+        referenceArtifact:
+          type: string
+          description: JSON string containing gateway metadata for import
     ApplicationThrottleReset:
       title: Reset application level throttling
       type: object
@@ -8461,6 +8620,14 @@ components:
       schema:
         type: boolean
         default : false
+    environmentId:
+      name: environmentId
+      in: path
+      description: |
+        **Environment ID** consisting of the **UUID** of the Gateway Environment.
+      required: true
+      schema:
+        type: string
     apiId:
       name: apiId
       in: path

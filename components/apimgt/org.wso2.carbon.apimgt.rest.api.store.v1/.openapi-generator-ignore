@@ -23,6 +23,8 @@
 #!docs/README.md
 
 **/RestApplication.java
+**/impl/EnvironmentsApiServiceImpl.java
+**/impl/DiscoveredApplicationsApiServiceImpl.java
 **/test/**
 swagger.json
 pom.xml
