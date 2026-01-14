@@ -16596,8 +16596,13 @@ public class ApiMgtDAO {
                     mapping.setApplicationUuid(applicationUuid);
                     mapping.setGatewayEnvironmentId(rs.getString("GATEWAY_ENV_ID"));
                     mapping.setExternalApplicationId(rs.getString("EXTERNAL_APP_ID"));
-                    mapping.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
-                    mapping.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
+
+                    Timestamp createdTime = rs.getTimestamp("CREATED_TIME");
+                    mapping.setCreatedTime(createdTime == null ? null : String.valueOf(createdTime.getTime()));
+
+                    Timestamp lastUpdatedTime = rs.getTimestamp("CREATED_TIME");
+                    mapping.setLastUpdatedTime(createdTime == null ? null : String.valueOf(lastUpdatedTime.getTime()));
+
 
                     try (InputStream inputStream = rs.getBinaryStream("REFERENCE_ARTIFACT")) {
                         if (inputStream != null) {
