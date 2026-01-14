@@ -79,6 +79,15 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ApplicationKeyDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ApplicationKeyGenerateRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ApplicationKeyListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ApplicationKeyMappingRequestDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ApplicationImportRequestDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationListDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.DiscoveredApplicationMappingUtil;
+import org.wso2.carbon.apimgt.api.FederatedApplicationDiscovery;
+import org.wso2.carbon.apimgt.api.model.DiscoveredApplication;
+import org.wso2.carbon.apimgt.api.model.DiscoveredApplicationResult;
+import org.wso2.carbon.apimgt.api.model.Environment;
+import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedApplicationDiscoveryFactory;
+import java.util.Map;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ApplicationListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ApplicationThrottleResetDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ApplicationTokenDTO;
@@ -113,7 +122,6 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import javax.ws.rs.core.Response;
 
@@ -1913,5 +1921,87 @@ public class ApplicationsApiServiceImpl implements ApplicationsApiService {
                     + " is not provided to generate token using Token Exchange grant", log);
         }
         return jsonInput;
+    }
+
+    @Override
+    public Response environmentsEnvironmentIdDiscoveredApplicationsGet(String environmentId, Integer limit, Integer offset,
+                                                                       String query, MessageContext messageContext) {
+        String organization = RestApiCommonUtil.getLoggedInUserTenantDomain();
+        String username = RestApiCommonUtil.getLoggedInUsername();
+        try {
+            Environment environment = APIManagerFactory.getInstance().getAPIConsumer(username)
+                            .getEnvironment(organization, environmentId);
+            
+            if (environment == null) {
+                RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_ENVIRONMENT, environmentId, log);
+                return null;
+            }
+
+            FederatedApplicationDiscovery agent = FederatedApplicationDiscoveryFactory.getDiscoveryAgent(environment, organization);
+            
+            int validLimit = (limit == null) ? 10 : limit;
+            int validOffset = (offset == null) ? 0 : offset;
+            
+            DiscoveredApplicationResult success = agent.discoverApplicationsWithPagination(validOffset, validLimit, query);
+            DiscoveredApplicationListDTO dto = DiscoveredApplicationMappingUtil.fromDiscoveredApplicationListToDTO(success);
+            
+            return Response.ok().entity(dto).build();
+        } catch (APIManagementException e) {
+             RestApiUtil.handleInternalServerError("Error while discovering applications", e, log);
+             return null;
+        }
+    }
+
+    @Override
+    public Response discoveredApplicationsImportPost(ApplicationImportRequestDTO body, MessageContext messageContext) {
+        String username = RestApiCommonUtil.getLoggedInUsername();
+        String organization = RestApiCommonUtil.getLoggedInUserTenantDomain();
+        try {
+            if (body == null || StringUtils.isEmpty(body.getEnvironmentId()) || StringUtils.isEmpty(body.getReferenceArtifact())) {
+                RestApiUtil.handleBadRequest("Missing required parameters: environmentId or referenceArtifact", log);
+                return null;
+            }
+
+            Environment environment = APIManagerFactory.getInstance().getAPIConsumer(username)
+                            .getEnvironment(organization, body.getEnvironmentId());
+
+             if (environment == null) {
+                RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_ENVIRONMENT, body.getEnvironmentId(), log);
+                return null;
+            }
+
+            Gson gson = new Gson();
+            DiscoveredApplication discoveredApp = gson.fromJson(body.getReferenceArtifact(), DiscoveredApplication.class);
+            
+            if (discoveredApp == null || StringUtils.isEmpty(discoveredApp.getName())) {
+                 RestApiUtil.handleBadRequest("Invalid Reference Artifact", log);
+                 return null;
+            }
+
+            APIConsumer apiConsumer = APIManagerFactory.getInstance().getAPIConsumer(username);
+           
+            Application application = new Application(discoveredApp.getName(), username);
+            application.setDescription(discoveredApp.getDescription());
+            application.setUUID(java.util.UUID.randomUUID().toString());
+            
+            int applicationId = apiConsumer.addApplication(application, username, organization);
+            Application createdApp = apiConsumer.getApplicationById(applicationId);
+            
+            ApiMgtDAO.getInstance().addApplicationExternalMapping(
+                createdApp.getUUID(),
+                body.getEnvironmentId(),
+                discoveredApp.getOriginalProducerIdentifier(),
+                body.getReferenceArtifact()
+            );
+
+            ApplicationDTO createdAppDTO = ApplicationMappingUtil.fromApplicationtoDTO(createdApp);
+            
+            return Response.status(javax.ws.rs.core.Response.Status.CREATED).entity(createdAppDTO).build();
+
+        } catch (APIManagementException e) {
+            String errorMessage = "Error while importing discovered application";
+            RestApiUtil.handleInternalServerError(errorMessage, e, log);
+            return null;
+        }
     }
 }
