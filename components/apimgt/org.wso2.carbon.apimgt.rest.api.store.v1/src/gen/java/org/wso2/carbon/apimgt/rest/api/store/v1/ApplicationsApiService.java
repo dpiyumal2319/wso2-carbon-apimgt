@@ -62,4 +62,9 @@ public interface ApplicationsApiService {
       public Response applicationsGet(String groupId, String query, String sortBy, String sortOrder, Integer limit, Integer offset, String ifNoneMatch, MessageContext messageContext) throws APIManagementException;
       public Response applicationsImportPost(InputStream fileInputStream, Attachment fileDetail, Boolean preserveOwner, Boolean skipSubscriptions, String appOwner, Boolean skipApplicationKeys, Boolean update, Boolean ignoreTier, MessageContext messageContext) throws APIManagementException;
       public Response applicationsPost(ApplicationDTO applicationDTO, MessageContext messageContext) throws APIManagementException;
+
+    Response environmentsEnvironmentIdDiscoveredApplicationsGet(String environmentId, Integer limit, Integer offset,
+                                                                String query, MessageContext messageContext);
+
+      Response discoveredApplicationsImportPost(ApplicationImportRequestDTO body, MessageContext messageContext);
 }
