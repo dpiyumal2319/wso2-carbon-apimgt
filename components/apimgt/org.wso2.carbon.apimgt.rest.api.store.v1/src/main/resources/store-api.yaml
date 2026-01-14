@@ -2419,6 +2419,83 @@ paths:
             $ref: '#/definitions/Error'
 
   ######################################################
+  # The "Discovered Applications" resource APIs
+  ######################################################
+  /environments/{environmentId}/discovered-applications:
+    get:
+      tags:
+        - Applications
+      summary: Get discovered applications from external gateway
+      description: |
+        This operation can be used to retrieve applications discovered from an external gateway environment.
+      operationId: getDiscoveredApplications
+      parameters:
+        - $ref: '#/parameters/environmentId'
+        - $ref: '#/parameters/limit'
+        - $ref: '#/parameters/offset'
+        - name: query
+          in: query
+          description: |
+            **Search condition**.
+          type: string
+      responses:
+        200:
+          description: OK. List of discovered applications.
+          schema:
+            $ref: '#/definitions/DiscoveredApplicationList'
+        400:
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/Error'
+        404:
+          description: Not Found
+          schema:
+            $ref: '#/definitions/Error'
+        500:
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+
+  /discovered-applications/import:
+    post:
+      tags:
+        - Applications
+      summary: Import discovered application
+      description: |
+        This operation can be used to import a discovered application from an external gateway.
+      operationId: importDiscoveredApplication
+      parameters:
+        - in: body
+          name: body
+          description: Application import request
+          required: true
+          schema:
+            $ref: '#/definitions/ApplicationImportRequest'
+      responses:
+        201:
+          description: Created
+          schema:
+            $ref: '#/definitions/Application'
+        400:
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/Error'
+        409:
+          description: Conflict
+          schema:
+            $ref: '#/definitions/Error'
+        500:
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+
+  ######################################################
   # The "Subscription Collection" resource APIs
   ######################################################
   /subscriptions:
@@ -3751,6 +3828,14 @@ paths:
 ######################################################
 parameters:
 
+  environmentId:
+    name: environmentId
+    in: path
+    description: |
+      UUID of the gateway environment
+    required: true
+    type: string
+
   # Requested Tenant domain
   # Specified as a header parameter
   requestedTenant:
@@ -4030,6 +4115,83 @@ parameters:
 # The resources used by some of the APIs above within the message body
 ######################################################
 definitions:
+
+  DiscoveredApplicationList:
+    properties:
+      count:
+        type: integer
+        description: Number of applications returned.
+        example: 1
+      list:
+        type: array
+        items:
+          $ref: '#/definitions/DiscoveredApplication'
+      pagination:
+        $ref: '#/definitions/Pagination'
+
+  DiscoveredApplication:
+    properties:
+      externalId:
+        type: string
+        description: Unique identifier from the external gateway
+      name:
+        type: string
+        description: Name of the application
+      description:
+        type: string
+      tier:
+        type: string
+        description: Throttling policy/tier
+      owner:
+        type: string
+        description: Owner of the application
+      createdTime:
+        type: string
+        displayName: Created Time
+        description: Timestamp when the application was created
+      attributes:
+        type: object
+        additionalProperties:
+          type: string
+      keyInfoList:
+        type: array
+        items:
+          $ref: '#/definitions/DiscoveredApplicationKeyInfo'
+      alreadyImported:
+        type: boolean
+        description: Indicates if the application is already imported to WSO2
+      importedApplicationId:
+        type: string
+        description: UUID of the imported application if already imported
+
+  DiscoveredApplicationKeyInfo:
+    properties:
+      keyType:
+        type: string
+      keyName:
+        type: string
+      maskedKeyValue:
+        type: string
+      externalKeyReference:
+        type: string
+      createdTime:
+        type: string
+      expiryTime:
+        type: string
+      state:
+        type: string
+
+  ApplicationImportRequest:
+    required:
+      - environmentId
+      - referenceArtifact
+    properties:
+      environmentId:
+        type: string
+        description: Gateway environment ID
+      referenceArtifact:
+        type: string
+        description: JSON string containing gateway metadata for import
 
   #-----------------------------------------------------
   # The API List resource
