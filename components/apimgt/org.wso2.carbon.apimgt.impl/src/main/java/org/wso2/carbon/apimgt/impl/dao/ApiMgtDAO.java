@@ -60,6 +60,7 @@ import org.wso2.carbon.apimgt.api.model.APIOperationMapping;
 import org.wso2.carbon.apimgt.api.model.ApiResult;
 import org.wso2.carbon.apimgt.api.model.ApiTypeWrapper;
 import org.wso2.carbon.apimgt.api.model.Application;
+import org.wso2.carbon.apimgt.api.model.ApplicationExternalMapping;
 import org.wso2.carbon.apimgt.api.model.ApplicationInfo;
 import org.wso2.carbon.apimgt.api.model.ApplicationInfoKeyManager;
 import org.wso2.carbon.apimgt.api.model.Backend;
@@ -16411,6 +16412,188 @@ public class ApiMgtDAO {
         } finally {
             APIMgtDBUtil.closeAllConnections(prepStmt, connection, null);
         }
+    }
+
+    /**
+     * Add external application mapping
+     *
+     * @param applicationUuid UUID of the application
+     * @param environmentId   Gateway environment ID
+     * @param externalAppId   External application ID
+     * @param referenceArtifact Reference artifact JSON
+     * @throws APIManagementException if an error occurs
+     */
+    public void addApplicationExternalMapping(String applicationUuid, String environmentId, String externalAppId,
+                                              String referenceArtifact) throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.ADD_APPLICATION_EXTERNAL_MAPPING_SQL)) {
+
+            connection.setAutoCommit(false);
+            ps.setString(1, applicationUuid);
+            ps.setString(2, environmentId);
+            ps.setString(3, externalAppId);
+            ps.setBytes(4, referenceArtifact.getBytes(StandardCharsets.UTF_8));
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while adding application external mapping for application: " + applicationUuid, e);
+        }
+    }
+
+    /**
+     * Get external application mapping reference artifact
+     *
+     * @param applicationUuid UUID of the application
+     * @param environmentId   Gateway environment ID
+     * @return Reference artifact JSON or null if not found
+     * @throws APIManagementException if an error occurs
+     */
+    public String getApplicationExternalMappingReference(String applicationUuid, String environmentId)
+            throws APIManagementException {
+        String referenceArtifact = null;
+
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.GET_APPLICATION_EXTERNAL_MAPPING_SQL)) {
+
+            ps.setString(1, applicationUuid);
+            ps.setString(2, environmentId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    try (InputStream inputStream = rs.getBinaryStream("REFERENCE_ARTIFACT")) {
+                        if (inputStream != null) {
+                            referenceArtifact = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+                        }
+                    }
+                }
+            }
+        } catch (SQLException | IOException e) {
+            handleException("Error while retrieving application external mapping for application: " + applicationUuid, e);
+        }
+
+        return referenceArtifact;
+    }
+
+    /**
+     * Update external application mapping
+     *
+     * @param applicationUuid UUID of the application
+     * @param environmentId   Gateway environment ID
+     * @param referenceArtifact Updated reference artifact JSON
+     * @throws APIManagementException if an error occurs
+     */
+    public void updateApplicationExternalMapping(String applicationUuid, String environmentId,
+                                                 String referenceArtifact) throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.UPDATE_APPLICATION_EXTERNAL_MAPPING_SQL)) {
+
+            connection.setAutoCommit(false);
+            ps.setBytes(1, referenceArtifact.getBytes(StandardCharsets.UTF_8));
+            ps.setTimestamp(2, new Timestamp(System.currentTimeMillis()));
+            ps.setString(3, applicationUuid);
+            ps.setString(4, environmentId);
+
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while updating application external mapping for application: " + applicationUuid, e);
+        }
+    }
+
+    /**
+     * Delete external application mapping for specific environment
+     *
+     * @param applicationUuid UUID of the application
+     * @param environmentId   Gateway environment ID
+     * @throws APIManagementException if an error occurs
+     */
+    public void deleteApplicationExternalMapping(String applicationUuid, String environmentId)
+            throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.DELETE_APPLICATION_EXTERNAL_MAPPING_SQL)) {
+
+            connection.setAutoCommit(false);
+            ps.setString(1, applicationUuid);
+            ps.setString(2, environmentId);
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while deleting application external mapping for application: " + applicationUuid, e);
+        }
+    }
+
+    /**
+     * Get all external application mappings for an application
+     *
+     * @param applicationUuid UUID of the application
+     * @return Map of environment ID to ApplicationExternalMapping objects
+     * @throws APIManagementException if an error occurs
+     */
+    public Map<String, ApplicationExternalMapping> getApplicationExternalMappings(String applicationUuid)
+            throws APIManagementException {
+        Map<String, ApplicationExternalMapping> mappings = new HashMap<>();
+
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.GET_APPLICATION_EXTERNAL_MAPPINGS_SQL)) {
+
+            ps.setString(1, applicationUuid);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ApplicationExternalMapping mapping = new ApplicationExternalMapping();
+                    mapping.setApplicationUuid(applicationUuid);
+                    mapping.setGatewayEnvironmentId(rs.getString("GATEWAY_ENV_ID"));
+                    mapping.setExternalApplicationId(rs.getString("EXTERNAL_APP_ID"));
+                    mapping.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
+                    mapping.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
+
+                    try (InputStream inputStream = rs.getBinaryStream("REFERENCE_ARTIFACT")) {
+                        if (inputStream != null) {
+                            mapping.setReferenceArtifact(IOUtils.toString(inputStream, StandardCharsets.UTF_8));
+                        }
+                    }
+
+                    mappings.put(mapping.getGatewayEnvironmentId(), mapping);
+                }
+            }
+        } catch (SQLException | IOException e) {
+            handleException("Error while retrieving application external mappings for application: " + applicationUuid, e);
+        }
+
+        return mappings;
+    }
+
+    /**
+     * Get application UUID by external application ID
+     *
+     * @param externalAppId External application ID
+     * @param environmentId Gateway environment ID
+     * @return Application UUID or null if not found
+     * @throws APIManagementException if an error occurs
+     */
+    public String getApplicationUuidByExternalAppId(String externalAppId, String environmentId)
+            throws APIManagementException {
+        String applicationUuid = null;
+
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.GET_APPLICATION_BY_EXTERNAL_APP_ID_SQL)) {
+
+            ps.setString(1, externalAppId);
+            ps.setString(2, environmentId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    applicationUuid = rs.getString("APPLICATION_UUID");
+                }
+            }
+        } catch (SQLException e) {
+            handleException("Error while retrieving application by external ID: " + externalAppId, e);
+        }
+
+        return applicationUuid;
     }
 
     private boolean isEmptyValuesInApplicationAttributesEnabled() {
