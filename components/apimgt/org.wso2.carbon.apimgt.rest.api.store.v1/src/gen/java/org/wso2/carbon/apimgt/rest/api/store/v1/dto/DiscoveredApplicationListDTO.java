@@ -10,6 +10,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.PaginationDTO;
 import javax.validation.constraints.*;
 
+
 import io.swagger.annotations.*;
 import java.util.Objects;
 
@@ -19,101 +20,109 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 
 import javax.validation.Valid;
 
+
+
 public class DiscoveredApplicationListDTO   {
   
     private Integer count = null;
     private List<DiscoveredApplicationDTO> list = new ArrayList<DiscoveredApplicationDTO>();
     private PaginationDTO pagination = null;
 
-    /**
-     * Number of applications returned. 
-     **/
-    public DiscoveredApplicationListDTO count(Integer count) {
-        this.count = count;
-        return this;
-    }
+  /**
+   * Number of applications returned.
+   **/
+  public DiscoveredApplicationListDTO count(Integer count) {
+    this.count = count;
+    return this;
+  }
 
-    @ApiModelProperty(example = "1", value = "Number of applications returned. ")
-    @JsonProperty("count")
-    public Integer getCount() {
-        return count;
-    }
-    public void setCount(Integer count) {
-        this.count = count;
-    }
+  
+  @ApiModelProperty(example = "1", value = "Number of applications returned.")
+  @JsonProperty("count")
+  public Integer getCount() {
+    return count;
+  }
+  public void setCount(Integer count) {
+    this.count = count;
+  }
 
-    /**
-     **/
-    public DiscoveredApplicationListDTO list(List<DiscoveredApplicationDTO> list) {
-        this.list = list;
-        return this;
-    }
+  /**
+   **/
+  public DiscoveredApplicationListDTO list(List<DiscoveredApplicationDTO> list) {
+    this.list = list;
+    return this;
+  }
 
-    @ApiModelProperty(value = "")
-    @JsonProperty("list")
-    public List<DiscoveredApplicationDTO> getList() {
-        return list;
-    }
-    public void setList(List<DiscoveredApplicationDTO> list) {
-        this.list = list;
-    }
+  
+  @ApiModelProperty(value = "")
+      @Valid
+  @JsonProperty("list")
+  public List<DiscoveredApplicationDTO> getList() {
+    return list;
+  }
+  public void setList(List<DiscoveredApplicationDTO> list) {
+    this.list = list;
+  }
 
-    /**
-     **/
-    public DiscoveredApplicationListDTO pagination(PaginationDTO pagination) {
-        this.pagination = pagination;
-        return this;
-    }
+  /**
+   **/
+  public DiscoveredApplicationListDTO pagination(PaginationDTO pagination) {
+    this.pagination = pagination;
+    return this;
+  }
 
-    @ApiModelProperty(value = "")
-    @JsonProperty("pagination")
-    public PaginationDTO getPagination() {
-        return pagination;
-    }
-    public void setPagination(PaginationDTO pagination) {
-        this.pagination = pagination;
-    }
+  
+  @ApiModelProperty(value = "")
+      @Valid
+  @JsonProperty("pagination")
+  public PaginationDTO getPagination() {
+    return pagination;
+  }
+  public void setPagination(PaginationDTO pagination) {
+    this.pagination = pagination;
+  }
 
 
-    @Override
-    public boolean equals(java.lang.Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        DiscoveredApplicationListDTO discoveredApplicationList = (DiscoveredApplicationListDTO) o;
-        return Objects.equals(this.count, discoveredApplicationList.count) &&
-            Objects.equals(this.list, discoveredApplicationList.list) &&
-            Objects.equals(this.pagination, discoveredApplicationList.pagination);
+  @Override
+  public boolean equals(java.lang.Object o) {
+    if (this == o) {
+      return true;
     }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    DiscoveredApplicationListDTO discoveredApplicationList = (DiscoveredApplicationListDTO) o;
+    return Objects.equals(count, discoveredApplicationList.count) &&
+        Objects.equals(list, discoveredApplicationList.list) &&
+        Objects.equals(pagination, discoveredApplicationList.pagination);
+  }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(count, list, pagination);
-    }
+  @Override
+  public int hashCode() {
+    return Objects.hash(count, list, pagination);
+  }
 
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("class DiscoveredApplicationListDTO {\n");
-        
-        sb.append("    count: ").append(toIndentedString(count)).append("\n");
-        sb.append("    list: ").append(toIndentedString(list)).append("\n");
-        sb.append("    pagination: ").append(toIndentedString(pagination)).append("\n");
-        sb.append("}");
-        return sb.toString();
-    }
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("class DiscoveredApplicationListDTO {\n");
+    
+    sb.append("    count: ").append(toIndentedString(count)).append("\n");
+    sb.append("    list: ").append(toIndentedString(list)).append("\n");
+    sb.append("    pagination: ").append(toIndentedString(pagination)).append("\n");
+    sb.append("}");
+    return sb.toString();
+  }
 
-    /**
-     * Convert the given object to string with each line indented by 4 spaces
-     * (except the first line).
-     */
-    private String toIndentedString(java.lang.Object o) {
-        if (o == null) {
-            return "null";
-        }
-        return o.toString().replace("\n", "\n    ");
+  /**
+   * Convert the given object to string with each line indented by 4 spaces
+   * (except the first line).
+   */
+  private String toIndentedString(java.lang.Object o) {
+    if (o == null) {
+      return "null";
     }
+    return o.toString().replace("\n", "\n    ");
+  }
 }
+
