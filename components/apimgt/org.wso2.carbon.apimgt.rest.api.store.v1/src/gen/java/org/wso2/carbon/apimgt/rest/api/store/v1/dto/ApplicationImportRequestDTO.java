@@ -6,23 +6,32 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import javax.validation.constraints.*;
 
+
 import io.swagger.annotations.*;
 import java.util.Objects;
 
 import javax.xml.bind.annotation.*;
 import org.wso2.carbon.apimgt.rest.api.common.annotations.Scope;
+import com.fasterxml.jackson.annotation.JsonCreator;
 
 import javax.validation.Valid;
 
-@ApiModel(description = "")
+
+
 public class ApplicationImportRequestDTO   {
   
-  private String environmentId = null;
-  private String referenceArtifact = null;
+    private String environmentId = null;
+    private String referenceArtifact = null;
 
   /**
    * Gateway environment ID
    **/
+  public ApplicationImportRequestDTO environmentId(String environmentId) {
+    this.environmentId = environmentId;
+    return this;
+  }
+
+  
   @ApiModelProperty(required = true, value = "Gateway environment ID")
   @JsonProperty("environmentId")
   @NotNull
@@ -36,6 +45,12 @@ public class ApplicationImportRequestDTO   {
   /**
    * JSON string containing gateway metadata for import
    **/
+  public ApplicationImportRequestDTO referenceArtifact(String referenceArtifact) {
+    this.referenceArtifact = referenceArtifact;
+    return this;
+  }
+
+  
   @ApiModelProperty(required = true, value = "JSON string containing gateway metadata for import")
   @JsonProperty("referenceArtifact")
   @NotNull
@@ -56,8 +71,8 @@ public class ApplicationImportRequestDTO   {
       return false;
     }
     ApplicationImportRequestDTO applicationImportRequest = (ApplicationImportRequestDTO) o;
-    return Objects.equals(this.environmentId, applicationImportRequest.environmentId) &&
-        Objects.equals(this.referenceArtifact, applicationImportRequest.referenceArtifact);
+    return Objects.equals(environmentId, applicationImportRequest.environmentId) &&
+        Objects.equals(referenceArtifact, applicationImportRequest.referenceArtifact);
   }
 
   @Override
@@ -87,3 +102,4 @@ public class ApplicationImportRequestDTO   {
     return o.toString().replace("\n", "\n    ");
   }
 }
+
