@@ -24,17 +24,26 @@ import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.FederatedApplicationDiscovery;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.GatewayAgentConfiguration;
+import org.wso2.carbon.apimgt.impl.APIAdminImpl;
 import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Factory class to instantiate FederatedApplicationDiscovery agents based on the environment configuration.
+ * Implements caching to reuse discovery agent instances for better performance.
  */
 public class FederatedApplicationDiscoveryFactory {
 
     private static final Log log = LogFactory.getLog(FederatedApplicationDiscoveryFactory.class);
+    
+    // Cache for discovery agents per organization and environment
+    private static final Map<String, FederatedApplicationDiscovery> discoveryAgentCache = new ConcurrentHashMap<>();
 
     /**
      * Loads and initializes the appropriate FederatedApplicationDiscovery agent for the given environment.
+     * Reuses cached agents for better performance.
      *
      * @param environment  The environment for which discovery is requested.
      * @param organization The organization of the request.
@@ -44,31 +53,95 @@ public class FederatedApplicationDiscoveryFactory {
     public static FederatedApplicationDiscovery getDiscoveryAgent(Environment environment, String organization)
             throws APIManagementException {
 
-        GatewayAgentConfiguration agentConfiguration = ServiceReferenceHolder.getInstance()
-                .getExternalGatewayConnectorConfiguration(environment.getGatewayType());
-
-        if (agentConfiguration == null) {
-            String msg = "Gateway Agent Configuration not found for type: " + environment.getGatewayType();
-            log.error(msg);
-            throw new APIManagementException(msg);
+        String cacheKey = organization + ":" + environment.getUuid();
+        
+        // Return cached agent if available
+        FederatedApplicationDiscovery cachedAgent = discoveryAgentCache.get(cacheKey);
+        if (cachedAgent != null) {
+            if (log.isDebugEnabled()) {
+                log.debug("Returning cached discovery agent for environment: " + environment.getName() 
+                        + " in organization: " + organization);
+            }
+            return cachedAgent;
         }
 
-        String implementationClassName = agentConfiguration.getApplicationDiscoveryImplementation();
-        if (implementationClassName == null || implementationClassName.isEmpty()) {
-            String msg = "Application Discovery Implementation class not found for gateway type: " + environment.getGatewayType();
-            log.error(msg);
-            throw new APIManagementException(msg);
-        }
+        // Double-checked locking for thread safety
+        synchronized (cacheKey.intern()) {
+            // Check again after acquiring lock
+            cachedAgent = discoveryAgentCache.get(cacheKey);
+            if (cachedAgent != null) {
+                return cachedAgent;
+            }
 
-        try {
-            Class<?> clazz = Class.forName(implementationClassName);
-            FederatedApplicationDiscovery agent = (FederatedApplicationDiscovery) clazz.newInstance();
-            agent.init(environment, organization);
-            return agent;
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
-            String msg = "Error while initializing Federated Application Discovery Agent for type: " + environment.getGatewayType();
-            log.error(msg, e);
-            throw new APIManagementException(msg, e);
+            GatewayAgentConfiguration agentConfiguration = ServiceReferenceHolder.getInstance()
+                    .getExternalGatewayConnectorConfiguration(environment.getGatewayType());
+
+            if (agentConfiguration == null) {
+                String msg = "Gateway Agent Configuration not found for type: " + environment.getGatewayType();
+                log.error(msg);
+                throw new APIManagementException(msg);
+            }
+
+            String implementationClassName = agentConfiguration.getApplicationDiscoveryImplementation();
+            if (implementationClassName == null || implementationClassName.isEmpty()) {
+                String msg = "Application Discovery Implementation class not found for gateway type: " + environment.getGatewayType();
+                log.error(msg);
+                throw new APIManagementException(msg);
+            }
+
+            try {
+                // Environment fetched from DB might have encrypted properties, hence need to decrypt before
+                // initializing the discovery agent
+                APIAdminImpl apiAdmin = new APIAdminImpl();
+                Environment resolvedEnvironment = apiAdmin.getEnvironmentWithoutPropertyMasking(organization,
+                        environment.getUuid());
+                resolvedEnvironment = apiAdmin.decryptGatewayConfigurationValues(resolvedEnvironment);
+
+                Class<?> clazz = Class.forName(implementationClassName);
+                FederatedApplicationDiscovery agent = (FederatedApplicationDiscovery) clazz.newInstance();
+                agent.init(resolvedEnvironment, organization);
+                
+                // Cache the initialized agent
+                discoveryAgentCache.put(cacheKey, agent);
+                
+                if (log.isDebugEnabled()) {
+                    log.debug("Created and cached new discovery agent for environment: " + environment.getName() 
+                            + " in organization: " + organization);
+                }
+                
+                return agent;
+            } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+                String msg = "Error while initializing Federated Application Discovery Agent for type: " + environment.getGatewayType();
+                log.error(msg, e);
+                throw new APIManagementException(msg, e);
+            }
+        }
+    }
+
+    /**
+     * Clears the cached discovery agent for a specific environment.
+     * Should be called when environment configuration changes.
+     *
+     * @param organization The organization.
+     * @param environmentId The environment UUID.
+     */
+    public static void clearDiscoveryAgentCache(String organization, String environmentId) {
+        String cacheKey = organization + ":" + environmentId;
+        discoveryAgentCache.remove(cacheKey);
+        if (log.isDebugEnabled()) {
+            log.debug("Cleared discovery agent cache for environment: " + environmentId 
+                    + " in organization: " + organization);
+        }
+    }
+
+    /**
+     * Clears all cached discovery agents.
+     * Useful for testing or when environments are updated in bulk.
+     */
+    public static void clearAllDiscoveryAgentCache() {
+        discoveryAgentCache.clear();
+        if (log.isDebugEnabled()) {
+            log.debug("Cleared all discovery agent cache");
         }
     }
 }

@@ -79,7 +79,7 @@ public class EnvironmentsApiServiceImpl implements EnvironmentsApiService {
             int validLimit = (limit == null || limit <= 0) ? 10 : limit;
             int validOffset = (offset == null || offset < 0) ? 0 : offset;
             
-            DiscoveredApplicationResult result = agent.discoverApplicationsWithPagination(validOffset, validLimit, query);
+            DiscoveredApplicationResult result = agent.discoverApplications(validOffset, validLimit, query);
             DiscoveredApplicationListDTO dto = DiscoveredApplicationMappingUtil.fromDiscoveredApplicationListToDTO(result);
             
             return Response.ok().entity(dto).build();
