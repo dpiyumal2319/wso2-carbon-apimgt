@@ -172,6 +172,15 @@ public class DiscoveredApplicationResult {
     }
 
     /**
+     * Gets whether there are more results available.
+     *
+     * @return true if more results exist
+     */
+    public boolean getHasMoreResults() {
+        return hasMoreResults;
+    }
+
+    /**
      * Gets the count of applications in the current page.
      *
      * @return The count of applications in this result set

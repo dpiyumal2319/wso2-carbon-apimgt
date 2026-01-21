@@ -99,10 +99,26 @@ public class DiscoveredApplicationMappingUtil {
         }
         listDTO.setList(dtos);
 
-        PaginationDTO paginationDTO = new PaginationDTO();
-        paginationDTO.setOffset(result.getOffset());
-        paginationDTO.setLimit(result.getLimit());
-        paginationDTO.setTotal(result.getTotalCount());
+        // Build pagination with next/previous links
+        String nextUrl = null;
+        String previousUrl = null;
+        
+        if (result.isHasMoreResults()) {
+            nextUrl = "";
+        }
+        
+        if (result.getOffset() > 0) {
+            // Indicate there are previous results
+            previousUrl = "";
+        }
+        
+        PaginationDTO paginationDTO = CommonMappingUtil.getPaginationDTO(
+                result.getLimit(), 
+                result.getOffset(), 
+                result.getTotalCount(),
+                nextUrl,
+                previousUrl);
+        
         listDTO.setPagination(paginationDTO);
         
         return listDTO;
