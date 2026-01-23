@@ -6,7 +6,7 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationInfoDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.PaginationDTO;
 import javax.validation.constraints.*;
 
@@ -25,7 +25,7 @@ import javax.validation.Valid;
 public class DiscoveredApplicationListDTO   {
   
     private Integer count = null;
-    private List<DiscoveredApplicationDTO> list = new ArrayList<DiscoveredApplicationDTO>();
+    private List<DiscoveredApplicationInfoDTO> list = new ArrayList<DiscoveredApplicationInfoDTO>();
     private PaginationDTO pagination = null;
 
   /**
@@ -48,7 +48,7 @@ public class DiscoveredApplicationListDTO   {
 
   /**
    **/
-  public DiscoveredApplicationListDTO list(List<DiscoveredApplicationDTO> list) {
+  public DiscoveredApplicationListDTO list(List<DiscoveredApplicationInfoDTO> list) {
     this.list = list;
     return this;
   }
@@ -57,10 +57,10 @@ public class DiscoveredApplicationListDTO   {
   @ApiModelProperty(value = "")
       @Valid
   @JsonProperty("list")
-  public List<DiscoveredApplicationDTO> getList() {
+  public List<DiscoveredApplicationInfoDTO> getList() {
     return list;
   }
-  public void setList(List<DiscoveredApplicationDTO> list) {
+  public void setList(List<DiscoveredApplicationInfoDTO> list) {
     this.list = list;
   }
 

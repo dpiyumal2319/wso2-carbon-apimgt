@@ -1,5 +1,6 @@
 package org.wso2.carbon.apimgt.rest.api.store.v1;
 
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.EnvironmentsApiService;
@@ -37,12 +38,29 @@ EnvironmentsApiService delegate = new EnvironmentsApiServiceImpl();
 
 
     @GET
+    @Path("/{environmentId}/discovered-applications/{applicationId}")
+    
+    @Produces({ "application/json" })
+    @ApiOperation(value = "Get a specific discovered application from external gateway", notes = "This operation retrieves a specific discovered application from an external gateway environment with keys masked. This is typically used to preview application details before import. ", response = DiscoveredApplicationDTO.class, authorizations = {
+        @Authorization(value = "OAuth2Security", scopes = {
+            @AuthorizationScope(scope = "apim:admin", description = "Manage all admin operations")
+        })
+    }, tags={ "Applications",  })
+    @ApiResponses(value = { 
+        @ApiResponse(code = 200, message = "OK. Discovered application returned.", response = DiscoveredApplicationDTO.class),
+        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
+        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
+    public Response getDiscoveredApplication(@ApiParam(value = "**Environment ID** consisting of the **UUID** of the Gateway Environment. ",required=true) @PathParam("environmentId") String environmentId, @ApiParam(value = "External application ID from the gateway",required=true) @PathParam("applicationId") String applicationId) throws APIManagementException{
+        return delegate.getDiscoveredApplication(environmentId, applicationId, securityContext);
+    }
+
+    @GET
     @Path("/{environmentId}/discovered-applications")
     
     @Produces({ "application/json" })
     @ApiOperation(value = "Get discovered applications from external gateway", notes = "This operation can be used to retrieve applications discovered from an external gateway environment. ", response = DiscoveredApplicationListDTO.class, authorizations = {
         @Authorization(value = "OAuth2Security", scopes = {
-            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API")
+            @AuthorizationScope(scope = "apim:admin", description = "Manage all admin operations")
         })
     }, tags={ "Applications" })
     @ApiResponses(value = { 

@@ -43,7 +43,7 @@ DiscoveredApplicationsApiService delegate = new DiscoveredApplicationsApiService
     @Produces({ "application/json" })
     @ApiOperation(value = "Import discovered application", notes = "This operation can be used to import a discovered application from an external gateway. ", response = ApplicationDTO.class, authorizations = {
         @Authorization(value = "OAuth2Security", scopes = {
-            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API")
+            @AuthorizationScope(scope = "apim:admin", description = "Manage all admin operations")
         })
     }, tags={ "Applications" })
     @ApiResponses(value = { 

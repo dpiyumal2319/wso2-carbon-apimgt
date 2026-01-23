@@ -19,6 +19,7 @@
 package org.wso2.carbon.apimgt.api;
 
 import org.wso2.carbon.apimgt.api.model.DiscoveredApplication;
+import org.wso2.carbon.apimgt.api.model.DiscoveredApplicationInfo;
 import org.wso2.carbon.apimgt.api.model.DiscoveredApplicationResult;
 import org.wso2.carbon.apimgt.api.model.Environment;
 
@@ -45,29 +46,31 @@ public interface FederatedApplicationDiscovery {
 
     /**
      * Discovers applications with pagination metadata.
-     * Returns a result object containing the applications and pagination information.
+     * Returns lightweight application info without keys or subscriptions for efficient listing.
      *
      * @param offset The number of records to skip (0-based starting index)
      * @param limit  The maximum number of records to return
      * @param query  The search query (can be null for no filtering)
-     * @return A DiscoveredApplicationResult with applications and pagination metadata
+     * @return A DiscoveredApplicationResult with lightweight application info and pagination metadata
      * @throws APIManagementException If the discovery process fails
      */
     DiscoveredApplicationResult discoverApplications(int offset, int limit, String query)
         throws APIManagementException;
 
     /**
-     * * Returns a lazy-loaded Stream of ALL applications matching the query.
+     * Returns a lazy-loaded Stream of ALL applications matching the query.
+     * Returns lightweight application info without keys or subscriptions.
      * This is used for background tasks (e.g., "Import All").
-     * * Implementation Requirement:
+     * 
+     * Implementation Requirement:
      * This must NOT load all data into memory at once. It should wrap the underlying
      * gateway's pagination cursor to fetch pages on-demand as the stream is consumed.
      *
      * @param query Optional search string. Pass null to stream everything.
-     * @return A Stream of DiscoveredApplication objects.
+     * @return A Stream of DiscoveredApplicationInfo objects (lightweight).
      * @throws APIManagementException If the stream cannot be initiated.
      */
-    Stream<DiscoveredApplication> streamApplications(String query)
+    Stream<DiscoveredApplicationInfo> streamApplications(String query)
             throws APIManagementException;
 
     /**
@@ -101,16 +104,19 @@ public interface FederatedApplicationDiscovery {
     }
 
     /**
-     * Gets a specific application by its external ID.
-     * This method fetches complete application details including credentials/keys
-     * for preview before import. Used when user clicks on a specific application
-     * in the discovery list.
+     * Gets a specific application by its external ID with complete details.
+     * This method fetches full application details including:
+     * - Masked credentials/keys
+     * - List of API subscriptions from the external gateway
+     * 
+     * Used when user clicks on a specific application in the discovery list
+     * to preview details before import.
      *
      * @param externalApplicationId The external gateway's application identifier
-     * @return The discovered application with keys masked
+     * @return The discovered application with keys masked and subscriptions populated
      * @throws APIManagementException If the application is not found or fetch fails
      */
-    DiscoveredApplication getApplication(String externalApplicationId) throws APIManagementException;
+    DiscoveredApplication getApplicationWithKeysMasked(String externalApplicationId) throws APIManagementException;
 
     /**
      * Gets the gateway type identifier for this discovery agent.

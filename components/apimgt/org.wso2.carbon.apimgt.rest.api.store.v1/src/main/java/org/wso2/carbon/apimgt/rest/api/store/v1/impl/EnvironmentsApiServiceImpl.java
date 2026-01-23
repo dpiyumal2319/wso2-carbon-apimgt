@@ -23,12 +23,14 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.cxf.jaxrs.ext.MessageContext;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.FederatedApplicationDiscovery;
+import org.wso2.carbon.apimgt.api.model.DiscoveredApplication;
 import org.wso2.carbon.apimgt.api.model.DiscoveredApplicationResult;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedApplicationDiscoveryFactory;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
 import org.wso2.carbon.apimgt.rest.api.common.RestApiCommonUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.EnvironmentsApiService;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.DiscoveredApplicationMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.util.utils.RestApiUtil;
@@ -43,6 +45,50 @@ public class EnvironmentsApiServiceImpl implements EnvironmentsApiService {
 
     private static final Log log = LogFactory.getLog(EnvironmentsApiServiceImpl.class);
     private static final String RESOURCE_ENVIRONMENT = "Gateway Environment";
+    private static final String RESOURCE_APPLICATION = "Discovered Application";
+
+    @Override
+    public Response getDiscoveredApplication(String environmentId, String applicationId,
+                                              MessageContext messageContext) throws APIManagementException {
+        String organization = RestApiCommonUtil.getLoggedInUserTenantDomain();
+        
+        try {
+            Environment environment = findEnvironment(environmentId, organization);
+            
+            if (environment == null) {
+                RestApiUtil.handleResourceNotFoundError(RESOURCE_ENVIRONMENT, environmentId, log);
+                return null;
+            }
+
+            FederatedApplicationDiscovery agent = FederatedApplicationDiscoveryFactory.getDiscoveryAgent(environment, organization);
+            
+            if (agent == null) {
+                RestApiUtil.handleBadRequest("Application discovery is not supported for this gateway type: " 
+                        + environment.getGatewayType(), log);
+                return null;
+            }
+            
+            // Get application with keys masked
+            DiscoveredApplication application = agent.getApplicationWithKeysMasked(applicationId);
+            
+            if (application == null) {
+                RestApiUtil.handleResourceNotFoundError(RESOURCE_APPLICATION, applicationId, log);
+                return null;
+            }
+            
+            DiscoveredApplicationDTO dto = DiscoveredApplicationMappingUtil.fromDiscoveredApplicationToDTO(application);
+            
+            return Response.ok().entity(dto).build();
+        } catch (APIManagementException e) {
+            if (e.getMessage().contains("not found")) {
+                RestApiUtil.handleResourceNotFoundError(RESOURCE_APPLICATION, applicationId, log);
+            } else {
+                RestApiUtil.handleInternalServerError("Error while retrieving discovered application: " 
+                        + applicationId + " from environment: " + environmentId, e, log);
+            }
+            return null;
+        }
+    }
 
     @Override
     public Response getDiscoveredApplications(String environmentId, Integer limit, Integer offset, String query,
@@ -50,18 +96,7 @@ public class EnvironmentsApiServiceImpl implements EnvironmentsApiService {
         String organization = RestApiCommonUtil.getLoggedInUserTenantDomain();
         
         try {
-            Map<String, Environment> environments = APIUtil.getEnvironments(organization);
-            Environment environment = environments.get(environmentId);
-            
-            if (environment == null) {
-                // Try finding by UUID if not found by name
-                for (Environment env : environments.values()) {
-                    if (environmentId.equals(env.getUuid())) {
-                        environment = env;
-                        break;
-                    }
-                }
-            }
+            Environment environment = findEnvironment(environmentId, organization);
             
             if (environment == null) {
                 RestApiUtil.handleResourceNotFoundError(RESOURCE_ENVIRONMENT, environmentId, log);
@@ -88,5 +123,25 @@ public class EnvironmentsApiServiceImpl implements EnvironmentsApiService {
                     + environmentId, e, log);
             return null;
         }
+    }
+
+    /**
+     * Helper method to find environment by ID or UUID
+     */
+    private Environment findEnvironment(String environmentId, String organization) throws APIManagementException {
+        Map<String, Environment> environments = APIUtil.getEnvironments(organization);
+        Environment environment = environments.get(environmentId);
+        
+        if (environment == null) {
+            // Try finding by UUID if not found by name
+            for (Environment env : environments.values()) {
+                if (environmentId.equals(env.getUuid())) {
+                    environment = env;
+                    break;
+                }
+            }
+        }
+        
+        return environment;
     }
 }
