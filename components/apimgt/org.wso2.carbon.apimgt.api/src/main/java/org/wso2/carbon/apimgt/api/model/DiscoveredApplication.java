@@ -24,9 +24,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Represents a normalized application discovered from an external gateway.
- * This class contains lightweight data optimized for display in the frontend
- * and sufficient information for onboarding without causing N+1 query problems.
+ * Represents complete details of an application discovered from an external gateway.
+ * This class contains full application information including credentials and API subscriptions.
+ * <p>
+ * For lightweight listing without keys and subscriptions, use {@link DiscoveredApplicationInfo}.
+ * </p>
  * <p>
  * Mapped from Azure Subscription, AWS API Key, or Kong Consumer.
  * </p>
@@ -36,64 +38,19 @@ import java.util.Map;
  * in this object - only masked display names are provided.
  * </p>
  */
-public class DiscoveredApplication {
-
-    /**
-     * Unique identifier from the external gateway (e.g., Azure Subscription ID).
-     */
-    private String externalId;
-
-    /**
-     * Display name of the application from the external gateway.
-     */
-    private String name;
-
-    /**
-     * Description of the application from the external gateway.
-     */
-    private String description;
-
-    /**
-     * Throttling tier/policy name mapped from the external gateway's rate limiting configuration.
-     */
-    private String throttlingTier;
-
-    /**
-     * Owner/creator identifier from the external gateway.
-     */
-    private String owner;
-
-    /**
-     * Creation timestamp from the external gateway (ISO 8601 format).
-     */
-    private String createdTime;
-
-    /**
-     * Application attributes from the external gateway.
-     */
-    private Map<String, String> attributes = new HashMap<>();
+public class DiscoveredApplication extends DiscoveredApplicationInfo {
 
     /**
      * List of discovered credential metadata (keys are masked, secrets never exposed).
+     * Populated only when fetching full application details via getApplicationWithKeysMasked().
      */
     private List<DiscoveredApplicationKeyInfo> keyInfoList = new ArrayList<>();
 
     /**
-     * JSON string containing gateway-specific metadata required for import.
-     * This artifact enables stateless import without re-fetching data from the gateway.
-     * Contains: external ID, name, tier, and any gateway-specific identifiers.
+     * List of API subscriptions for this application in the external gateway.
+     * Populated only when fetching full application details via getApplicationWithKeysMasked().
      */
-    private String referenceArtifact;
-
-    /**
-     * Indicates whether an application with this external ID already exists in WSO2 APIM.
-     */
-    private boolean alreadyImported;
-
-    /**
-     * If already imported, the WSO2 Application UUID.
-     */
-    private String importedApplicationId;
+    private List<DiscoveredAPISubscription> subscribedApis = new ArrayList<>();
 
     /**
      * Default constructor.
@@ -109,9 +66,27 @@ public class DiscoveredApplication {
      * @param referenceArtifact The JSON reference artifact for stateless import
      */
     public DiscoveredApplication(String externalId, String name, String referenceArtifact) {
-        this.externalId = externalId;
-        this.name = name;
-        this.referenceArtifact = referenceArtifact;
+        super(externalId, name, referenceArtifact);
+    }
+
+    /**
+     * Constructor from DiscoveredApplicationInfo.
+     *
+     * @param info The lightweight application info
+     */
+    public DiscoveredApplication(DiscoveredApplicationInfo info) {
+        if (info != null) {
+            this.setExternalId(info.getExternalId());
+            this.setName(info.getName());
+            this.setDescription(info.getDescription());
+            this.setThrottlingTier(info.getThrottlingTier());
+            this.setOwner(info.getOwner());
+            this.setCreatedTime(info.getCreatedTime());
+            this.setAttributes(info.getAttributes());
+            this.setReferenceArtifact(info.getReferenceArtifact());
+            this.setAlreadyImported(info.isAlreadyImported());
+            this.setImportedApplicationId(info.getImportedApplicationId());
+        }
     }
 
     /**
@@ -319,5 +294,34 @@ public class DiscoveredApplication {
      */
     public void setImportedApplicationId(String importedApplicationId) {
         this.importedApplicationId = importedApplicationId;
+    }
+
+    /**
+     * Gets the list of API subscriptions.
+     *
+     * @return List of API subscriptions
+     */
+    public List<DiscoveredAPISubscription> getSubscribedApis() {
+        return subscribedApis;
+    }
+
+    /**
+     * Sets the list of API subscriptions.
+     *
+     * @param subscribedApis The subscribed APIs list to set
+     */
+    public void setSubscribedApis(List<DiscoveredAPISubscription> subscribedApis) {
+        this.subscribedApis = subscribedApis != null ? subscribedApis : new ArrayList<>();
+    }
+
+    /**
+     * Adds an API subscription to the list.
+     *
+     * @param apiSubscription The API subscription to add
+     */
+    public void addApiSubscription(DiscoveredAPISubscription apiSubscription) {
+        if (apiSubscription != null) {
+            this.subscribedApis.add(apiSubscription);
+        }
     }
 }

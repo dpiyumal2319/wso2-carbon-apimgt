@@ -18,10 +18,14 @@
 
 package org.wso2.carbon.apimgt.rest.api.store.v1.mappings;
 
+import org.wso2.carbon.apimgt.api.model.DiscoveredAPISubscription;
 import org.wso2.carbon.apimgt.api.model.DiscoveredApplication;
+import org.wso2.carbon.apimgt.api.model.DiscoveredApplicationInfo;
 import org.wso2.carbon.apimgt.api.model.DiscoveredApplicationKeyInfo;
 import org.wso2.carbon.apimgt.api.model.DiscoveredApplicationResult;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredAPISubscriptionDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationInfoDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationKeyInfoDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.PaginationDTO;
@@ -34,6 +38,27 @@ import java.util.List;
  * Mapping utility for Discovered Applications
  */
 public class DiscoveredApplicationMappingUtil {
+
+    /**
+     * Converts DiscoveredApplicationInfo model to DiscoveredApplicationInfoDTO
+     *
+     * @param info DiscoveredApplicationInfo model
+     * @return DiscoveredApplicationInfoDTO object
+     */
+    public static DiscoveredApplicationInfoDTO fromDiscoveredApplicationInfoToDTO(DiscoveredApplicationInfo info) {
+        DiscoveredApplicationInfoDTO dto = new DiscoveredApplicationInfoDTO();
+        dto.setExternalId(info.getExternalId());
+        dto.setName(info.getName());
+        dto.setDescription(info.getDescription());
+        dto.setTier(info.getThrottlingTier());
+        dto.setOwner(info.getOwner());
+        dto.setCreatedTime(info.getCreatedTime());
+        dto.setAttributes(info.getAttributes());
+        dto.setAlreadyImported(info.isAlreadyImported());
+        dto.setImportedApplicationId(info.getImportedApplicationId());
+        dto.setReferenceArtifact(info.getReferenceArtifact());
+        return dto;
+    }
 
     /**
      * Converts DiscoveredApplication model to DiscoveredApplicationDTO
@@ -52,6 +77,7 @@ public class DiscoveredApplicationMappingUtil {
         dto.setAttributes(discoveredApplication.getAttributes());
         dto.setAlreadyImported(discoveredApplication.isAlreadyImported());
         dto.setImportedApplicationId(discoveredApplication.getImportedApplicationId());
+        dto.setReferenceArtifact(discoveredApplication.getReferenceArtifact());
 
         if (discoveredApplication.getKeyInfoList() != null) {
             List<DiscoveredApplicationKeyInfoDTO> keyInfoDTOS = new ArrayList<>();
@@ -60,6 +86,31 @@ public class DiscoveredApplicationMappingUtil {
             }
             dto.setKeyInfoList(keyInfoDTOS);
         }
+
+        if (discoveredApplication.getSubscribedApis() != null) {
+            List<DiscoveredAPISubscriptionDTO> subscriptionDTOs = new ArrayList<>();
+            for (DiscoveredAPISubscription subscription : discoveredApplication.getSubscribedApis()) {
+                subscriptionDTOs.add(fromDiscoveredAPISubscriptionToDTO(subscription));
+            }
+            dto.setSubscribedApis(subscriptionDTOs);
+        }
+        return dto;
+    }
+
+    /**
+     * Converts DiscoveredAPISubscription model to DiscoveredAPISubscriptionDTO
+     *
+     * @param subscription DiscoveredAPISubscription model
+     * @return DiscoveredAPISubscriptionDTO object
+     */
+    public static DiscoveredAPISubscriptionDTO fromDiscoveredAPISubscriptionToDTO(DiscoveredAPISubscription subscription) {
+        DiscoveredAPISubscriptionDTO dto = new DiscoveredAPISubscriptionDTO();
+        dto.setApiId(subscription.getApiId());
+        dto.setApiName(subscription.getApiName());
+        dto.setApiVersion(subscription.getApiVersion());
+        dto.setApiContext(subscription.getApiContext());
+        dto.setSubscriptionTier(subscription.getSubscriptionTier());
+        dto.setSubscriptionStatus(subscription.getSubscriptionStatus());
         return dto;
     }
 
@@ -91,10 +142,10 @@ public class DiscoveredApplicationMappingUtil {
         DiscoveredApplicationListDTO listDTO = new DiscoveredApplicationListDTO();
         listDTO.setCount(result.getReturnedCount());
         
-        List<DiscoveredApplicationDTO> dtos = new ArrayList<>();
+        List<DiscoveredApplicationInfoDTO> dtos = new ArrayList<>();
         if (result.getDiscoveredApplications() != null) {
-            for (DiscoveredApplication app : result.getDiscoveredApplications()) {
-                dtos.add(fromDiscoveredApplicationToDTO(app));
+            for (DiscoveredApplicationInfo app : result.getDiscoveredApplications()) {
+                dtos.add(fromDiscoveredApplicationInfoToDTO(app));
             }
         }
         listDTO.setList(dtos);

@@ -8,6 +8,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredAPISubscriptionDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationAllOfDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationInfoDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationKeyInfoDTO;
 import javax.validation.constraints.*;
 
@@ -32,9 +35,11 @@ public class DiscoveredApplicationDTO   {
     private String owner = null;
     private String createdTime = null;
     private Map<String, String> attributes = new HashMap<String, String>();
-    private List<DiscoveredApplicationKeyInfoDTO> keyInfoList = new ArrayList<DiscoveredApplicationKeyInfoDTO>();
     private Boolean alreadyImported = null;
     private String importedApplicationId = null;
+    private String referenceArtifact = null;
+    private List<DiscoveredApplicationKeyInfoDTO> keyInfoList = new ArrayList<DiscoveredApplicationKeyInfoDTO>();
+    private List<DiscoveredAPISubscriptionDTO> subscribedApis = new ArrayList<DiscoveredAPISubscriptionDTO>();
 
   /**
    * Unique identifier from the external gateway
@@ -163,24 +168,6 @@ public class DiscoveredApplicationDTO   {
   }
 
   /**
-   **/
-  public DiscoveredApplicationDTO keyInfoList(List<DiscoveredApplicationKeyInfoDTO> keyInfoList) {
-    this.keyInfoList = keyInfoList;
-    return this;
-  }
-
-  
-  @ApiModelProperty(value = "")
-      @Valid
-  @JsonProperty("keyInfoList")
-  public List<DiscoveredApplicationKeyInfoDTO> getKeyInfoList() {
-    return keyInfoList;
-  }
-  public void setKeyInfoList(List<DiscoveredApplicationKeyInfoDTO> keyInfoList) {
-    this.keyInfoList = keyInfoList;
-  }
-
-  /**
    * Indicates if the application is already imported to WSO2
    **/
   public DiscoveredApplicationDTO alreadyImported(Boolean alreadyImported) {
@@ -216,6 +203,62 @@ public class DiscoveredApplicationDTO   {
     this.importedApplicationId = importedApplicationId;
   }
 
+  /**
+   * JSON reference artifact for import
+   **/
+  public DiscoveredApplicationDTO referenceArtifact(String referenceArtifact) {
+    this.referenceArtifact = referenceArtifact;
+    return this;
+  }
+
+  
+  @ApiModelProperty(value = "JSON reference artifact for import")
+  @JsonProperty("referenceArtifact")
+  public String getReferenceArtifact() {
+    return referenceArtifact;
+  }
+  public void setReferenceArtifact(String referenceArtifact) {
+    this.referenceArtifact = referenceArtifact;
+  }
+
+  /**
+   * List of application keys (masked)
+   **/
+  public DiscoveredApplicationDTO keyInfoList(List<DiscoveredApplicationKeyInfoDTO> keyInfoList) {
+    this.keyInfoList = keyInfoList;
+    return this;
+  }
+
+  
+  @ApiModelProperty(value = "List of application keys (masked)")
+      @Valid
+  @JsonProperty("keyInfoList")
+  public List<DiscoveredApplicationKeyInfoDTO> getKeyInfoList() {
+    return keyInfoList;
+  }
+  public void setKeyInfoList(List<DiscoveredApplicationKeyInfoDTO> keyInfoList) {
+    this.keyInfoList = keyInfoList;
+  }
+
+  /**
+   * List of API subscriptions in the external gateway
+   **/
+  public DiscoveredApplicationDTO subscribedApis(List<DiscoveredAPISubscriptionDTO> subscribedApis) {
+    this.subscribedApis = subscribedApis;
+    return this;
+  }
+
+  
+  @ApiModelProperty(value = "List of API subscriptions in the external gateway")
+      @Valid
+  @JsonProperty("subscribedApis")
+  public List<DiscoveredAPISubscriptionDTO> getSubscribedApis() {
+    return subscribedApis;
+  }
+  public void setSubscribedApis(List<DiscoveredAPISubscriptionDTO> subscribedApis) {
+    this.subscribedApis = subscribedApis;
+  }
+
 
   @Override
   public boolean equals(java.lang.Object o) {
@@ -233,14 +276,16 @@ public class DiscoveredApplicationDTO   {
         Objects.equals(owner, discoveredApplication.owner) &&
         Objects.equals(createdTime, discoveredApplication.createdTime) &&
         Objects.equals(attributes, discoveredApplication.attributes) &&
-        Objects.equals(keyInfoList, discoveredApplication.keyInfoList) &&
         Objects.equals(alreadyImported, discoveredApplication.alreadyImported) &&
-        Objects.equals(importedApplicationId, discoveredApplication.importedApplicationId);
+        Objects.equals(importedApplicationId, discoveredApplication.importedApplicationId) &&
+        Objects.equals(referenceArtifact, discoveredApplication.referenceArtifact) &&
+        Objects.equals(keyInfoList, discoveredApplication.keyInfoList) &&
+        Objects.equals(subscribedApis, discoveredApplication.subscribedApis);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(externalId, name, description, tier, owner, createdTime, attributes, keyInfoList, alreadyImported, importedApplicationId);
+    return Objects.hash(externalId, name, description, tier, owner, createdTime, attributes, alreadyImported, importedApplicationId, referenceArtifact, keyInfoList, subscribedApis);
   }
 
   @Override
@@ -255,9 +300,11 @@ public class DiscoveredApplicationDTO   {
     sb.append("    owner: ").append(toIndentedString(owner)).append("\n");
     sb.append("    createdTime: ").append(toIndentedString(createdTime)).append("\n");
     sb.append("    attributes: ").append(toIndentedString(attributes)).append("\n");
-    sb.append("    keyInfoList: ").append(toIndentedString(keyInfoList)).append("\n");
     sb.append("    alreadyImported: ").append(toIndentedString(alreadyImported)).append("\n");
     sb.append("    importedApplicationId: ").append(toIndentedString(importedApplicationId)).append("\n");
+    sb.append("    referenceArtifact: ").append(toIndentedString(referenceArtifact)).append("\n");
+    sb.append("    keyInfoList: ").append(toIndentedString(keyInfoList)).append("\n");
+    sb.append("    subscribedApis: ").append(toIndentedString(subscribedApis)).append("\n");
     sb.append("}");
     return sb.toString();
   }

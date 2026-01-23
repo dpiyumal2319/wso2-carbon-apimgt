@@ -3506,7 +3506,38 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
         - OAuth2Security:
-            - apim:subscribe
+            - apim:admin
+
+  /environments/{environmentId}/discovered-applications/{applicationId}:
+    get:
+      tags:
+        - Applications
+      summary: Get a specific discovered application from external gateway
+      description: |
+        This operation retrieves a specific discovered application from an external gateway environment with keys masked. This is typically used to preview application details before import.
+      operationId: getDiscoveredApplication
+      parameters:
+        - $ref: '#/components/parameters/environmentId'
+        - name: applicationId
+          in: path
+          description: External application ID from the gateway
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK. Discovered application returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoveredApplication'
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:admin
 
   /discovered-applications/import:
     post:
@@ -3538,7 +3569,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
       security:
         - OAuth2Security:
-            - apim:subscribe
+            - apim:admin
 
   ######################################################
   # The "Subscription Collection" resource APIs
@@ -4816,11 +4847,11 @@ components:
         list:
           type: array
           items:
-            $ref: '#/components/schemas/DiscoveredApplication'
+            $ref: '#/components/schemas/DiscoveredApplicationInfo'
         pagination:
           $ref: '#/components/schemas/Pagination'
-    DiscoveredApplication:
-      title: Discovered Application from external gateway
+    DiscoveredApplicationInfo:
+      title: Discovered Application Info (lightweight for listing)
       type: object
       properties:
         externalId:
@@ -4846,16 +4877,53 @@ components:
           additionalProperties:
             type: string
           description: Additional attributes of the application
-        keyInfoList:
-          type: array
-          items:
-            $ref: '#/components/schemas/DiscoveredApplicationKeyInfo'
         alreadyImported:
           type: boolean
           description: Indicates if the application is already imported to WSO2
         importedApplicationId:
           type: string
           description: UUID of the imported application if already imported
+        referenceArtifact:
+          type: string
+          description: JSON reference artifact for import
+    DiscoveredApplication:
+      title: Discovered Application from external gateway (full details)
+      allOf:
+        - $ref: '#/components/schemas/DiscoveredApplicationInfo'
+        - type: object
+          properties:
+            keyInfoList:
+              type: array
+              items:
+                $ref: '#/components/schemas/DiscoveredApplicationKeyInfo'
+              description: List of application keys (masked)
+            subscribedApis:
+              type: array
+              items:
+                $ref: '#/components/schemas/DiscoveredAPISubscription'
+              description: List of API subscriptions in the external gateway
+    DiscoveredAPISubscription:
+      title: Discovered API Subscription
+      type: object
+      properties:
+        apiId:
+          type: string
+          description: External API identifier from the gateway
+        apiName:
+          type: string
+          description: API name
+        apiVersion:
+          type: string
+          description: API version
+        apiContext:
+          type: string
+          description: API context path
+        subscriptionTier:
+          type: string
+          description: Subscription tier/throttling policy
+        subscriptionStatus:
+          type: string
+          description: Subscription status (e.g., ACTIVE, BLOCKED)
     DiscoveredApplicationKeyInfo:
       title: Discovered Application Key Information
       type: object

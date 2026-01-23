@@ -29,9 +29,9 @@ import java.util.List;
 public class DiscoveredApplicationResult {
 
     /**
-     * The list of discovered applications for the current page.
+     * The list of discovered applications for the current page (lightweight info objects).
      */
-    private List<DiscoveredApplication> discoveredApplications = new ArrayList<>();
+    private List<DiscoveredApplicationInfo> discoveredApplications = new ArrayList<>();
 
     /**
      * The total count of applications available in the external gateway.
@@ -68,7 +68,7 @@ public class DiscoveredApplicationResult {
      * @param offset                 The offset used
      * @param limit                  The limit used
      */
-    public DiscoveredApplicationResult(List<DiscoveredApplication> discoveredApplications, int totalCount,
+    public DiscoveredApplicationResult(List<DiscoveredApplicationInfo> discoveredApplications, int totalCount,
                                        int offset, int limit) {
         this.discoveredApplications = discoveredApplications != null ? discoveredApplications : new ArrayList<>();
         this.totalCount = totalCount;
@@ -82,7 +82,7 @@ public class DiscoveredApplicationResult {
      *
      * @return The discovered applications list
      */
-    public List<DiscoveredApplication> getDiscoveredApplications() {
+    public List<DiscoveredApplicationInfo> getDiscoveredApplications() {
         return discoveredApplications;
     }
 
@@ -91,7 +91,7 @@ public class DiscoveredApplicationResult {
      *
      * @param discoveredApplications The list to set
      */
-    public void setDiscoveredApplications(List<DiscoveredApplication> discoveredApplications) {
+    public void setDiscoveredApplications(List<DiscoveredApplicationInfo> discoveredApplications) {
         this.discoveredApplications = discoveredApplications != null ? discoveredApplications : new ArrayList<>();
         this.hasMoreResults = calculateHasMoreResults();
     }
@@ -225,7 +225,7 @@ public class DiscoveredApplicationResult {
      *
      * @param application The application to add
      */
-    public void addDiscoveredApplication(DiscoveredApplication application) {
+    public void addDiscoveredApplication(DiscoveredApplicationInfo application) {
         if (application != null) {
             this.discoveredApplications.add(application);
         }
