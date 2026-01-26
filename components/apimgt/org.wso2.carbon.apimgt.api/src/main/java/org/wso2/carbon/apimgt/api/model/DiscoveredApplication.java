@@ -37,18 +37,36 @@ import java.util.Map;
  * required for stateless import operations. Actual credentials are never exposed
  * in this object - only masked display names are provided.
  * </p>
+ *
+ * <h3>Builder Pattern Usage</h3>
+ * <p>
+ * This class is designed to be constructed using {@link DiscoveredApplicationBuilder} which
+ * enforces a step-by-step construction process:
+ * </p>
+ * <pre>{@code
+ * DiscoveredApplication app = DiscoveredApplicationBuilder.from(appInfo)
+ *     .withKeys(keyInfoList)                      // Stage 2: Add masked keys
+ *     .withExternalApiReferences(apiSubscriptions) // Stage 3: Add external API refs
+ *     .enrichSubscribedApisFromDatabase(...)       // Stage 4: Enrich with WSO2 data
+ *     .build();
+ * }</pre>
+ * <p>
+ * The builder ensures that database enrichment (Stage 4) can only be called after
+ * external API references have been added (Stage 3).
+ * </p>
  */
 public class DiscoveredApplication extends DiscoveredApplicationInfo {
 
     /**
      * List of discovered credential metadata (keys are masked, secrets never exposed).
-     * Populated only when fetching full application details via getApplicationWithKeysMasked().
+     * Populated in Stage 2 of the builder pattern.
      */
     private List<DiscoveredApplicationKeyInfo> keyInfoList = new ArrayList<>();
 
     /**
      * List of API subscriptions for this application in the external gateway.
-     * Populated only when fetching full application details via getApplicationWithKeysMasked().
+     * Populated in Stage 3 (external refs only) and enriched in Stage 4 (WSO2 data).
+     * After Stage 4, each subscription will have isImported=true if the API exists in WSO2.
      */
     private List<DiscoveredAPISubscription> subscribedApis = new ArrayList<>();
 

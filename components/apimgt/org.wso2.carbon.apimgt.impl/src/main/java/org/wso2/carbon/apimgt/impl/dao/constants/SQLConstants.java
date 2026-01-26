@@ -2866,6 +2866,20 @@ public class SQLConstants {
     public static final String GET_APPLICATION_BY_EXTERNAL_APP_ID_SQL = "SELECT APPLICATION_UUID FROM " +
             "AM_APPLICATION_EXTERNAL_MAPPING WHERE EXTERNAL_APP_ID = ? AND GATEWAY_ENV_ID = ?";
 
+    // SQL for fetching all API mappings for an environment to match external API IDs
+    public static final String GET_ALL_API_MAPPINGS_BY_ENVIRONMENT_SQL =
+            "SELECT EAPI.API_ID, EAPI.REFERENCE_ARTIFACT, API.API_NAME, API.API_VERSION, API.CONTEXT, " +
+            "API.STATUS FROM AM_API_EXTERNAL_API_MAPPING EAPI " +
+            "INNER JOIN AM_API API ON EAPI.API_ID = API.API_UUID " +
+            "WHERE EAPI.GATEWAY_ENV_ID = ?";
+
+    // SQL for fetching published API mappings for an environment
+    public static final String GET_PUBLISHED_API_MAPPINGS_BY_ENVIRONMENT_SQL =
+            "SELECT EAPI.API_ID, EAPI.REFERENCE_ARTIFACT, API.API_NAME, API.API_VERSION, API.CONTEXT, " +
+            "API.STATUS FROM AM_API_EXTERNAL_API_MAPPING EAPI " +
+            "INNER JOIN AM_API API ON EAPI.API_ID = API.API_UUID " +
+            "WHERE EAPI.GATEWAY_ENV_ID = ? AND API.STATUS = 'PUBLISHED'";
+
     public static final String CHECK_API_REVISION_DEPLOYMENTS_EXISTS_BY_GATEWAY_ENV_SQL =
             "SELECT COUNT(*) AS REVISION_COUNT "
                     + "FROM AM_DEPLOYMENT_REVISION_MAPPING drm "

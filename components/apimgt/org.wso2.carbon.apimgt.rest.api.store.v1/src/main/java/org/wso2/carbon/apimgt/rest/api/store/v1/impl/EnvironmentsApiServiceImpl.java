@@ -28,6 +28,7 @@ import org.wso2.carbon.apimgt.api.model.DiscoveredApplicationResult;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedApplicationDiscoveryFactory;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
+import org.wso2.carbon.apimgt.impl.utils.DiscoveredApplicationEnricher;
 import org.wso2.carbon.apimgt.rest.api.common.RestApiCommonUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.EnvironmentsApiService;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationDTO;
@@ -68,12 +69,22 @@ public class EnvironmentsApiServiceImpl implements EnvironmentsApiService {
                 return null;
             }
             
-            // Get application with keys masked
+            // Get application with keys masked (Stages 1-3 from builder)
             DiscoveredApplication application = agent.getApplicationWithKeysMasked(applicationId);
             
             if (application == null) {
                 RestApiUtil.handleResourceNotFoundError(RESOURCE_APPLICATION, applicationId, log);
                 return null;
+            }
+
+            // This matches external API IDs with imported APIs and populates WSO2-specific fields
+            if (application.getSubscribedApis() != null && !application.getSubscribedApis().isEmpty()) {
+                DiscoveredApplicationEnricher.enrichSubscribedApis(
+                        application.getSubscribedApis(), environment.getUuid());
+
+                // Filter to only show imported APIs (those that exist in WSO2)
+                application.setSubscribedApis(
+                        DiscoveredApplicationEnricher.filterImportedApis(application.getSubscribedApis()));
             }
             
             DiscoveredApplicationDTO dto = DiscoveredApplicationMappingUtil.fromDiscoveredApplicationToDTO(application);
