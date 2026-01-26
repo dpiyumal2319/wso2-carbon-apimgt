@@ -12,6 +12,7 @@ import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedGatewayEnvironmentListDTO;
 
 import java.util.List;
 
@@ -22,6 +23,7 @@ import javax.ws.rs.core.SecurityContext;
 
 
 public interface EnvironmentsApiService {
+      public Response environmentsGet(MessageContext messageContext) throws APIManagementException;
       public Response getDiscoveredApplication(String environmentId, String applicationId, MessageContext messageContext) throws APIManagementException;
       public Response getDiscoveredApplications(String environmentId, Integer limit, Integer offset, String query, MessageContext messageContext) throws APIManagementException;
 }
