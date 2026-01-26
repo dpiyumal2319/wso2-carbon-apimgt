@@ -33,9 +33,13 @@ import org.wso2.carbon.apimgt.rest.api.common.RestApiCommonUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.EnvironmentsApiService;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationListDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedGatewayEnvironmentListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.DiscoveredApplicationMappingUtil;
+import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.FederatedGatewayEnvironmentMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.util.utils.RestApiUtil;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import javax.ws.rs.core.Response;
 
@@ -47,6 +51,24 @@ public class EnvironmentsApiServiceImpl implements EnvironmentsApiService {
     private static final Log log = LogFactory.getLog(EnvironmentsApiServiceImpl.class);
     private static final String RESOURCE_ENVIRONMENT = "Gateway Environment";
     private static final String RESOURCE_APPLICATION = "Discovered Application";
+
+    @Override
+    public Response environmentsGet(MessageContext messageContext) throws APIManagementException {
+        String organization = RestApiCommonUtil.getLoggedInUserTenantDomain();
+        
+        try {
+            Map<String, Environment> environments = APIUtil.getEnvironments(organization);
+            List<Environment> envList = new ArrayList<>(environments.values());
+            
+            FederatedGatewayEnvironmentListDTO dto = 
+                FederatedGatewayEnvironmentMappingUtil.fromEnvListToEnvListDTO(envList);
+            
+            return Response.ok().entity(dto).build();
+        } catch (APIManagementException e) {
+            RestApiUtil.handleInternalServerError("Error while retrieving gateway environments", e, log);
+            return null;
+        }
+    }
 
     @Override
     public Response getDiscoveredApplication(String environmentId, String applicationId,
