@@ -105,7 +105,10 @@ public class DiscoveredApplicationMappingUtil {
      */
     public static DiscoveredAPISubscriptionDTO fromDiscoveredAPISubscriptionToDTO(DiscoveredAPISubscription subscription) {
         DiscoveredAPISubscriptionDTO dto = new DiscoveredAPISubscriptionDTO();
-        dto.setApiId(subscription.getApiId());
+        // Use wso2ApiId if available (after DB enrichment), otherwise use externalApiId
+        String apiId = subscription.getWso2ApiId() != null ? 
+                subscription.getWso2ApiId() : subscription.getExternalApiId();
+        dto.setApiId(apiId);
         dto.setApiName(subscription.getApiName());
         dto.setApiVersion(subscription.getApiVersion());
         dto.setApiContext(subscription.getApiContext());

@@ -16601,6 +16601,88 @@ public class ApiMgtDAO {
         return applicationUuid;
     }
 
+    /**
+     * Get all published API mappings for an environment.
+     * Returns a map where the key is extracted from the REFERENCE_ARTIFACT JSON (external API ID)
+     * and the value contains WSO2 API details.
+     *
+     * @param environmentId Gateway environment UUID
+     * @param publishedOnly If true, only returns PUBLISHED APIs
+     * @return Map of external API ID to API details (apiId, apiName, apiVersion, context, status)
+     * @throws APIManagementException if an error occurs
+     */
+    public Map<String, Map<String, String>> getApiMappingsByEnvironment(String environmentId, boolean publishedOnly)
+            throws APIManagementException {
+        Map<String, Map<String, String>> apiMappings = new HashMap<>();
+
+        String query = publishedOnly ? SQLConstants.GET_PUBLISHED_API_MAPPINGS_BY_ENVIRONMENT_SQL
+                : SQLConstants.GET_ALL_API_MAPPINGS_BY_ENVIRONMENT_SQL;
+
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(query)) {
+
+            ps.setString(1, environmentId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String apiId = rs.getString("API_ID");
+                    String apiName = rs.getString("API_NAME");
+                    String apiVersion = rs.getString("API_VERSION");
+                    String context = rs.getString("CONTEXT");
+                    String status = rs.getString("STATUS");
+
+                    // Parse reference artifact to extract external API ID
+                    String externalApiId = null;
+                    try (InputStream inputStream = rs.getBinaryStream("REFERENCE_ARTIFACT")) {
+                        if (inputStream != null) {
+                            String referenceArtifact = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+                            externalApiId = extractExternalApiIdFromReferenceArtifact(referenceArtifact);
+                        }
+                    } catch (IOException e) {
+                        log.warn("Error parsing reference artifact for API: " + apiId, e);
+                    }
+
+                    if (externalApiId != null && !externalApiId.isEmpty()) {
+                        Map<String, String> apiDetails = new HashMap<>();
+                        apiDetails.put("apiId", apiId);
+                        apiDetails.put("apiName", apiName);
+                        apiDetails.put("apiVersion", apiVersion);
+                        apiDetails.put("context", context);
+                        apiDetails.put("status", status);
+                        apiMappings.put(externalApiId, apiDetails);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            handleException("Error while retrieving API mappings for environment: " + environmentId, e);
+        }
+
+        return apiMappings;
+    }
+
+    /**
+     * Extracts the external API ID from the reference artifact JSON.
+     * The external API ID is stored in the "id" field of the JSON.
+     *
+     * @param referenceArtifact JSON string containing the reference artifact
+     * @return The external API ID, or null if not found
+     */
+    private String extractExternalApiIdFromReferenceArtifact(String referenceArtifact) {
+        if (referenceArtifact == null || referenceArtifact.isEmpty()) {
+            return null;
+        }
+        try {
+            com.google.gson.JsonObject json = com.google.gson.JsonParser
+                    .parseString(referenceArtifact).getAsJsonObject();
+            if (json.has("id")) {
+                return json.get("id").getAsString();
+            }
+        } catch (Exception e) {
+            log.warn("Error parsing reference artifact JSON: " + e.getMessage());
+        }
+        return null;
+    }
+
     private boolean isEmptyValuesInApplicationAttributesEnabled() {
         return Boolean.parseBoolean(ServiceReferenceHolder.getInstance().getAPIManagerConfigurationService().
                 getAPIManagerConfiguration().getFirstProperty(APIConstants.ApplicationAttributes.
