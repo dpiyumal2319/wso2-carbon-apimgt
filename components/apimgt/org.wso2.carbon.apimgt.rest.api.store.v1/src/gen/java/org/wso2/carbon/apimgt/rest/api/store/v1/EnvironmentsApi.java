@@ -3,7 +3,6 @@ package org.wso2.carbon.apimgt.rest.api.store.v1;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedGatewayEnvironmentListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.EnvironmentsApiService;
 import org.wso2.carbon.apimgt.rest.api.store.v1.impl.EnvironmentsApiServiceImpl;
 import org.wso2.carbon.apimgt.api.APIManagementException;
@@ -37,23 +36,6 @@ public class EnvironmentsApi  {
 
 EnvironmentsApiService delegate = new EnvironmentsApiServiceImpl();
 
-
-    @GET
-    
-    
-    @Produces({ "application/json" })
-    @ApiOperation(value = "Get all gateway environments", notes = "This operation can be used to retrieve the list of gateway environments available for application federation. ", response = FederatedGatewayEnvironmentListDTO.class, authorizations = {
-        @Authorization(value = "OAuth2Security", scopes = {
-            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
-            @AuthorizationScope(scope = "apim:app_manage", description = "Retrieve, Manage and Import, Export applications")
-        })
-    }, tags={ "Environments",  })
-    @ApiResponses(value = { 
-        @ApiResponse(code = 200, message = "OK. List of gateway environments returned.", response = FederatedGatewayEnvironmentListDTO.class),
-        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
-    public Response environmentsGet() throws APIManagementException{
-        return delegate.environmentsGet(securityContext);
-    }
 
     @GET
     @Path("/{environmentId}/discovered-applications/{applicationId}")

@@ -4129,29 +4129,28 @@ paths:
           -F file=@exportedApplication.zip "https://127.0.0.1:9443/api/am/devportal/v3/applications/import?preserveOwner=true&skipSubscriptions=false&appOwner=admin&skipApplicationKeys=false&update=true"'
 
   ######################################################
-  # The "Environments" resource APIs
+  # The "External Environments" resource APIs
   ######################################################
-  /environments:
+  /external-environments:
     get:
       tags:
         - Environments
-      summary: Get all gateway environments
+      summary: Get all external gateway environments
       description: |
-        This operation can be used to retrieve the list of gateway environments available for application federation.
-      operationId: environmentsGet
+        This operation can be used to retrieve the list of external gateway environments available for application federation.
+      operationId: externalEnvironmentsGet
       responses:
         200:
-          description: OK. List of gateway environments returned.
+          description: OK. List of external gateway environments returned.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FederatedGatewayEnvironmentList'
+                $ref: '#/components/schemas/ExternalGatewayEnvironmentList'
         500:
           $ref: '#/components/responses/InternalServerError'
       security:
         - OAuth2Security:
-            - apim:subscribe
-            - apim:app_manage
+            - apim:admin
 
   ######################################################
   # The "Discovered Applications" resource APIs
@@ -5550,20 +5549,20 @@ paths:
 
 components:
   schemas:
-    FederatedGatewayEnvironmentList:
-      title: Federated Gateway Environment List
+    ExternalGatewayEnvironmentList:
+      title: External Gateway Environment List
       type: object
       properties:
         count:
           type: integer
-          description: Number of gateway environments returned.
+          description: Number of external gateway environments returned.
           example: 2
         list:
           type: array
           items:
-            $ref: '#/components/schemas/FederatedGatewayEnvironment'
-    FederatedGatewayEnvironment:
-      title: Federated Gateway Environment
+            $ref: '#/components/schemas/ExternalGatewayEnvironment'
+    ExternalGatewayEnvironment:
+      title: External Gateway Environment
       type: object
       properties:
         id:
@@ -5578,6 +5577,10 @@ components:
           type: string
           description: Display name of the gateway environment
           example: US Region
+        type:
+          type: string
+          description: Environment type (e.g., hybrid, production, sandbox)
+          example: hybrid
         gatewayType:
           type: string
           description: Type of gateway (e.g., Regular, APK)

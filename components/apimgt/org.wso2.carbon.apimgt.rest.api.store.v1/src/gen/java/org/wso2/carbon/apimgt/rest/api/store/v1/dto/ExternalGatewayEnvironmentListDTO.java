@@ -6,7 +6,7 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedGatewayEnvironmentDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ExternalGatewayEnvironmentDTO;
 import javax.validation.constraints.*;
 
 
@@ -21,21 +21,21 @@ import javax.validation.Valid;
 
 
 
-public class FederatedGatewayEnvironmentListDTO   {
+public class ExternalGatewayEnvironmentListDTO   {
   
     private Integer count = null;
-    private List<FederatedGatewayEnvironmentDTO> list = new ArrayList<FederatedGatewayEnvironmentDTO>();
+    private List<ExternalGatewayEnvironmentDTO> list = new ArrayList<ExternalGatewayEnvironmentDTO>();
 
   /**
-   * Number of gateway environments returned.
+   * Number of external gateway environments returned.
    **/
-  public FederatedGatewayEnvironmentListDTO count(Integer count) {
+  public ExternalGatewayEnvironmentListDTO count(Integer count) {
     this.count = count;
     return this;
   }
 
   
-  @ApiModelProperty(example = "2", value = "Number of gateway environments returned.")
+  @ApiModelProperty(example = "2", value = "Number of external gateway environments returned.")
   @JsonProperty("count")
   public Integer getCount() {
     return count;
@@ -46,7 +46,7 @@ public class FederatedGatewayEnvironmentListDTO   {
 
   /**
    **/
-  public FederatedGatewayEnvironmentListDTO list(List<FederatedGatewayEnvironmentDTO> list) {
+  public ExternalGatewayEnvironmentListDTO list(List<ExternalGatewayEnvironmentDTO> list) {
     this.list = list;
     return this;
   }
@@ -55,10 +55,10 @@ public class FederatedGatewayEnvironmentListDTO   {
   @ApiModelProperty(value = "")
       @Valid
   @JsonProperty("list")
-  public List<FederatedGatewayEnvironmentDTO> getList() {
+  public List<ExternalGatewayEnvironmentDTO> getList() {
     return list;
   }
-  public void setList(List<FederatedGatewayEnvironmentDTO> list) {
+  public void setList(List<ExternalGatewayEnvironmentDTO> list) {
     this.list = list;
   }
 
@@ -71,9 +71,9 @@ public class FederatedGatewayEnvironmentListDTO   {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    FederatedGatewayEnvironmentListDTO federatedGatewayEnvironmentList = (FederatedGatewayEnvironmentListDTO) o;
-    return Objects.equals(count, federatedGatewayEnvironmentList.count) &&
-        Objects.equals(list, federatedGatewayEnvironmentList.list);
+    ExternalGatewayEnvironmentListDTO externalGatewayEnvironmentList = (ExternalGatewayEnvironmentListDTO) o;
+    return Objects.equals(count, externalGatewayEnvironmentList.count) &&
+        Objects.equals(list, externalGatewayEnvironmentList.list);
   }
 
   @Override
@@ -84,7 +84,7 @@ public class FederatedGatewayEnvironmentListDTO   {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class FederatedGatewayEnvironmentListDTO {\n");
+    sb.append("class ExternalGatewayEnvironmentListDTO {\n");
     
     sb.append("    count: ").append(toIndentedString(count)).append("\n");
     sb.append("    list: ").append(toIndentedString(list)).append("\n");

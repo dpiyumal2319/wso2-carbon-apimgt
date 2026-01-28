@@ -19,26 +19,26 @@
 package org.wso2.carbon.apimgt.rest.api.store.v1.mappings;
 
 import org.wso2.carbon.apimgt.api.model.Environment;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedGatewayEnvironmentDTO;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedGatewayEnvironmentListDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ExternalGatewayEnvironmentDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ExternalGatewayEnvironmentListDTO;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Utility class for mapping Environment model to FederatedGatewayEnvironment DTOs.
+ * Utility class for mapping Environment model to ExternalGatewayEnvironment DTOs.
  */
-public class FederatedGatewayEnvironmentMappingUtil {
+public class ExternalGatewayEnvironmentMappingUtil {
 
     /**
-     * Convert list of Environment to FederatedGatewayEnvironmentListDTO
+     * Convert list of Environment to ExternalGatewayEnvironmentListDTO
      *
      * @param envList List of Environment
-     * @return FederatedGatewayEnvironmentListDTO containing environment list
+     * @return ExternalGatewayEnvironmentListDTO containing environment list
      */
-    public static FederatedGatewayEnvironmentListDTO fromEnvListToEnvListDTO(List<Environment> envList) {
-        FederatedGatewayEnvironmentListDTO envListDTO = new FederatedGatewayEnvironmentListDTO();
-        List<FederatedGatewayEnvironmentDTO> environmentDTOs = new ArrayList<>();
+    public static ExternalGatewayEnvironmentListDTO fromEnvListToEnvListDTO(List<Environment> envList) {
+        ExternalGatewayEnvironmentListDTO envListDTO = new ExternalGatewayEnvironmentListDTO();
+        List<ExternalGatewayEnvironmentDTO> environmentDTOs = new ArrayList<>();
         
         for (Environment env : envList) {
             environmentDTOs.add(fromEnvToEnvDTO(env));
@@ -50,16 +50,17 @@ public class FederatedGatewayEnvironmentMappingUtil {
     }
 
     /**
-     * Convert Environment to FederatedGatewayEnvironmentDTO
+     * Convert Environment to ExternalGatewayEnvironmentDTO
      *
      * @param env Environment
-     * @return FederatedGatewayEnvironmentDTO containing environment details
+     * @return ExternalGatewayEnvironmentDTO containing environment details
      */
-    public static FederatedGatewayEnvironmentDTO fromEnvToEnvDTO(Environment env) {
-        FederatedGatewayEnvironmentDTO envDTO = new FederatedGatewayEnvironmentDTO();
+    public static ExternalGatewayEnvironmentDTO fromEnvToEnvDTO(Environment env) {
+        ExternalGatewayEnvironmentDTO envDTO = new ExternalGatewayEnvironmentDTO();
         envDTO.setId(env.getUuid());
         envDTO.setName(env.getName());
         envDTO.setDisplayName(env.getDisplayName());
+        envDTO.setType(env.getType());
         envDTO.setGatewayType(env.getGatewayType());
         envDTO.setDescription(env.getDescription());
         return envDTO;
