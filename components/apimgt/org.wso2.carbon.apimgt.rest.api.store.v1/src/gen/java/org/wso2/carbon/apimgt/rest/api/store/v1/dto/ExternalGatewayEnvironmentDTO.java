@@ -18,18 +18,19 @@ import javax.validation.Valid;
 
 
 
-public class FederatedGatewayEnvironmentDTO   {
+public class ExternalGatewayEnvironmentDTO   {
   
     private String id = null;
     private String name = null;
     private String displayName = null;
+    private String type = null;
     private String gatewayType = null;
     private String description = null;
 
   /**
    * UUID of the gateway environment
    **/
-  public FederatedGatewayEnvironmentDTO id(String id) {
+  public ExternalGatewayEnvironmentDTO id(String id) {
     this.id = id;
     return this;
   }
@@ -47,7 +48,7 @@ public class FederatedGatewayEnvironmentDTO   {
   /**
    * Name of the gateway environment
    **/
-  public FederatedGatewayEnvironmentDTO name(String name) {
+  public ExternalGatewayEnvironmentDTO name(String name) {
     this.name = name;
     return this;
   }
@@ -65,7 +66,7 @@ public class FederatedGatewayEnvironmentDTO   {
   /**
    * Display name of the gateway environment
    **/
-  public FederatedGatewayEnvironmentDTO displayName(String displayName) {
+  public ExternalGatewayEnvironmentDTO displayName(String displayName) {
     this.displayName = displayName;
     return this;
   }
@@ -81,9 +82,27 @@ public class FederatedGatewayEnvironmentDTO   {
   }
 
   /**
+   * Environment type (e.g., hybrid, production, sandbox)
+   **/
+  public ExternalGatewayEnvironmentDTO type(String type) {
+    this.type = type;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "hybrid", value = "Environment type (e.g., hybrid, production, sandbox)")
+  @JsonProperty("type")
+  public String getType() {
+    return type;
+  }
+  public void setType(String type) {
+    this.type = type;
+  }
+
+  /**
    * Type of gateway (e.g., Regular, APK)
    **/
-  public FederatedGatewayEnvironmentDTO gatewayType(String gatewayType) {
+  public ExternalGatewayEnvironmentDTO gatewayType(String gatewayType) {
     this.gatewayType = gatewayType;
     return this;
   }
@@ -101,7 +120,7 @@ public class FederatedGatewayEnvironmentDTO   {
   /**
    * Description of the environment
    **/
-  public FederatedGatewayEnvironmentDTO description(String description) {
+  public ExternalGatewayEnvironmentDTO description(String description) {
     this.description = description;
     return this;
   }
@@ -125,27 +144,29 @@ public class FederatedGatewayEnvironmentDTO   {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    FederatedGatewayEnvironmentDTO federatedGatewayEnvironment = (FederatedGatewayEnvironmentDTO) o;
-    return Objects.equals(id, federatedGatewayEnvironment.id) &&
-        Objects.equals(name, federatedGatewayEnvironment.name) &&
-        Objects.equals(displayName, federatedGatewayEnvironment.displayName) &&
-        Objects.equals(gatewayType, federatedGatewayEnvironment.gatewayType) &&
-        Objects.equals(description, federatedGatewayEnvironment.description);
+    ExternalGatewayEnvironmentDTO externalGatewayEnvironment = (ExternalGatewayEnvironmentDTO) o;
+    return Objects.equals(id, externalGatewayEnvironment.id) &&
+        Objects.equals(name, externalGatewayEnvironment.name) &&
+        Objects.equals(displayName, externalGatewayEnvironment.displayName) &&
+        Objects.equals(type, externalGatewayEnvironment.type) &&
+        Objects.equals(gatewayType, externalGatewayEnvironment.gatewayType) &&
+        Objects.equals(description, externalGatewayEnvironment.description);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, displayName, gatewayType, description);
+    return Objects.hash(id, name, displayName, type, gatewayType, description);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class FederatedGatewayEnvironmentDTO {\n");
+    sb.append("class ExternalGatewayEnvironmentDTO {\n");
     
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    displayName: ").append(toIndentedString(displayName)).append("\n");
+    sb.append("    type: ").append(toIndentedString(type)).append("\n");
     sb.append("    gatewayType: ").append(toIndentedString(gatewayType)).append("\n");
     sb.append("    description: ").append(toIndentedString(description)).append("\n");
     sb.append("}");

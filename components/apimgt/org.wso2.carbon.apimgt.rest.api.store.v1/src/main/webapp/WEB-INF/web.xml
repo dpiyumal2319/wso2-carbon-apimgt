@@ -51,7 +51,8 @@
                 org.wso2.carbon.apimgt.rest.api.store.v1.WebhooksApi,
                 org.wso2.carbon.apimgt.rest.api.store.v1.MarketplaceAssistantApi,
                 org.wso2.carbon.apimgt.rest.api.store.v1.McpServersApi,
-                org.wso2.carbon.apimgt.rest.api.store.v1.EnvironmentsApi
+                org.wso2.carbon.apimgt.rest.api.store.v1.EnvironmentsApi,
+                org.wso2.carbon.apimgt.rest.api.store.v1.ExternalEnvironmentsApi
             </param-value>
         </init-param>
         <init-param>

@@ -9,9 +9,8 @@ import org.apache.cxf.jaxrs.ext.multipart.Multipart;
 
 import org.wso2.carbon.apimgt.api.APIManagementException;
 
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationDTO;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DiscoveredApplicationListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ExternalGatewayEnvironmentListDTO;
 
 import java.util.List;
 
@@ -21,7 +20,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 
 
-public interface EnvironmentsApiService {
-      public Response getDiscoveredApplication(String environmentId, String applicationId, MessageContext messageContext) throws APIManagementException;
-      public Response getDiscoveredApplications(String environmentId, Integer limit, Integer offset, String query, MessageContext messageContext) throws APIManagementException;
+public interface ExternalEnvironmentsApiService {
+      public Response externalEnvironmentsGet(MessageContext messageContext) throws APIManagementException;
 }
