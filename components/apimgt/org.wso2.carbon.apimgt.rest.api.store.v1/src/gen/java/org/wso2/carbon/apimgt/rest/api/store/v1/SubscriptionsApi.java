@@ -3,6 +3,8 @@ package org.wso2.carbon.apimgt.rest.api.store.v1;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.APIMonetizationUsageDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.AdditionalSubscriptionInfoListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
 import java.util.List;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionListDTO;
@@ -41,6 +43,44 @@ public class SubscriptionsApi  {
 SubscriptionsApiService delegate = new SubscriptionsApiServiceImpl();
 
 
+    @POST
+    @Path("/{subscriptionId}/federated-subscription")
+    
+    @Produces({ "application/json" })
+    @ApiOperation(value = "Create Federated Subscription on External Gateway ", notes = "This operation creates a subscription on the external gateway for a federated API. Returns the credential (one-time full display) and invocation instructions. ", response = FederatedSubscriptionInfoDTO.class, authorizations = {
+        @Authorization(value = "OAuth2Security", scopes = {
+            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
+            @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
+        })
+    }, tags={ "Federated Subscriptions",  })
+    @ApiResponses(value = { 
+        @ApiResponse(code = 201, message = "Created. Federated subscription created successfully. ", response = FederatedSubscriptionInfoDTO.class),
+        @ApiResponse(code = 400, message = "Bad Request. Invalid request or subscription is not for a federated API. ", response = ErrorDTO.class),
+        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
+        @ApiResponse(code = 409, message = "Conflict. Federated subscription already exists. ", response = ErrorDTO.class),
+        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
+    public Response createFederatedSubscription(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId) throws APIManagementException{
+        return delegate.createFederatedSubscription(subscriptionId, securityContext);
+    }
+
+    @DELETE
+    @Path("/{subscriptionId}/federated-subscription")
+    
+    @Produces({ "application/json" })
+    @ApiOperation(value = "Delete Federated Subscription from External Gateway ", notes = "This operation removes the federated subscription from the external gateway and deletes the local mapping. ", response = Void.class, authorizations = {
+        @Authorization(value = "OAuth2Security", scopes = {
+            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
+            @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
+        })
+    }, tags={ "Federated Subscriptions",  })
+    @ApiResponses(value = { 
+        @ApiResponse(code = 200, message = "OK. Federated subscription deleted successfully. ", response = Void.class),
+        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
+        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
+    public Response deleteFederatedSubscription(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId) throws APIManagementException{
+        return delegate.deleteFederatedSubscription(subscriptionId, securityContext);
+    }
+
     @GET
     @Path("/{apiId}/additionalInfo")
     
@@ -55,6 +95,43 @@ SubscriptionsApiService delegate = new SubscriptionsApiServiceImpl();
         @ApiResponse(code = 404, message = "Not Found. Retrieving types and fields failed. ", response = Void.class) })
     public Response getAdditionalInfoOfAPISubscriptions(@ApiParam(value = "**API ID** consisting of the **UUID** of the API. ",required=true) @PathParam("apiId") String apiId,  @ApiParam(value = "Application Group Id ")  @QueryParam("groupId") String groupId,  @ApiParam(value = "For cross-tenant invocations, this is used to specify the tenant domain, where the resource need to be   retrieved from. " )@HeaderParam("X-WSO2-Tenant") String xWSO2Tenant,  @ApiParam(value = "Starting point within the complete list of items qualified. ", defaultValue="0") @DefaultValue("0") @QueryParam("offset") Integer offset,  @ApiParam(value = "Maximum size of resource array to return. ", defaultValue="25") @DefaultValue("25") @QueryParam("limit") Integer limit,  @ApiParam(value = "Validator for conditional requests; based on the ETag of the formerly retrieved variant of the resourec. " )@HeaderParam("If-None-Match") String ifNoneMatch) throws APIManagementException{
         return delegate.getAdditionalInfoOfAPISubscriptions(apiId, groupId, xWSO2Tenant, offset, limit, ifNoneMatch, securityContext);
+    }
+
+    @GET
+    @Path("/{subscriptionId}/federated-subscription")
+    
+    @Produces({ "application/json" })
+    @ApiOperation(value = "Get Federated Subscription Information ", notes = "This operation retrieves the federated subscription information including masked credential and invocation instructions for a subscription to an API deployed on an external gateway. ", response = FederatedSubscriptionInfoDTO.class, authorizations = {
+        @Authorization(value = "OAuth2Security", scopes = {
+            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
+            @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
+        })
+    }, tags={ "Federated Subscriptions",  })
+    @ApiResponses(value = { 
+        @ApiResponse(code = 200, message = "OK. Federated subscription information returned successfully. ", response = FederatedSubscriptionInfoDTO.class),
+        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
+        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
+    public Response getFederatedSubscription(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId) throws APIManagementException{
+        return delegate.getFederatedSubscription(subscriptionId, securityContext);
+    }
+
+    @POST
+    @Path("/{subscriptionId}/regenerate-credential")
+    
+    @Produces({ "application/json" })
+    @ApiOperation(value = "Regenerate Credential for Federated Subscription ", notes = "This operation can be used to regenerate the credential for a subscription to an API deployed on an external gateway. The old credential will be deleted and a new one will be generated. This operation only works for subscriptions to federated APIs. ", response = FederatedCredentialDTO.class, authorizations = {
+        @Authorization(value = "OAuth2Security", scopes = {
+            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
+            @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
+        })
+    }, tags={ "Subscriptions",  })
+    @ApiResponses(value = { 
+        @ApiResponse(code = 200, message = "OK. New credential generated successfully. ", response = FederatedCredentialDTO.class),
+        @ApiResponse(code = 400, message = "Bad Request. Invalid request or subscription is not for a federated API. ", response = ErrorDTO.class),
+        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
+        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
+    public Response regenerateSubscriptionCredential(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId) throws APIManagementException{
+        return delegate.regenerateSubscriptionCredential(subscriptionId, securityContext);
     }
 
     @GET

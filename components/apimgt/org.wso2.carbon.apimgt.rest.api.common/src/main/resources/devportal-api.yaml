@@ -4006,6 +4006,159 @@ paths:
           source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
           -H "Content-Type: application/json" -X DELETE "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5"'
 
+  /subscriptions/{subscriptionId}/regenerate-credential:
+    post:
+      tags:
+        - Subscriptions
+      summary: |
+        Regenerate Credential for Federated Subscription
+      description: |
+        This operation can be used to regenerate the credential for a subscription to an API deployed on an external gateway.
+        The old credential will be deleted and a new one will be generated.
+        This operation only works for subscriptions to federated APIs.
+      operationId: regenerateSubscriptionCredential
+      parameters:
+        - $ref: '#/components/parameters/subscriptionId'
+      responses:
+        200:
+          description: |
+            OK.
+            New credential generated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FederatedCredential'
+        400:
+          description: |
+            Bad Request.
+            Invalid request or subscription is not for a federated API.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+            - apim:sub_manage
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
+          -X POST "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/regenerate-credential"'
+
+  /subscriptions/{subscriptionId}/federated-subscription:
+    post:
+      tags:
+        - Federated Subscriptions
+      summary: |
+        Create Federated Subscription on External Gateway
+      description: |
+        This operation creates a subscription on the external gateway for a federated API.
+        Returns the credential (one-time full display) and invocation instructions.
+      operationId: createFederatedSubscription
+      parameters:
+        - $ref: '#/components/parameters/subscriptionId'
+      responses:
+        201:
+          description: |
+            Created.
+            Federated subscription created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FederatedSubscriptionInfo'
+        400:
+          description: |
+            Bad Request.
+            Invalid request or subscription is not for a federated API.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        404:
+          $ref: '#/components/responses/NotFound'
+        409:
+          description: |
+            Conflict.
+            Federated subscription already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+            - apim:sub_manage
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
+          -X POST "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/federated-subscription"'
+    get:
+      tags:
+        - Federated Subscriptions
+      summary: |
+        Get Federated Subscription Information
+      description: |
+        This operation retrieves the federated subscription information including masked credential
+        and invocation instructions for a subscription to an API deployed on an external gateway.
+      operationId: getFederatedSubscription
+      parameters:
+        - $ref: '#/components/parameters/subscriptionId'
+      responses:
+        200:
+          description: |
+            OK.
+            Federated subscription information returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FederatedSubscriptionInfo'
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+            - apim:sub_manage
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
+          "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/federated-subscription"'
+    delete:
+      tags:
+        - Federated Subscriptions
+      summary: |
+        Delete Federated Subscription from External Gateway
+      description: |
+        This operation removes the federated subscription from the external gateway
+        and deletes the local mapping.
+      operationId: deleteFederatedSubscription
+      parameters:
+        - $ref: '#/components/parameters/subscriptionId'
+      responses:
+        200:
+          description: |
+            OK.
+            Federated subscription deleted successfully.
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+            - apim:sub_manage
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
+          -X DELETE "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/federated-subscription"'
+
   /subscriptions/{subscriptionId}/usage:
     get:
       tags:
@@ -5956,6 +6109,127 @@ components:
           description: A url and other parameters the subscriber can be redirected.
           readOnly: true
           example: ""
+    FederatedSubscriptionInfo:
+      title: Federated Subscription Information
+      type: object
+      description: Contains credential and invocation information for APIs deployed on external gateways
+      properties:
+        credential:
+          $ref: '#/components/schemas/FederatedCredential'
+        invocationInstruction:
+          $ref: '#/components/schemas/InvocationInstruction'
+        gatewayType:
+          type: string
+          description: Type of the external gateway
+          example: aws
+          enum:
+            - aws
+            - azure
+            - kong
+            - envoy
+        gatewayEnvironmentId:
+          type: string
+          description: UUID of the gateway environment
+          example: 3a4b5c6d-7e8f-9a0b-1c2d-3e4f5a6b7c8d
+    FederatedCredential:
+      title: Federated Credential
+      type: object
+      description: API credential for accessing federated API
+      properties:
+        credentialType:
+          type: string
+          description: Type of credential
+          example: api-key
+          enum:
+            - api-key
+            - subscription-key
+        credentialValue:
+          type: string
+          description: The credential value (full key on create/regenerate, masked on get)
+          example: "••••••••ab12"
+        headerName:
+          type: string
+          description: HTTP header name for the credential
+          example: x-api-key
+        queryParamName:
+          type: string
+          description: Query parameter name for the credential (if applicable)
+          example: apikey
+        isValueRetrievable:
+          type: boolean
+          description: Whether the full credential can be retrieved later
+          example: false
+        externalSubscriptionId:
+          type: string
+          description: External gateway subscription identifier
+          example: abc123def456
+        externalContainerId:
+          type: string
+          description: External container entity (Usage Plan, User, Consumer)
+          example: plan-xyz789
+        createdTime:
+          type: string
+          format: date-time
+          description: Credential creation timestamp
+          readOnly: true
+        expiresAt:
+          type: string
+          format: date-time
+          description: Credential expiration timestamp (if applicable)
+    InvocationInstruction:
+      title: API Invocation Instruction
+      type: object
+      description: Instructions for invoking the federated API
+      properties:
+        gatewayType:
+          type: string
+          description: Type of the gateway
+          example: aws
+        credentialType:
+          type: string
+          description: Type of credential required
+          example: api-key
+        credentialHeaderName:
+          type: string
+          description: Header name for the credential
+          example: x-api-key
+        credentialQueryParam:
+          type: string
+          description: Query parameter name for the credential (if applicable)
+          example: apikey
+        baseUrl:
+          type: string
+          description: Base URL of the API
+          example: https://abc123.execute-api.us-east-1.amazonaws.com
+        basePath:
+          type: string
+          description: Base path of the API
+          example: /prod
+        fullUrl:
+          type: string
+          description: Full URL to the API (baseUrl + basePath)
+          example: https://abc123.execute-api.us-east-1.amazonaws.com/prod
+        region:
+          type: string
+          description: Cloud region (for AWS, Azure)
+          example: us-east-1
+        environment:
+          type: string
+          description: Gateway environment name
+          example: production
+        additionalHeaders:
+          type: object
+          additionalProperties:
+            type: string
+          description: Additional headers required for invocation
+        curlExample:
+          type: string
+          description: Example curl command for invoking the API
+          example: 'curl -X GET -H "x-api-key: YOUR_KEY_HERE" https://abc123.execute-api.us-east-1.amazonaws.com/prod/resource'
+        notes:
+          type: string
+          description: Additional notes or instructions
+          example: 'This API key must be included in the x-api-key header for all requests'
     Tag:
       title: Tag
       type: object

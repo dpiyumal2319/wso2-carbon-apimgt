@@ -66,7 +66,7 @@ public class SubscriptionMappingUtil {
         subscriptionDTO.setSubscriptionId(subscription.getUUID());
         APIInfoDTO apiInfo;
         Identifier apiId = subscription.getIdentifier();
-        ApiTypeWrapper apiTypeWrapper;
+        ApiTypeWrapper apiTypeWrapper = null;
         try {
             apiTypeWrapper = apiConsumer.getAPIorAPIProductByUUID(subscription.getIdentifier().getUUID(), organization);
             subscriptionDTO.setApiId(subscription.getIdentifier().getUUID());
