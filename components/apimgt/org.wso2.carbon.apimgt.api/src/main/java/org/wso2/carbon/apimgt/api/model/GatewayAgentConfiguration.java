@@ -65,6 +65,15 @@ public interface GatewayAgentConfiguration {
     }
 
     /**
+     * Get the implementation class of the external gateway subscription agent
+     *
+     * @return String implementation class name
+     */
+    default String getSubscriptionAgentImplementation() {
+        return null;
+    }
+
+    /**
      * Get vendor type of the external gateway
      *
      * @return String vendor name

@@ -62,6 +62,7 @@ import org.wso2.carbon.apimgt.api.model.ApiResult;
 import org.wso2.carbon.apimgt.api.model.ApiTypeWrapper;
 import org.wso2.carbon.apimgt.api.model.Application;
 import org.wso2.carbon.apimgt.api.model.ApplicationExternalMapping;
+import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
 import org.wso2.carbon.apimgt.api.model.ApplicationInfo;
 import org.wso2.carbon.apimgt.api.model.ApplicationInfoKeyManager;
 import org.wso2.carbon.apimgt.api.model.Backend;
@@ -16732,6 +16733,232 @@ public class ApiMgtDAO {
         return null;
     }
 
+    // Subscription External Mapping Methods
+
+    /**
+     * Add subscription external mapping
+     *
+     * @param mapping The SubscriptionExternalMapping object to add
+     * @throws APIManagementException if an error occurs
+     */
+    public void addSubscriptionExternalMapping(SubscriptionExternalMapping mapping) throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.ADD_SUBSCRIPTION_EXTERNAL_MAPPING_SQL)) {
+
+            connection.setAutoCommit(false);
+            ps.setString(1, mapping.getSubscriptionUuid());
+            ps.setString(2, mapping.getGatewayEnvironmentId());
+            ps.setString(3, mapping.getExternalSubscriptionId());
+            ps.setString(4, mapping.getExternalContainerId());
+            ps.setString(5, mapping.getCredentialReference());
+            if (mapping.getReferenceArtifact() != null) {
+                ps.setBytes(6, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
+            } else {
+                ps.setNull(6, java.sql.Types.BLOB);
+            }
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while adding subscription external mapping for subscription: "
+                    + mapping.getSubscriptionUuid(), e);
+        }
+    }
+
+    /**
+     * Get subscription external mapping
+     *
+     * @param subscriptionUuid UUID of the subscription
+     * @param environmentId    Gateway environment ID
+     * @return SubscriptionExternalMapping object or null if not found
+     * @throws APIManagementException if an error occurs
+     */
+    public SubscriptionExternalMapping getSubscriptionExternalMapping(String subscriptionUuid, String environmentId)
+            throws APIManagementException {
+        SubscriptionExternalMapping mapping = null;
+
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.GET_SUBSCRIPTION_EXTERNAL_MAPPING_SQL)) {
+
+            ps.setString(1, subscriptionUuid);
+            ps.setString(2, environmentId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    mapping = new SubscriptionExternalMapping();
+                    mapping.setSubscriptionUuid(subscriptionUuid);
+                    mapping.setGatewayEnvironmentId(environmentId);
+                    mapping.setExternalSubscriptionId(rs.getString("EXTERNAL_SUBSCRIPTION_ID"));
+                    mapping.setExternalContainerId(rs.getString("EXTERNAL_CONTAINER_ID"));
+                    mapping.setCredentialReference(rs.getString("CREDENTIAL_REFERENCE"));
+                    mapping.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
+                    mapping.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
+
+                    try (InputStream inputStream = rs.getBinaryStream("REFERENCE_ARTIFACT")) {
+                        if (inputStream != null) {
+                            mapping.setReferenceArtifact(IOUtils.toString(inputStream, StandardCharsets.UTF_8));
+                        }
+                    }
+                }
+            }
+
+        } catch (SQLException | IOException e) {
+            handleException("Error while retrieving subscription external mapping for subscription: " 
+                    + subscriptionUuid, e);
+        }
+
+        return mapping;
+    }
+
+    /**
+     * Update subscription external mapping
+     *
+     * @param mapping The SubscriptionExternalMapping object to update
+     * @throws APIManagementException if an error occurs
+     */
+    public void updateSubscriptionExternalMapping(SubscriptionExternalMapping mapping) throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.UPDATE_SUBSCRIPTION_EXTERNAL_MAPPING_SQL)) {
+
+            connection.setAutoCommit(false);
+            ps.setString(1, mapping.getExternalContainerId());
+            ps.setString(2, mapping.getCredentialReference());
+            if (mapping.getReferenceArtifact() != null) {
+                ps.setBytes(3, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
+            } else {
+                ps.setNull(3, java.sql.Types.BLOB);
+            }
+            ps.setTimestamp(4, new Timestamp(System.currentTimeMillis()));
+            ps.setString(5, mapping.getSubscriptionUuid());
+            ps.setString(6, mapping.getGatewayEnvironmentId());
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while updating subscription external mapping for subscription: " 
+                    + mapping.getSubscriptionUuid(), e);
+        }
+    }
+
+    /**
+     * Delete subscription external mapping
+     *
+     * @param subscriptionUuid UUID of the subscription
+     * @param environmentId    Gateway environment ID
+     * @throws APIManagementException if an error occurs
+     */
+    public void deleteSubscriptionExternalMapping(String subscriptionUuid, String environmentId)
+            throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.DELETE_SUBSCRIPTION_EXTERNAL_MAPPING_SQL)) {
+
+            connection.setAutoCommit(false);
+            ps.setString(1, subscriptionUuid);
+            ps.setString(2, environmentId);
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while deleting subscription external mapping for subscription: " 
+                    + subscriptionUuid, e);
+        }
+    }
+
+    /**
+     * Delete all subscription external mappings for a subscription
+     *
+     * @param subscriptionUuid UUID of the subscription
+     * @throws APIManagementException if an error occurs
+     */
+    public void deleteAllSubscriptionExternalMappings(String subscriptionUuid) throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.DELETE_SUBSCRIPTION_EXTERNAL_MAPPINGS_SQL)) {
+
+            connection.setAutoCommit(false);
+            ps.setString(1, subscriptionUuid);
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while deleting all subscription external mappings for subscription: " 
+                    + subscriptionUuid, e);
+        }
+    }
+
+    /**
+     * Get all external subscription mappings for a subscription
+     *
+     * @param subscriptionUuid UUID of the subscription
+     * @return Map of environment ID to SubscriptionExternalMapping objects
+     * @throws APIManagementException if an error occurs
+     */
+    public Map<String, SubscriptionExternalMapping> getSubscriptionExternalMappings(String subscriptionUuid)
+            throws APIManagementException {
+        Map<String, SubscriptionExternalMapping> mappings = new HashMap<>();
+
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.GET_SUBSCRIPTION_EXTERNAL_MAPPINGS_SQL)) {
+
+            ps.setString(1, subscriptionUuid);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
+                    mapping.setSubscriptionUuid(subscriptionUuid);
+                    String environmentId = rs.getString("GATEWAY_ENV_ID");
+                    mapping.setGatewayEnvironmentId(environmentId);
+                    mapping.setExternalSubscriptionId(rs.getString("EXTERNAL_SUBSCRIPTION_ID"));
+                    mapping.setExternalContainerId(rs.getString("EXTERNAL_CONTAINER_ID"));
+                    mapping.setCredentialReference(rs.getString("CREDENTIAL_REFERENCE"));
+                    mapping.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
+                    mapping.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
+
+                    try (InputStream inputStream = rs.getBinaryStream("REFERENCE_ARTIFACT")) {
+                        if (inputStream != null) {
+                            mapping.setReferenceArtifact(IOUtils.toString(inputStream, StandardCharsets.UTF_8));
+                        }
+                    }
+
+                    mappings.put(environmentId, mapping);
+                }
+            }
+
+        } catch (SQLException | IOException e) {
+            handleException("Error while retrieving all subscription external mappings for subscription: " 
+                    + subscriptionUuid, e);
+        }
+
+        return mappings;
+    }
+
+    /**
+     * Check if subscription external mapping exists
+     *
+     * @param subscriptionUuid UUID of the subscription
+     * @param environmentId    Gateway environment ID
+     * @return true if the mapping exists, false otherwise
+     * @throws APIManagementException if an error occurs
+     */
+    public boolean subscriptionExternalMappingExists(String subscriptionUuid, String environmentId)
+            throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(
+                     SQLConstants.CHECK_SUBSCRIPTION_EXTERNAL_MAPPING_EXISTS_SQL)) {
+
+            ps.setString(1, subscriptionUuid);
+            ps.setString(2, environmentId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+
+        } catch (SQLException e) {
+            handleException("Error while checking if subscription external mapping exists for subscription: " 
+                    + subscriptionUuid, e);
+        }
+        return false;
+    }
+
     private boolean isEmptyValuesInApplicationAttributesEnabled() {
         return Boolean.parseBoolean(ServiceReferenceHolder.getInstance().getAPIManagerConfigurationService().
                 getAPIManagerConfiguration().getFirstProperty(APIConstants.ApplicationAttributes.
@@ -23886,6 +24113,31 @@ public class ApiMgtDAO {
             handleException("Failed to fetch API - External API mapping for the API ID: " + apiId, e);
         }
         return references;
+    }
+
+    /**
+     * Get the gateway environment UUID for a federated API from AM_API_EXTERNAL_API_MAPPING table.
+     *
+     * @param apiId UUID of the API
+     * @return Gateway environment UUID, or null if no mapping found
+     * @throws APIManagementException if database error occurs
+     */
+    public String getGatewayEnvironmentIdForExternalApi(String apiId) throws APIManagementException {
+        String gatewayEnvId = null;
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement statement =
+                     connection.prepareStatement(SQLConstants.GET_GATEWAY_ENV_ID_FROM_EXTERNAL_MAPPING_SQL)) {
+            statement.setString(1, apiId);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    gatewayEnvId = resultSet.getString("GATEWAY_ENV_ID");
+                }
+            }
+        } catch (SQLException e) {
+            handleException("Failed to fetch gateway environment ID for external API: " + apiId, e);
+        }
+        return gatewayEnvId;
     }
 
     /**
