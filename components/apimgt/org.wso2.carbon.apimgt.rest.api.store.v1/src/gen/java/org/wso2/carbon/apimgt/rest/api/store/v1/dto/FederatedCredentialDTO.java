@@ -56,11 +56,8 @@ return null;
     }
     private CredentialTypeEnum credentialType = null;
     private String credentialValue = null;
-    private String headerName = null;
-    private String queryParamName = null;
     private Boolean isValueRetrievable = null;
     private String externalSubscriptionId = null;
-    private String externalContainerId = null;
     private java.util.Date createdTime = null;
     private java.util.Date expiresAt = null;
 
@@ -101,42 +98,6 @@ return null;
   }
 
   /**
-   * HTTP header name for the credential
-   **/
-  public FederatedCredentialDTO headerName(String headerName) {
-    this.headerName = headerName;
-    return this;
-  }
-
-  
-  @ApiModelProperty(example = "x-api-key", value = "HTTP header name for the credential")
-  @JsonProperty("headerName")
-  public String getHeaderName() {
-    return headerName;
-  }
-  public void setHeaderName(String headerName) {
-    this.headerName = headerName;
-  }
-
-  /**
-   * Query parameter name for the credential (if applicable)
-   **/
-  public FederatedCredentialDTO queryParamName(String queryParamName) {
-    this.queryParamName = queryParamName;
-    return this;
-  }
-
-  
-  @ApiModelProperty(example = "apikey", value = "Query parameter name for the credential (if applicable)")
-  @JsonProperty("queryParamName")
-  public String getQueryParamName() {
-    return queryParamName;
-  }
-  public void setQueryParamName(String queryParamName) {
-    this.queryParamName = queryParamName;
-  }
-
-  /**
    * Whether the full credential can be retrieved later
    **/
   public FederatedCredentialDTO isValueRetrievable(Boolean isValueRetrievable) {
@@ -170,24 +131,6 @@ return null;
   }
   public void setExternalSubscriptionId(String externalSubscriptionId) {
     this.externalSubscriptionId = externalSubscriptionId;
-  }
-
-  /**
-   * External container entity (Usage Plan, User, Consumer)
-   **/
-  public FederatedCredentialDTO externalContainerId(String externalContainerId) {
-    this.externalContainerId = externalContainerId;
-    return this;
-  }
-
-  
-  @ApiModelProperty(example = "plan-xyz789", value = "External container entity (Usage Plan, User, Consumer)")
-  @JsonProperty("externalContainerId")
-  public String getExternalContainerId() {
-    return externalContainerId;
-  }
-  public void setExternalContainerId(String externalContainerId) {
-    this.externalContainerId = externalContainerId;
   }
 
   /**
@@ -238,18 +181,15 @@ return null;
     FederatedCredentialDTO federatedCredential = (FederatedCredentialDTO) o;
     return Objects.equals(credentialType, federatedCredential.credentialType) &&
         Objects.equals(credentialValue, federatedCredential.credentialValue) &&
-        Objects.equals(headerName, federatedCredential.headerName) &&
-        Objects.equals(queryParamName, federatedCredential.queryParamName) &&
         Objects.equals(isValueRetrievable, federatedCredential.isValueRetrievable) &&
         Objects.equals(externalSubscriptionId, federatedCredential.externalSubscriptionId) &&
-        Objects.equals(externalContainerId, federatedCredential.externalContainerId) &&
         Objects.equals(createdTime, federatedCredential.createdTime) &&
         Objects.equals(expiresAt, federatedCredential.expiresAt);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(credentialType, credentialValue, headerName, queryParamName, isValueRetrievable, externalSubscriptionId, externalContainerId, createdTime, expiresAt);
+    return Objects.hash(credentialType, credentialValue, isValueRetrievable, externalSubscriptionId, createdTime, expiresAt);
   }
 
   @Override
@@ -259,11 +199,8 @@ return null;
     
     sb.append("    credentialType: ").append(toIndentedString(credentialType)).append("\n");
     sb.append("    credentialValue: ").append(toIndentedString(credentialValue)).append("\n");
-    sb.append("    headerName: ").append(toIndentedString(headerName)).append("\n");
-    sb.append("    queryParamName: ").append(toIndentedString(queryParamName)).append("\n");
     sb.append("    isValueRetrievable: ").append(toIndentedString(isValueRetrievable)).append("\n");
     sb.append("    externalSubscriptionId: ").append(toIndentedString(externalSubscriptionId)).append("\n");
-    sb.append("    externalContainerId: ").append(toIndentedString(externalContainerId)).append("\n");
     sb.append("    createdTime: ").append(toIndentedString(createdTime)).append("\n");
     sb.append("    expiresAt: ").append(toIndentedString(expiresAt)).append("\n");
     sb.append("}");

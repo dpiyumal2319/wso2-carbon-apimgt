@@ -24,6 +24,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.PatchRequestBodyDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.PostRequestBodyDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.RatingDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.RatingListDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionSupportInfoDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ThrottlingPolicyDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.TopicListDTO;
 
@@ -59,6 +60,7 @@ public interface ApisApiService {
       public Response deleteComment(String commentId, String apiId, String ifMatch, MessageContext messageContext) throws APIManagementException;
       public Response editCommentOfAPI(String commentId, String apiId, PatchRequestBodyDTO patchRequestBodyDTO, MessageContext messageContext) throws APIManagementException;
       public Response getAllCommentsOfAPI(String apiId, String xWSO2Tenant, Integer limit, Integer offset, Boolean includeCommenterInfo, MessageContext messageContext) throws APIManagementException;
+      public Response getApiSubscriptionSupport(String apiId, MessageContext messageContext) throws APIManagementException;
       public Response getCommentOfAPI(String commentId, String apiId, String xWSO2Tenant, String ifNoneMatch, Boolean includeCommenterInfo, Integer replyLimit, Integer replyOffset, MessageContext messageContext) throws APIManagementException;
       public Response getRepliesOfComment(String commentId, String apiId, String xWSO2Tenant, Integer limit, Integer offset, String ifNoneMatch, Boolean includeCommenterInfo, MessageContext messageContext) throws APIManagementException;
       public Response getWSDLOfAPI(String apiId, String environmentName, String ifNoneMatch, String xWSO2Tenant, MessageContext messageContext) throws APIManagementException;

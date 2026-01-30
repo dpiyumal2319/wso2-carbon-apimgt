@@ -57,7 +57,7 @@ public interface FederatedSubscriptionAgent {
      * </p>
      *
      * @param request The subscription request containing WSO2 and external identifiers
-     * @return FederatedCredential containing the full credential value (one-time display)
+     * @return FederatedCredential containing the full credential value (one-time display) (Unmasked)
      * @throws APIManagementException If subscription creation fails
      */
     FederatedCredential createSubscription(FederatedSubscriptionRequest request) throws APIManagementException;
@@ -83,29 +83,56 @@ public interface FederatedSubscriptionAgent {
      * </p>
      *
      * @param externalSubscriptionId The external gateway's subscription identifier
-     * @return FederatedCredential containing the new full credential value
+     * @return FederatedCredential containing the new full credential value (Unmasked)
      * @throws APIManagementException If credential regeneration fails
      */
     FederatedCredential regenerateCredential(String externalSubscriptionId) throws APIManagementException;
 
     /**
+     * Retrieves the full credential value from the gateway.
+     * Only supported by gateways that allow credential retrieval (Azure).
+     * <p>
+     * Default implementation throws an exception. Override for gateways that support it.
+     * </p>
+     *
+     * @param externalSubscriptionId The external gateway's subscription identifier
+     * @return FederatedCredential containing the full credential value
+     * @throws APIManagementException If retrieval fails or is not supported
+     */
+    default FederatedCredential retrieveCredential(String externalSubscriptionId) throws APIManagementException {
+        throw new APIManagementException("This gateway does not support credential retrieval");
+    }
+
+    /**
      * Gets the API invocation instructions from the reference artifact.
-     * <p>
-     * Returns information about how to invoke the API including:
-     * - The header name for the credential
-     * - Base URL and path
-     * - Example curl command
-     * </p>
-     * <p>
-     * Each connector implementation parses its own reference artifact format
-     * to extract the necessary API identifiers.
-     * </p>
+     * Each connector implementation parses its own reference artifact format.
      *
      * @param referenceArtifact The raw reference artifact JSON from AM_API_EXTERNAL_API_MAPPING
      * @return InvocationInstruction containing API invocation details
      * @throws APIManagementException If fetching instructions fails
      */
     InvocationInstruction getInvocationInstruction(String referenceArtifact) throws APIManagementException;
+
+    /**
+     * Builds the subscription reference artifact JSON for storage in AM_SUBSCRIPTION_EXTERNAL_MAPPING.
+     * Each connector owns its reference artifact format and encodes credential info,
+     * invocation instructions, and any gateway-specific metadata.
+     *
+     * @param credential  The credential returned from createSubscription/regenerateCredential
+     * @param instruction The invocation instruction (may be null)
+     * @return JSON string to store as the subscription reference artifact
+     */
+    String buildSubscriptionReferenceArtifact(FederatedCredential credential,
+                                               InvocationInstruction instruction);
+
+    /**
+     * Extracts a masked credential from the subscription reference artifact.
+     * Each connector parses its own reference artifact format.
+     *
+     * @param subscriptionReferenceArtifact The reference artifact from AM_SUBSCRIPTION_EXTERNAL_MAPPING
+     * @return FederatedCredential with masked values, or null if not available
+     */
+    FederatedCredential extractCredentialFromReferenceArtifact(String subscriptionReferenceArtifact);
 
     /**
      * Checks if a subscription exists in the external gateway.
@@ -129,4 +156,24 @@ public interface FederatedSubscriptionAgent {
      * @return The gateway type (e.g., "Azure", "AWS", "Kong", "Envoy")
      */
     String getGatewayType();
+
+    /**
+     * Checks supported authentication types for the API on the external gateway.
+     * <p>
+     * This method queries the external gateway to determine if the API requires
+     * subscription-level authentication and what credential types are supported.
+     * </p>
+     * <p>
+     * Default implementation assumes subscription is required with opaque API key authentication.
+     * Override this method to implement gateway-specific logic.
+     * </p>
+     *
+     * @param apiReferenceArtifact The API reference artifact from AM_API_EXTERNAL_API_MAPPING
+     * @return Array of supported auth type strings (e.g., ["opaque-api-key"]), empty if no subscription security
+     * @throws APIManagementException if check fails
+     */
+    default String[] getSupportedAuthTypes(String apiReferenceArtifact) throws APIManagementException {
+        // Default: assume subscription required with opaque API key
+        return new String[]{"opaque-api-key"};
+    }
 }

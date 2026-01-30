@@ -5140,13 +5140,14 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             
             // Regenerate credential
             FederatedCredential newCredential = agent.regenerateCredential(mapping.getExternalSubscriptionId());
-            
-            // Update database with new masked credential
-            String maskedValue = newCredential.getMaskedCredentialReference();
-            mapping.setCredentialReference(maskedValue);
+
+            // Let the connector rebuild the reference artifact with new credential info
+            String updatedArtifact = agent.buildSubscriptionReferenceArtifact(newCredential, null);
+            mapping.setReferenceArtifact(updatedArtifact);
             mapping.setLastUpdatedTime(new java.sql.Timestamp(System.currentTimeMillis()));
             apiMgtDAO.updateSubscriptionExternalMapping(mapping);
-            
+
+            // Return full credential for one-time display
             return newCredential;
 
         } catch (Exception e) {
@@ -5180,7 +5181,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         // Create subscription on external gateway
         FederatedCredential credential = agent.createSubscription(request);
 
-        // Get invocation instruction
+        // Get invocation instruction (kept for now, pending API team discussion)
         InvocationInstruction instruction = null;
         if (request.getReferenceArtifact() != null) {
             try {
@@ -5190,21 +5191,19 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             }
         }
 
+        // Let the connector build its own reference artifact format
+        String subscriptionReferenceArtifact = agent.buildSubscriptionReferenceArtifact(credential, instruction);
+
         // Store mapping in database
         SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
         mapping.setSubscriptionUuid(subscriptionUuid);
         mapping.setGatewayEnvironmentId(environmentId);
         mapping.setExternalSubscriptionId(credential.getExternalSubscriptionId());
-        mapping.setExternalContainerId(credential.getExternalContainerId());
-        mapping.setCredentialReference(credential.getMaskedCredentialReference());
-
-        // Store reference artifact as JSON
-        if (instruction != null) {
-            mapping.setReferenceArtifact(serializeInvocationInstruction(instruction));
-        }
+        mapping.setReferenceArtifact(subscriptionReferenceArtifact);
 
         apiMgtDAO.addSubscriptionExternalMapping(mapping);
 
+        // Return full credential on creation (one-time display)
         return credential;
     }
 
@@ -5256,6 +5255,53 @@ APIConstants.AuditLogConstants.DELETED, this.username);
     }
 
     @Override
+    public FederatedCredential getFederatedCredentialFromReferenceArtifact(String subscriptionReferenceArtifact,
+            String gatewayEnvironmentId, String organization) throws APIManagementException {
+
+        Environment environment = apiMgtDAO.getEnvironment(organization, gatewayEnvironmentId);
+        if (environment == null) {
+            throw new APIManagementException("Gateway environment not found: " + gatewayEnvironmentId);
+        }
+
+        FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
+                environment, organization);
+        return agent.extractCredentialFromReferenceArtifact(subscriptionReferenceArtifact);
+    }
+
+    @Override
+    public FederatedCredential retrieveFederatedCredential(String subscriptionUuid,
+            String gatewayEnvironmentId, String organization) throws APIManagementException {
+
+        // Get subscription external mapping
+        SubscriptionExternalMapping mapping = apiMgtDAO.getSubscriptionExternalMapping(
+                subscriptionUuid, gatewayEnvironmentId);
+
+        if (mapping == null) {
+            throw new APIManagementException("No external subscription mapping found for subscription: "
+                    + subscriptionUuid + " in gateway environment: " + gatewayEnvironmentId);
+        }
+
+        // Get gateway environment
+        Environment environment = apiMgtDAO.getEnvironment(organization, gatewayEnvironmentId);
+        if (environment == null) {
+            throw new APIManagementException("Gateway environment not found: " + gatewayEnvironmentId);
+        }
+
+        // Get subscription agent
+        FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
+                environment, organization);
+
+        // Check if gateway supports credential retrieval
+        FederatedCredential maskedCred = agent.extractCredentialFromReferenceArtifact(mapping.getReferenceArtifact());
+        if (maskedCred == null || !maskedCred.isValueRetrievable()) {
+            throw new APIManagementException("This gateway does not support credential retrieval");
+        }
+
+        // Retrieve full credential from gateway
+        return agent.retrieveCredential(mapping.getExternalSubscriptionId());
+    }
+
+    @Override
     public InvocationInstruction getFederatedInvocationInstruction(String referenceArtifact,
             String gatewayEnvironmentId, String organization) throws APIManagementException {
 
@@ -5269,32 +5315,6 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         return agent.getInvocationInstruction(referenceArtifact);
     }
 
-    /**
-     * Serializes an InvocationInstruction to a JSON string for storage.
-     */
-    private String serializeInvocationInstruction(InvocationInstruction instruction) {
-        if (instruction == null) {
-            return null;
-        }
-        try {
-            org.json.simple.JSONObject json = new org.json.simple.JSONObject();
-            json.put("gatewayType", instruction.getGatewayType());
-            json.put("headerName", instruction.getHeaderName());
-            json.put("baseUrl", instruction.getBaseUrl());
-            json.put("basePath", instruction.getBasePath());
-            json.put("curlExample", instruction.getCurlExample());
-            json.put("notes", instruction.getNotes());
-            if (instruction.getAdditionalHeaders() != null && !instruction.getAdditionalHeaders().isEmpty()) {
-                org.json.simple.JSONObject headers = new org.json.simple.JSONObject();
-                headers.putAll(instruction.getAdditionalHeaders());
-                json.put("additionalHeaders", headers);
-            }
-            return json.toJSONString();
-        } catch (Exception e) {
-            log.warn("Failed to serialize invocation instruction", e);
-            return null;
-        }
-    }
 
     /**
      * Deserializes an InvocationInstruction from a JSON string.

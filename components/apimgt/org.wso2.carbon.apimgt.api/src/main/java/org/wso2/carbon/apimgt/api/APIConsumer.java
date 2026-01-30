@@ -985,6 +985,32 @@ public interface APIConsumer extends APIManager {
             String gatewayEnvironmentId, String organization) throws APIManagementException;
 
     /**
+     * Extracts a masked credential from the subscription reference artifact using the
+     * appropriate gateway connector agent.
+     *
+     * @param subscriptionReferenceArtifact The reference artifact from AM_SUBSCRIPTION_EXTERNAL_MAPPING
+     * @param gatewayEnvironmentId UUID of the gateway environment
+     * @param organization Organization name
+     * @return FederatedCredential with masked values
+     * @throws APIManagementException if extraction fails
+     */
+    FederatedCredential getFederatedCredentialFromReferenceArtifact(String subscriptionReferenceArtifact,
+            String gatewayEnvironmentId, String organization) throws APIManagementException;
+
+    /**
+     * Retrieves the full credential value from the external gateway.
+     * Only works for gateways that support credential retrieval (Azure).
+     *
+     * @param subscriptionUuid UUID of the WSO2 subscription
+     * @param gatewayEnvironmentId UUID of the gateway environment
+     * @param organization Organization name
+     * @return FederatedCredential with full credential value
+     * @throws APIManagementException if retrieval fails or gateway doesn't support it
+     */
+    FederatedCredential retrieveFederatedCredential(String subscriptionUuid,
+            String gatewayEnvironmentId, String organization) throws APIManagementException;
+
+    /**
      * Get invocation instruction for a federated API from the external gateway.
      *
      * @param referenceArtifact Raw reference artifact JSON from AM_API_EXTERNAL_API_MAPPING

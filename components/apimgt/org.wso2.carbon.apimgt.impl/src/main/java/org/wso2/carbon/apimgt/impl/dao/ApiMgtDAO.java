@@ -16700,12 +16700,10 @@ public class ApiMgtDAO {
             ps.setString(1, mapping.getSubscriptionUuid());
             ps.setString(2, mapping.getGatewayEnvironmentId());
             ps.setString(3, mapping.getExternalSubscriptionId());
-            ps.setString(4, mapping.getExternalContainerId());
-            ps.setString(5, mapping.getCredentialReference());
             if (mapping.getReferenceArtifact() != null) {
-                ps.setBytes(6, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
+                ps.setBytes(4, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
             } else {
-                ps.setNull(6, java.sql.Types.BLOB);
+                ps.setNull(4, java.sql.Types.BLOB);
             }
             ps.executeUpdate();
             connection.commit();
@@ -16740,8 +16738,6 @@ public class ApiMgtDAO {
                     mapping.setSubscriptionUuid(subscriptionUuid);
                     mapping.setGatewayEnvironmentId(environmentId);
                     mapping.setExternalSubscriptionId(rs.getString("EXTERNAL_SUBSCRIPTION_ID"));
-                    mapping.setExternalContainerId(rs.getString("EXTERNAL_CONTAINER_ID"));
-                    mapping.setCredentialReference(rs.getString("CREDENTIAL_REFERENCE"));
                     mapping.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
                     mapping.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
 
@@ -16754,7 +16750,7 @@ public class ApiMgtDAO {
             }
 
         } catch (SQLException | IOException e) {
-            handleException("Error while retrieving subscription external mapping for subscription: " 
+            handleException("Error while retrieving subscription external mapping for subscription: "
                     + subscriptionUuid, e);
         }
 
@@ -16772,16 +16768,14 @@ public class ApiMgtDAO {
              PreparedStatement ps = connection.prepareStatement(SQLConstants.UPDATE_SUBSCRIPTION_EXTERNAL_MAPPING_SQL)) {
 
             connection.setAutoCommit(false);
-            ps.setString(1, mapping.getExternalContainerId());
-            ps.setString(2, mapping.getCredentialReference());
             if (mapping.getReferenceArtifact() != null) {
-                ps.setBytes(3, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
+                ps.setBytes(1, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
             } else {
-                ps.setNull(3, java.sql.Types.BLOB);
+                ps.setNull(1, java.sql.Types.BLOB);
             }
-            ps.setTimestamp(4, new Timestamp(System.currentTimeMillis()));
-            ps.setString(5, mapping.getSubscriptionUuid());
-            ps.setString(6, mapping.getGatewayEnvironmentId());
+            ps.setTimestamp(2, new Timestamp(System.currentTimeMillis()));
+            ps.setString(3, mapping.getSubscriptionUuid());
+            ps.setString(4, mapping.getGatewayEnvironmentId());
             ps.executeUpdate();
             connection.commit();
 
@@ -16859,8 +16853,6 @@ public class ApiMgtDAO {
                     String environmentId = rs.getString("GATEWAY_ENV_ID");
                     mapping.setGatewayEnvironmentId(environmentId);
                     mapping.setExternalSubscriptionId(rs.getString("EXTERNAL_SUBSCRIPTION_ID"));
-                    mapping.setExternalContainerId(rs.getString("EXTERNAL_CONTAINER_ID"));
-                    mapping.setCredentialReference(rs.getString("CREDENTIAL_REFERENCE"));
                     mapping.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
                     mapping.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
 

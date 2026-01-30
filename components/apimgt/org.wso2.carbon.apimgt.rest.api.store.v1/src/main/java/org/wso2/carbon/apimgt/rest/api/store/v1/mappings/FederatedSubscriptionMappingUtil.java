@@ -18,22 +18,27 @@
 
 package org.wso2.carbon.apimgt.rest.api.store.v1.mappings;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.apimgt.api.model.FederatedCredential;
-import org.wso2.carbon.apimgt.api.model.InvocationInstruction;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.InvocationInstructionDTO;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.Date;
 
 /**
- * Mapping utility for federated subscription related DTOs
+ * Mapping utility for federated subscription related DTOs.
+ * This utility only handles model-to-DTO conversion. Reference artifact parsing
+ * is the responsibility of each gateway connector.
  */
 public class FederatedSubscriptionMappingUtil {
 
+    private static final Log log = LogFactory.getLog(FederatedSubscriptionMappingUtil.class);
+
     /**
-     * Converts FederatedCredential model to DTO
+     * Converts FederatedCredential model to DTO.
      */
     public static FederatedCredentialDTO fromFederatedCredentialToDTO(FederatedCredential credential) {
         if (credential == null) {
@@ -43,86 +48,44 @@ public class FederatedSubscriptionMappingUtil {
         FederatedCredentialDTO dto = new FederatedCredentialDTO();
         dto.setCredentialType(FederatedCredentialDTO.CredentialTypeEnum.fromValue(credential.getCredentialType()));
         dto.setCredentialValue(credential.getCredentialValue());
-        dto.setHeaderName(credential.getHeaderName());
-        dto.setIsValueRetrievable(false); // Hardcoded as false for security
+        dto.setIsValueRetrievable(credential.isValueRetrievable());
         dto.setExternalSubscriptionId(credential.getExternalSubscriptionId());
-        dto.setExternalContainerId(credential.getExternalContainerId());
 
-        return dto;
-    }
-
-    /**
-     * Converts InvocationInstruction model to DTO
-     */
-    public static InvocationInstructionDTO fromInvocationInstructionToDTO(InvocationInstruction instruction) {
-        if (instruction == null) {
-            return null;
+        // Parse ISO timestamps to Date
+        if (credential.getCreatedTime() != null) {
+            try {
+                dto.setCreatedTime(Date.from(OffsetDateTime.parse(credential.getCreatedTime()).toInstant()));
+            } catch (DateTimeParseException e) {
+                log.warn("Failed to parse createdTime: " + credential.getCreatedTime(), e);
+            }
         }
-
-        InvocationInstructionDTO dto = new InvocationInstructionDTO();
-        dto.setGatewayType(instruction.getGatewayType());
-        dto.setCredentialHeaderName(instruction.getHeaderName());
-        dto.setBaseUrl(instruction.getBaseUrl());
-        dto.setBasePath(instruction.getBasePath());
-        dto.setFullUrl(instruction.getFullEndpointUrl());
-        dto.setCurlExample(instruction.getCurlExample());
-        dto.setNotes(instruction.getNotes());
-
-        // Convert Map<String, String> to Map<String, String> (already compatible)
-        if (instruction.getAdditionalHeaders() != null) {
-            Map<String, String> headers = new HashMap<>();
-            headers.putAll(instruction.getAdditionalHeaders());
-            dto.setAdditionalHeaders(headers);
+        if (credential.getExpiresAt() != null) {
+            try {
+                dto.setExpiresAt(Date.from(OffsetDateTime.parse(credential.getExpiresAt()).toInstant()));
+            } catch (DateTimeParseException e) {
+                log.warn("Failed to parse expiresAt: " + credential.getExpiresAt(), e);
+            }
         }
 
         return dto;
     }
 
     /**
-     * Converts complete federated subscription info to DTO
+     * Converts complete federated subscription info to DTO.
      */
     public static FederatedSubscriptionInfoDTO fromFederatedSubscriptionInfoToDTO(
-            FederatedCredential credential, InvocationInstruction instruction, 
-            String gatewayType, String gatewayEnvironmentId) {
-        
-        if (credential == null && instruction == null) {
+            FederatedCredential credential, String gatewayType, String gatewayEnvironmentId) {
+
+        if (credential == null) {
             return null;
         }
 
         FederatedSubscriptionInfoDTO dto = new FederatedSubscriptionInfoDTO();
-        
-        if (credential != null) {
-            dto.setCredential(fromFederatedCredentialToDTO(credential));
-        }
-        
-        if (instruction != null) {
-            dto.setInvocationInstruction(fromInvocationInstructionToDTO(instruction));
-        }
-        
+        dto.setCredential(fromFederatedCredentialToDTO(credential));
         dto.setGatewayType(FederatedSubscriptionInfoDTO.GatewayTypeEnum.fromValue(
                 gatewayType != null ? gatewayType.toLowerCase() : null));
         dto.setGatewayEnvironmentId(gatewayEnvironmentId);
 
         return dto;
-    }
-
-    /**
-     * Converts DTO to FederatedCredential model
-     */
-    public static FederatedCredential fromDTOtoFederatedCredential(FederatedCredentialDTO dto) {
-        if (dto == null) {
-            return null;
-        }
-
-        FederatedCredential credential = new FederatedCredential();
-        if (dto.getCredentialType() != null) {
-            credential.setCredentialType(dto.getCredentialType().name());
-        }
-        credential.setCredentialValue(dto.getCredentialValue());
-        credential.setHeaderName(dto.getHeaderName());
-        credential.setExternalSubscriptionId(dto.getExternalSubscriptionId());
-        credential.setExternalContainerId(dto.getExternalContainerId());
-
-        return credential;
     }
 }

@@ -15,6 +15,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.PatchRequestBodyDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.PostRequestBodyDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.RatingDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.RatingListDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionSupportInfoDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ThrottlingPolicyDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.TopicListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.ApisApiService;
@@ -458,6 +459,22 @@ ApisApiService delegate = new ApisApiServiceImpl();
         @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
     public Response getAllCommentsOfAPI(@ApiParam(value = "**API ID** consisting of the **UUID** of the API. ",required=true) @PathParam("apiId") String apiId,  @ApiParam(value = "For cross-tenant invocations, this is used to specify the tenant domain, where the resource need to be   retrieved from. " )@HeaderParam("X-WSO2-Tenant") String xWSO2Tenant,  @ApiParam(value = "Maximum size of resource array to return. ", defaultValue="25") @DefaultValue("25") @QueryParam("limit") Integer limit,  @ApiParam(value = "Starting point within the complete list of items qualified. ", defaultValue="0") @DefaultValue("0") @QueryParam("offset") Integer offset,  @ApiParam(value = "Whether we need to display commentor details. ", defaultValue="false") @DefaultValue("false") @QueryParam("includeCommenterInfo") Boolean includeCommenterInfo) throws APIManagementException{
         return delegate.getAllCommentsOfAPI(apiId, xWSO2Tenant, limit, offset, includeCommenterInfo, securityContext);
+    }
+
+    @GET
+    @Path("/{apiId}/subscription-support")
+    
+    @Produces({ "application/json" })
+    @ApiOperation(value = "Check if API supports subscription-level authentication", notes = "Queries the external gateway to determine if the API requires subscriptions and what authentication types are supported. ", response = SubscriptionSupportInfoDTO.class, authorizations = {
+        @Authorization(value = "OAuth2Security", scopes = {
+            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API")
+        })
+    }, tags={ "APIs",  })
+    @ApiResponses(value = { 
+        @ApiResponse(code = 200, message = "OK. Subscription support information retrieved successfully. ", response = SubscriptionSupportInfoDTO.class),
+        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class) })
+    public Response getApiSubscriptionSupport(@ApiParam(value = "**API ID** consisting of the **UUID** of the API. ",required=true) @PathParam("apiId") String apiId) throws APIManagementException{
+        return delegate.getApiSubscriptionSupport(apiId, securityContext);
     }
 
     @GET
