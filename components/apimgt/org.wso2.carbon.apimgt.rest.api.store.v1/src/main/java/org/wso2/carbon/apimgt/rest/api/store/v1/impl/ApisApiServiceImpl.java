@@ -29,6 +29,7 @@ import org.wso2.carbon.apimgt.api.APIConstants.UnifiedSearchConstants;
 import org.wso2.carbon.apimgt.api.APIConsumer;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.ExceptionCodes;
+import org.wso2.carbon.apimgt.api.FederatedSubscriptionAgent;
 import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.APIChatAPISpec;
 import org.wso2.carbon.apimgt.api.model.APIChatExecutionResponse;
@@ -53,6 +54,8 @@ import org.wso2.carbon.apimgt.impl.APIClientGenerationException;
 import org.wso2.carbon.apimgt.impl.APIClientGenerationManager;
 import org.wso2.carbon.apimgt.impl.APIConstants;
 import org.wso2.carbon.apimgt.impl.APIManagerFactory;
+import org.wso2.carbon.apimgt.impl.dao.ApiMgtDAO;
+import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedSubscriptionAgentFactory;
 import org.wso2.carbon.apimgt.impl.dto.ai.ApiChatConfigurationDTO;
 import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
@@ -1579,4 +1582,92 @@ public class ApisApiServiceImpl implements ApisApiService {
         return null;
     }
 
+    @Override
+    public Response getApiSubscriptionSupport(String apiId, MessageContext messageContext)
+            throws APIManagementException {
+        try {
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            String username = RestApiCommonUtil.getLoggedInUsername();
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+
+            // Get API
+            ApiTypeWrapper apiTypeWrapper = apiConsumer.getAPIorAPIProductByUUID(apiId, organization);
+            if (apiTypeWrapper.isAPIProduct()) {
+                RestApiUtil.handleBadRequest(
+                        "Subscription support check not available for API Products", log);
+                return null;
+            }
+
+            API api = apiTypeWrapper.getApi();
+
+            // Check if external gateway API
+            if (api == null || StringUtils.isEmpty(api.getGatewayVendor())
+                    || !APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor())) {
+                RestApiUtil.handleBadRequest(
+                        "Federated subscription is only supported for external gateway APIs", log);
+                return null;
+            }
+
+            // Get gateway environment
+            String gatewayEnvironmentId = getGatewayEnvironmentIdForFederatedApi(api);
+
+            // Get API reference artifact
+            ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
+            String apiReferenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(
+                    api.getUuid(), gatewayEnvironmentId);
+
+            if (apiReferenceArtifact == null || apiReferenceArtifact.isEmpty()) {
+                RestApiUtil.handleResourceNotFoundError(
+                        "API reference artifact not found", apiId, log);
+                return null;
+            }
+
+            // Get subscription agent and check support
+            Environment environment = apiMgtDAO.getEnvironment(organization, gatewayEnvironmentId);
+            FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
+                    environment, organization);
+
+            String[] supportedAuthTypes = agent.getSupportedAuthTypes(apiReferenceArtifact);
+
+            // Build response DTO
+            SubscriptionSupportInfoDTO dto = new SubscriptionSupportInfoDTO();
+            dto.setSupportedAuthTypes(Arrays.asList(supportedAuthTypes));
+            dto.setRequiresSubscription(supportedAuthTypes.length > 0);
+
+            return Response.ok().entity(dto).build();
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_API, apiId, e, log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error checking subscription support for API: " + apiId, e, log);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Gets the gateway environment ID for a federated API.
+     * External gateway APIs should have exactly one environment.
+     *
+     * @param api The federated API
+     * @return The gateway environment ID
+     * @throws APIManagementException If no environment found
+     */
+    private String getGatewayEnvironmentIdForFederatedApi(API api) throws APIManagementException {
+        if (api == null || StringUtils.isEmpty(api.getGatewayVendor())
+                || !APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor())) {
+            throw new APIManagementException("API is not a federated API with external gateway vendor");
+        }
+
+        ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
+        String gatewayEnvId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(api.getUuid());
+
+        if (gatewayEnvId == null) {
+            throw new APIManagementException(
+                    "No external gateway environment mapping found for federated API: " + api.getUuid());
+        }
+
+        return gatewayEnvId;
+    }
 }

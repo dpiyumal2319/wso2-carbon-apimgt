@@ -234,6 +234,36 @@ paths:
         - lang: Curl
           source: curl -k "https://localhost:9443/api/am/devportal/v3/apis/c43a325c-260b-4302-81cb-768eafaa3aed"
 
+  /apis/{apiId}/subscription-support:
+    get:
+      tags:
+        - APIs
+      summary: Check if API supports subscription-level authentication
+      description: |
+        Queries the external gateway to determine if the API requires subscriptions
+        and what authentication types are supported.
+      operationId: getApiSubscriptionSupport
+      parameters:
+        - $ref: '#/components/parameters/apiId'
+      responses:
+        "200":
+          description: |
+            OK.
+            Subscription support information retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionSupportInfo'
+        "404":
+          $ref: '#/components/responses/NotFound'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer TOKEN"
+          "https://localhost:9443/api/am/devportal/v3/apis/API_ID/subscription-support"'
+
   /apis/{apiId}/swagger:
     get:
       tags:
@@ -4817,6 +4847,76 @@ paths:
           source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
           -X DELETE "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/federated-subscription"'
 
+  /subscriptions/{subscriptionId}/retrieve-credential:
+    post:
+      tags:
+        - Subscriptions
+      summary: Retrieve full credential from external gateway
+      description: |
+        Retrieves the full credential value from the external gateway for gateways that support it (e.g., Azure).
+        Only works if the gateway's isValueRetrievable flag is true.
+      operationId: retrieveFederatedCredential
+      parameters:
+        - $ref: '#/components/parameters/subscriptionId'
+      responses:
+        "200":
+          description: |
+            OK.
+            Full credential retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FederatedCredential'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "412":
+          $ref: '#/components/responses/PreconditionFailed'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+            - apim:sub_manage
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
+          -X POST "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/retrieve-credential"'
+
+  /subscriptions/{subscriptionId}/invocation-instruction:
+    get:
+      tags:
+        - Subscriptions
+      summary: Get API invocation instructions for external gateway subscription
+      description: |
+        Retrieves invocation instructions (header name, base path, curl example, etc.)
+        for APIs deployed on external gateways.
+      operationId: getInvocationInstruction
+      parameters:
+        - $ref: '#/components/parameters/subscriptionId'
+      responses:
+        "200":
+          description: |
+            OK.
+            Invocation instruction retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvocationInstruction'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "412":
+          $ref: '#/components/responses/PreconditionFailed'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+            - apim:sub_manage
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
+          "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/invocation-instruction"'
+
   /subscriptions/{subscriptionId}/usage:
     get:
       tags:
@@ -6836,14 +6936,6 @@ components:
           type: string
           description: The credential value (full key on create/regenerate, masked on get)
           example: "••••••••ab12"
-        headerName:
-          type: string
-          description: HTTP header name for the credential
-          example: x-api-key
-        queryParamName:
-          type: string
-          description: Query parameter name for the credential (if applicable)
-          example: apikey
         isValueRetrievable:
           type: boolean
           description: Whether the full credential can be retrieved later
@@ -6852,10 +6944,6 @@ components:
           type: string
           description: External gateway subscription identifier
           example: abc123def456
-        externalContainerId:
-          type: string
-          description: External container entity (Usage Plan, User, Consumer)
-          example: plan-xyz789
         createdTime:
           type: string
           format: date-time
@@ -6919,6 +7007,21 @@ components:
           type: string
           description: Additional notes or instructions
           example: 'This API key must be included in the x-api-key header for all requests'
+    SubscriptionSupportInfo:
+      title: Subscription Support Information
+      type: object
+      description: Information about subscription-level security support for an API
+      properties:
+        supportedAuthTypes:
+          type: array
+          items:
+            type: string
+          description: Array of supported authentication types, empty if no subscription security
+          example: ["opaque-api-key"]
+        requiresSubscription:
+          type: boolean
+          description: Whether the API requires subscription-level authentication
+          example: true
     Tag:
       title: Tag
       type: object

@@ -55,6 +55,8 @@ import org.wso2.carbon.apimgt.api.model.ApplicationExternalMapping;
 import org.wso2.carbon.apimgt.api.model.FederatedCredential;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionRequest;
 import org.wso2.carbon.apimgt.api.model.InvocationInstruction;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.InvocationInstructionDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.InvocationInstructionMappingUtil;
 import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
 import org.wso2.carbon.apimgt.impl.dao.ApiMgtDAO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialDTO;
@@ -726,19 +728,12 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
             request.setThrottlingPolicy(subscribedAPI.getTier().getName());
             request.setReferenceArtifact(referenceArtifact);
 
-            FederatedCredential credential = apiConsumer.createFederatedSubscription(request, organization);
-
-            InvocationInstruction instruction = null;
-            try {
-                instruction = apiConsumer.getFederatedInvocationInstruction(
-                        referenceArtifact, gatewayEnvironmentId, organization);
-            } catch (APIManagementException e) {
-                log.warn("Failed to get invocation instruction for API: " + api.getUuid(), e);
-            }
+            // Create returns full credential (one-time display to user)
+            FederatedCredential fullCredential = apiConsumer.createFederatedSubscription(request, organization);
 
             FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil
                     .fromFederatedSubscriptionInfoToDTO(
-                            credential, instruction, api.getGatewayVendor(), gatewayEnvironmentId);
+                            fullCredential, api.getGatewayVendor(), gatewayEnvironmentId);
 
             return Response.status(Response.Status.CREATED).entity(dto).build();
 
@@ -797,28 +792,18 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                 return null;
             }
 
-            // Build masked credential
-            FederatedCredential maskedCredential = new FederatedCredential();
-            maskedCredential.setCredentialValue(mapping.getCredentialReference());
-            maskedCredential.setExternalSubscriptionId(mapping.getExternalSubscriptionId());
-            maskedCredential.setExternalContainerId(mapping.getExternalContainerId());
-            maskedCredential.setMasked(true);
-
-            // Get invocation instruction — pass raw reference artifact to connector
-            InvocationInstruction instruction = null;
-            try {
-                ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
-                String referenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(
-                        api.getUuid(), gatewayEnvironmentId);
-                instruction = apiConsumer.getFederatedInvocationInstruction(
-                        referenceArtifact, gatewayEnvironmentId, organization);
-            } catch (APIManagementException e) {
-                log.warn("Failed to get invocation instruction for subscription: " + subscriptionId, e);
+            // Extract masked credential from reference artifact via the gateway connector
+            FederatedCredential maskedCredential = apiConsumer.getFederatedCredentialFromReferenceArtifact(
+                    mapping.getReferenceArtifact(), gatewayEnvironmentId, organization);
+            if (maskedCredential == null) {
+                maskedCredential = new FederatedCredential();
             }
+            maskedCredential.setExternalSubscriptionId(mapping.getExternalSubscriptionId());
+            maskedCredential.setMasked(true);
 
             FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil
                     .fromFederatedSubscriptionInfoToDTO(
-                            maskedCredential, instruction, api.getGatewayVendor(), gatewayEnvironmentId);
+                            maskedCredential, api.getGatewayVendor(), gatewayEnvironmentId);
 
             return Response.ok().entity(dto).build();
 
@@ -883,6 +868,133 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
             } else {
                 RestApiUtil.handleInternalServerError(
                         "Error deleting federated subscription for: " + subscriptionId, e, log);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Response retrieveFederatedCredential(String subscriptionId, MessageContext messageContext)
+            throws APIManagementException {
+        String username = RestApiCommonUtil.getLoggedInUsername();
+        try {
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+
+            SubscribedAPI subscribedAPI = validateAndGetSubscription(subscriptionId, apiConsumer);
+            if (!RestAPIStoreUtils.isUserAccessAllowedForApplication(subscribedAPI.getApplication())) {
+                RestApiUtil.handleAuthorizationFailure(RestApiConstants.RESOURCE_APPLICATION,
+                        subscribedAPI.getApplication().getUUID(), log);
+                return null;
+            }
+
+            ApiTypeWrapper apiTypeWrapper = apiConsumer.getAPIorAPIProductByUUID(
+                    subscribedAPI.getIdentifier().getUUID(), organization);
+            if (apiTypeWrapper.isAPIProduct()) {
+                RestApiUtil.handleBadRequest(
+                        "Credential retrieval is not supported for API Products", log);
+                return null;
+            }
+
+            API api = apiTypeWrapper.getApi();
+            if (api == null || StringUtils.isEmpty(api.getGatewayVendor())
+                    || !APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor())) {
+                RestApiUtil.handleBadRequest(
+                        "Credential retrieval is only supported for external gateway APIs", log);
+                return null;
+            }
+
+            String gatewayEnvironmentId = getGatewayEnvironmentIdForFederatedApi(api);
+
+            // Retrieve full credential from gateway
+            FederatedCredential fullCredential = apiConsumer.retrieveFederatedCredential(
+                    subscriptionId, gatewayEnvironmentId, organization);
+
+            FederatedCredentialDTO dto = FederatedSubscriptionMappingUtil
+                    .fromFederatedCredentialToDTO(fullCredential);
+
+            return Response.ok().entity(dto).build();
+
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError(
+                        RestApiConstants.RESOURCE_SUBSCRIPTION, subscriptionId, e, log);
+            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
+                RestApiUtil.handleAuthorizationFailure(
+                        "Authorization failure while retrieving credential: " + subscriptionId, e, log);
+            } else if (e.getMessage().contains("does not support credential retrieval")) {
+                RestApiUtil.handleBadRequest(e.getMessage(), log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error retrieving credential for: " + subscriptionId, e, log);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Response getInvocationInstruction(String subscriptionId, MessageContext messageContext)
+            throws APIManagementException {
+        String username = RestApiCommonUtil.getLoggedInUsername();
+        try {
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+
+            SubscribedAPI subscribedAPI = validateAndGetSubscription(subscriptionId, apiConsumer);
+            if (!RestAPIStoreUtils.isUserAccessAllowedForApplication(subscribedAPI.getApplication())) {
+                RestApiUtil.handleAuthorizationFailure(RestApiConstants.RESOURCE_APPLICATION,
+                        subscribedAPI.getApplication().getUUID(), log);
+                return null;
+            }
+
+            ApiTypeWrapper apiTypeWrapper = apiConsumer.getAPIorAPIProductByUUID(
+                    subscribedAPI.getIdentifier().getUUID(), organization);
+            if (apiTypeWrapper.isAPIProduct()) {
+                RestApiUtil.handleBadRequest(
+                        "Invocation instruction is not supported for API Products", log);
+                return null;
+            }
+
+            API api = apiTypeWrapper.getApi();
+            if (api == null || StringUtils.isEmpty(api.getGatewayVendor())
+                    || !APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor())) {
+                RestApiUtil.handleBadRequest(
+                        "Invocation instruction is only supported for external gateway APIs", log);
+                return null;
+            }
+
+            String gatewayEnvironmentId = getGatewayEnvironmentIdForFederatedApi(api);
+            ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
+
+            // Get the API's reference artifact
+            String apiReferenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(
+                    api.getUuid(), gatewayEnvironmentId);
+
+            if (apiReferenceArtifact == null || apiReferenceArtifact.isEmpty()) {
+                RestApiUtil.handleResourceNotFoundError(
+                        "API reference artifact not found for external gateway", subscriptionId, log);
+                return null;
+            }
+
+            // Get invocation instruction from the agent
+            InvocationInstruction instruction = apiConsumer.getFederatedInvocationInstruction(
+                    apiReferenceArtifact, gatewayEnvironmentId, organization);
+
+            InvocationInstructionDTO dto = InvocationInstructionMappingUtil
+                    .fromInvocationInstructionToDTO(instruction);
+
+            return Response.ok().entity(dto).build();
+
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError(
+                        RestApiConstants.RESOURCE_SUBSCRIPTION, subscriptionId, e, log);
+            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
+                RestApiUtil.handleAuthorizationFailure(
+                        "Authorization failure while getting invocation instruction: " + subscriptionId, e, log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error getting invocation instruction for: " + subscriptionId, e, log);
             }
         }
         return null;

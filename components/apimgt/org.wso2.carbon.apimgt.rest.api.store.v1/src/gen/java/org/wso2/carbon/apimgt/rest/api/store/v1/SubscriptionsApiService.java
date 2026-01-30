@@ -14,6 +14,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.AdditionalSubscriptionInfoLi
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.InvocationInstructionDTO;
 import java.util.List;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionListDTO;
@@ -32,7 +33,9 @@ public interface SubscriptionsApiService {
       public Response deleteFederatedSubscription(String subscriptionId, MessageContext messageContext) throws APIManagementException;
       public Response getAdditionalInfoOfAPISubscriptions(String apiId, String groupId, String xWSO2Tenant, Integer offset, Integer limit, String ifNoneMatch, MessageContext messageContext) throws APIManagementException;
       public Response getFederatedSubscription(String subscriptionId, MessageContext messageContext) throws APIManagementException;
+      public Response getInvocationInstruction(String subscriptionId, MessageContext messageContext) throws APIManagementException;
       public Response regenerateSubscriptionCredential(String subscriptionId, MessageContext messageContext) throws APIManagementException;
+      public Response retrieveFederatedCredential(String subscriptionId, MessageContext messageContext) throws APIManagementException;
       public Response subscriptionsGet(String apiId, String applicationId, String groupId, String xWSO2Tenant, Integer offset, Integer limit, String ifNoneMatch, MessageContext messageContext) throws APIManagementException;
       public Response subscriptionsMultiplePost(List<SubscriptionDTO> subscriptionDTO, String xWSO2Tenant, MessageContext messageContext) throws APIManagementException;
       public Response subscriptionsPost(SubscriptionDTO subscriptionDTO, String xWSO2Tenant, MessageContext messageContext) throws APIManagementException;

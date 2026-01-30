@@ -5,6 +5,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.AdditionalSubscriptionInfoLi
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.InvocationInstructionDTO;
 import java.util.List;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionListDTO;
@@ -115,6 +116,25 @@ SubscriptionsApiService delegate = new SubscriptionsApiServiceImpl();
         return delegate.getFederatedSubscription(subscriptionId, securityContext);
     }
 
+    @GET
+    @Path("/{subscriptionId}/invocation-instruction")
+    
+    @Produces({ "application/json" })
+    @ApiOperation(value = "Get API invocation instructions for external gateway subscription", notes = "Retrieves invocation instructions (header name, base path, curl example, etc.) for APIs deployed on external gateways. ", response = InvocationInstructionDTO.class, authorizations = {
+        @Authorization(value = "OAuth2Security", scopes = {
+            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
+            @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
+        })
+    }, tags={ "Subscriptions",  })
+    @ApiResponses(value = { 
+        @ApiResponse(code = 200, message = "OK. Invocation instruction retrieved successfully. ", response = InvocationInstructionDTO.class),
+        @ApiResponse(code = 400, message = "Bad Request. Invalid request or validation error.", response = ErrorDTO.class),
+        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
+        @ApiResponse(code = 412, message = "Precondition Failed. The request has not been performed because one of the preconditions is not met.", response = ErrorDTO.class) })
+    public Response getInvocationInstruction(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId) throws APIManagementException{
+        return delegate.getInvocationInstruction(subscriptionId, securityContext);
+    }
+
     @POST
     @Path("/{subscriptionId}/regenerate-credential")
     
@@ -132,6 +152,25 @@ SubscriptionsApiService delegate = new SubscriptionsApiServiceImpl();
         @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
     public Response regenerateSubscriptionCredential(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId) throws APIManagementException{
         return delegate.regenerateSubscriptionCredential(subscriptionId, securityContext);
+    }
+
+    @POST
+    @Path("/{subscriptionId}/retrieve-credential")
+    
+    @Produces({ "application/json" })
+    @ApiOperation(value = "Retrieve full credential from external gateway", notes = "Retrieves the full credential value from the external gateway for gateways that support it (e.g., Azure). Only works if the gateway's isValueRetrievable flag is true. ", response = FederatedCredentialDTO.class, authorizations = {
+        @Authorization(value = "OAuth2Security", scopes = {
+            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
+            @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
+        })
+    }, tags={ "Subscriptions",  })
+    @ApiResponses(value = { 
+        @ApiResponse(code = 200, message = "OK. Full credential retrieved successfully. ", response = FederatedCredentialDTO.class),
+        @ApiResponse(code = 400, message = "Bad Request. Invalid request or validation error.", response = ErrorDTO.class),
+        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
+        @ApiResponse(code = 412, message = "Precondition Failed. The request has not been performed because one of the preconditions is not met.", response = ErrorDTO.class) })
+    public Response retrieveFederatedCredential(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId) throws APIManagementException{
+        return delegate.retrieveFederatedCredential(subscriptionId, securityContext);
     }
 
     @GET
