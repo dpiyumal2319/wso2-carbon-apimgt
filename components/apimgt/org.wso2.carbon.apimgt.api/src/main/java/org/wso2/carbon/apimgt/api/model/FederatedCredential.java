@@ -21,26 +21,21 @@ package org.wso2.carbon.apimgt.api.model;
 /**
  * Represents a credential returned from an external gateway subscription.
  * <p>
- * The credential type (e.g., "api-key") is set by the agent from gateway constants.
- * On CREATE or REGENERATE, the full credential value is available internally
- * but only the masked value is returned to the frontend by default.
- * A separate endpoint allows retrieval of the full value for gateways that support it.
+ * The {@code body} field carries an opaque JSON string whose structure is defined
+ * by each gateway connector. The backend never parses this body — only the connector
+ * (producer) and the frontend (consumer) understand its schema.
  * <p>
- * Note: Credential masking is handled by the agent during reference artifact serialization.
- * Agents control their own masking strategies based on gateway-specific requirements.
+ * On CREATE or REGENERATE, the body contains the full credential value (masked = false).
+ * On GET (from reference artifact), the body contains a masked credential (masked = true).
  * </p>
  */
 public class FederatedCredential {
 
     /**
-     * Type of credential (e.g., "api-key"). Set by agent from gateway constants.
+     * Opaque JSON body containing credential details.
+     * Structure is connector-specific (e.g., credentialType, value, headerName, timestamps).
      */
-    private String credentialType;
-
-    /**
-     * The credential value. Full value internally, masked when sent to frontend.
-     */
-    private String credentialValue;
+    private String body;
 
     /**
      * The external subscription identifier in the gateway.
@@ -49,42 +44,23 @@ public class FederatedCredential {
 
     /**
      * Whether the gateway supports retrieving the credential value after creation.
-     * Azure = true, AWS = false.
      */
     private boolean valueRetrievable;
 
     /**
-     * Timestamp when the credential was created (ISO 8601 format).
-     */
-    private String createdTime;
-
-    /**
-     * Timestamp when the credential expires (ISO 8601 format), null if no expiry.
-     */
-    private String expiresAt;
-
-    /**
-     * Indicates whether this credential value is masked.
+     * Indicates whether the credential value in body is masked.
      */
     private boolean masked;
 
     public FederatedCredential() {
     }
 
-    public String getCredentialType() {
-        return credentialType;
+    public String getBody() {
+        return body;
     }
 
-    public void setCredentialType(String credentialType) {
-        this.credentialType = credentialType;
-    }
-
-    public String getCredentialValue() {
-        return credentialValue;
-    }
-
-    public void setCredentialValue(String credentialValue) {
-        this.credentialValue = credentialValue;
+    public void setBody(String body) {
+        this.body = body;
     }
 
     public String getExternalSubscriptionId() {
@@ -101,22 +77,6 @@ public class FederatedCredential {
 
     public void setValueRetrievable(boolean valueRetrievable) {
         this.valueRetrievable = valueRetrievable;
-    }
-
-    public String getCreatedTime() {
-        return createdTime;
-    }
-
-    public void setCreatedTime(String createdTime) {
-        this.createdTime = createdTime;
-    }
-
-    public String getExpiresAt() {
-        return expiresAt;
-    }
-
-    public void setExpiresAt(String expiresAt) {
-        this.expiresAt = expiresAt;
     }
 
     public boolean isMasked() {

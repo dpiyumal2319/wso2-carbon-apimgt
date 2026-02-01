@@ -23,11 +23,14 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.InvocationInstructionDTO;
 
 /**
  * Mapping utility for invocation instruction related DTOs.
+ * Maps opaque body field directly without parsing. All JSON structure
+ * interpretation is the responsibility of gateway connectors and frontend.
  */
 public class InvocationInstructionMappingUtil {
 
     /**
      * Converts InvocationInstruction model to DTO.
+     * Simply passes through the opaque body field without interpretation.
      */
     public static InvocationInstructionDTO fromInvocationInstructionToDTO(InvocationInstruction instruction) {
         if (instruction == null) {
@@ -35,13 +38,7 @@ public class InvocationInstructionMappingUtil {
         }
 
         InvocationInstructionDTO dto = new InvocationInstructionDTO();
-        dto.setGatewayType(instruction.getGatewayType());
-        dto.setCredentialHeaderName(instruction.getHeaderName());
-        dto.setBaseUrl(instruction.getBaseUrl());
-        dto.setBasePath(instruction.getBasePath());
-        dto.setCurlExample(instruction.getCurlExample());
-        dto.setNotes(instruction.getNotes());
-        dto.setAdditionalHeaders(instruction.getAdditionalHeaders());
+        dto.setBody(instruction.getBody());
 
         return dto;
     }

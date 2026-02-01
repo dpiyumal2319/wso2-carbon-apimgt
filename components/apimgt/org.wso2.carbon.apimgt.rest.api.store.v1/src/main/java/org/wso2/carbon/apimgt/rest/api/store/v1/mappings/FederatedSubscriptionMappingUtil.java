@@ -18,27 +18,20 @@
 
 package org.wso2.carbon.apimgt.rest.api.store.v1.mappings;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.apimgt.api.model.FederatedCredential;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
 
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeParseException;
-import java.util.Date;
-
 /**
  * Mapping utility for federated subscription related DTOs.
- * This utility only handles model-to-DTO conversion. Reference artifact parsing
- * is the responsibility of each gateway connector.
+ * Maps opaque body field directly without parsing. All JSON structure
+ * interpretation is the responsibility of gateway connectors and frontend.
  */
 public class FederatedSubscriptionMappingUtil {
 
-    private static final Log log = LogFactory.getLog(FederatedSubscriptionMappingUtil.class);
-
     /**
      * Converts FederatedCredential model to DTO.
+     * Simply passes through the opaque body field without interpretation.
      */
     public static FederatedCredentialDTO fromFederatedCredentialToDTO(FederatedCredential credential) {
         if (credential == null) {
@@ -46,26 +39,10 @@ public class FederatedSubscriptionMappingUtil {
         }
 
         FederatedCredentialDTO dto = new FederatedCredentialDTO();
-        dto.setCredentialType(FederatedCredentialDTO.CredentialTypeEnum.fromValue(credential.getCredentialType()));
-        dto.setCredentialValue(credential.getCredentialValue());
-        dto.setIsValueRetrievable(credential.isValueRetrievable());
+        dto.setBody(credential.getBody());
         dto.setExternalSubscriptionId(credential.getExternalSubscriptionId());
-
-        // Parse ISO timestamps to Date
-        if (credential.getCreatedTime() != null) {
-            try {
-                dto.setCreatedTime(Date.from(OffsetDateTime.parse(credential.getCreatedTime()).toInstant()));
-            } catch (DateTimeParseException e) {
-                log.warn("Failed to parse createdTime: " + credential.getCreatedTime(), e);
-            }
-        }
-        if (credential.getExpiresAt() != null) {
-            try {
-                dto.setExpiresAt(Date.from(OffsetDateTime.parse(credential.getExpiresAt()).toInstant()));
-            } catch (DateTimeParseException e) {
-                log.warn("Failed to parse expiresAt: " + credential.getExpiresAt(), e);
-            }
-        }
+        dto.setIsValueRetrievable(credential.isValueRetrievable());
+        dto.setMasked(credential.isMasked());
 
         return dto;
     }

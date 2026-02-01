@@ -3524,6 +3524,32 @@ paths:
         - OAuth2Security:
             - apim:admin
 
+  /external-environments/federated-subscription-support:
+    get:
+      tags:
+        - Environments
+      summary: Get federated subscription capabilities for external gateways
+      description: |
+        This operation retrieves federated subscription support information for all external gateway environments.
+        Returns credential schemas and invocation schemas supported by each gateway for federated subscriptions.
+      operationId: getFederatedSubscriptionSupport
+      responses:
+        200:
+          description: OK. Federated subscription support information returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FederatedSubscriptionSupportList'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
+          "https://localhost:9443/api/am/devportal/v3/external-environments/federated-subscription-support"'
+
   ######################################################
   # The "Discovered Applications" resource APIs
   ######################################################
@@ -4223,41 +4249,6 @@ paths:
         - lang: Curl
           source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
           -X POST "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/retrieve-credential"'
-
-  /subscriptions/{subscriptionId}/invocation-instruction:
-    get:
-      tags:
-        - Subscriptions
-      summary: Get API invocation instructions for external gateway subscription
-      description: |
-        Retrieves invocation instructions (header name, base path, curl example, etc.)
-        for APIs deployed on external gateways.
-      operationId: getInvocationInstruction
-      parameters:
-        - $ref: '#/components/parameters/subscriptionId'
-      responses:
-        "200":
-          description: |
-            OK.
-            Invocation instruction retrieved successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InvocationInstruction'
-        "400":
-          $ref: '#/components/responses/BadRequest'
-        "404":
-          $ref: '#/components/responses/NotFound'
-        "412":
-          $ref: '#/components/responses/PreconditionFailed'
-      security:
-        - OAuth2Security:
-            - apim:subscribe
-            - apim:sub_manage
-      x-code-samples:
-        - lang: Curl
-          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
-          "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/invocation-instruction"'
 
   /subscriptions/{subscriptionId}/usage:
     get:
@@ -5153,6 +5144,58 @@ components:
           type: string
           description: Description of the environment
           example: Gateway environment in US Region
+    FederatedSubscriptionSupportList:
+      title: Federated Subscription Support List
+      type: object
+      description: |
+        List of federated subscription capabilities for external gateway environments.
+        Each entry contains the gateway environment details and its supported federated subscription features.
+      properties:
+        count:
+          type: integer
+          description: Number of gateway environments with federated subscription support
+          example: 2
+        list:
+          type: array
+          items:
+            $ref: '#/components/schemas/FederatedSubscriptionSupport'
+    FederatedSubscriptionSupport:
+      title: Federated Subscription Support
+      type: object
+      description: |
+        Federated subscription capabilities for a specific gateway environment.
+        Contains credential and invocation schemas supported by the gateway.
+      properties:
+        environmentId:
+          type: string
+          description: UUID of the gateway environment
+          example: ece92bdc-e1e6-325c-b6f4-656208a041e9
+        environmentName:
+          type: string
+          description: Name of the gateway environment
+          example: us-region
+        gatewayType:
+          type: string
+          description: Type of gateway (e.g., AWS, Azure, Kong, Envoy)
+          example: AWS
+        supported:
+          type: boolean
+          description: Whether this gateway supports federated subscriptions
+          example: true
+        credentialSchemas:
+          type: array
+          description: Credential types supported by this gateway
+          items:
+            type: string
+          example:
+            - opaque-api-key
+        invocationSchemas:
+          type: array
+          description: Invocation methods supported by this gateway
+          items:
+            type: string
+          example:
+            - header-based
     DiscoveredApplicationList:
       title: Discovered Application List
       type: object
@@ -6234,90 +6277,41 @@ components:
     FederatedCredential:
       title: Federated Credential
       type: object
-      description: API credential for accessing federated API
+      description: |
+        API credential for accessing a federated API. The body field carries an opaque
+        JSON string whose structure is defined by each gateway connector.
       properties:
-        credentialType:
+        body:
           type: string
-          description: Type of credential
-          example: api-key
-          enum:
-            - api-key
-            - subscription-key
-        credentialValue:
-          type: string
-          description: The credential value (full key on create/regenerate, masked on get)
-          example: "••••••••ab12"
-        isValueRetrievable:
-          type: boolean
-          description: Whether the full credential can be retrieved later
-          example: false
+          description: |
+            Opaque JSON string containing credential details. Structure is connector-specific.
+            On create/regenerate contains full credential value. On get contains masked value.
+          example: '{"credentialType":"opaque-api-key","value":"abc123...","headerName":"Ocp-Apim-Subscription-Key","createdTime":"2025-01-30T10:00:00Z"}'
         externalSubscriptionId:
           type: string
           description: External gateway subscription identifier
-          example: abc123def456
-        createdTime:
-          type: string
-          format: date-time
-          description: Credential creation timestamp
-          readOnly: true
-        expiresAt:
-          type: string
-          format: date-time
-          description: Credential expiration timestamp (if applicable)
+          example: wso2_abc123def456
+        isValueRetrievable:
+          type: boolean
+          description: Whether the full credential can be retrieved from the gateway after creation
+          example: false
+        masked:
+          type: boolean
+          description: Whether the credential value in body is masked
+          example: true
     InvocationInstruction:
       title: API Invocation Instruction
       type: object
-      description: Instructions for invoking the federated API
+      description: |
+        Instructions for invoking a federated API. The body field carries an opaque
+        JSON string whose structure is defined by each gateway connector.
       properties:
-        gatewayType:
+        body:
           type: string
-          description: Type of the gateway
-          example: aws
-        credentialType:
-          type: string
-          description: Type of credential required
-          example: api-key
-        credentialHeaderName:
-          type: string
-          description: Header name for the credential
-          example: x-api-key
-        credentialQueryParam:
-          type: string
-          description: Query parameter name for the credential (if applicable)
-          example: apikey
-        baseUrl:
-          type: string
-          description: Base URL of the API
-          example: https://abc123.execute-api.us-east-1.amazonaws.com
-        basePath:
-          type: string
-          description: Base path of the API
-          example: /prod
-        fullUrl:
-          type: string
-          description: Full URL to the API (baseUrl + basePath)
-          example: https://abc123.execute-api.us-east-1.amazonaws.com/prod
-        region:
-          type: string
-          description: Cloud region (for AWS, Azure)
-          example: us-east-1
-        environment:
-          type: string
-          description: Gateway environment name
-          example: production
-        additionalHeaders:
-          type: object
-          additionalProperties:
-            type: string
-          description: Additional headers required for invocation
-        curlExample:
-          type: string
-          description: Example curl command for invoking the API
-          example: 'curl -X GET -H "x-api-key: YOUR_KEY_HERE" https://abc123.execute-api.us-east-1.amazonaws.com/prod/resource'
-        notes:
-          type: string
-          description: Additional notes or instructions
-          example: 'This API key must be included in the x-api-key header for all requests'
+          description: |
+            Opaque JSON string containing invocation details. Structure is connector-specific
+            (e.g., headerName, baseUrl, basePath, curlExample, notes).
+          example: '{"headerName":"x-api-key","baseUrl":"https://api.example.com","basePath":"/v1","curlExample":"curl ..."}'
     SubscriptionSupportInfo:
       title: Subscription Support Information
       type: object

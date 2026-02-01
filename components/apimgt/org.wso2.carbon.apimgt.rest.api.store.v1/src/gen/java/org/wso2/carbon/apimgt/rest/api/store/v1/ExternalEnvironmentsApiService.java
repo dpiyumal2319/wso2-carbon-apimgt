@@ -11,6 +11,7 @@ import org.wso2.carbon.apimgt.api.APIManagementException;
 
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ExternalGatewayEnvironmentListDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionSupportListDTO;
 
 import java.util.List;
 
@@ -22,4 +23,5 @@ import javax.ws.rs.core.SecurityContext;
 
 public interface ExternalEnvironmentsApiService {
       public Response externalEnvironmentsGet(MessageContext messageContext) throws APIManagementException;
+      public Response getFederatedSubscriptionSupport(MessageContext messageContext) throws APIManagementException;
 }

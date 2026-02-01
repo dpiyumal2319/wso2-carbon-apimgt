@@ -2,6 +2,7 @@ package org.wso2.carbon.apimgt.rest.api.store.v1;
 
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ExternalGatewayEnvironmentListDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionSupportListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.ExternalEnvironmentsApiService;
 import org.wso2.carbon.apimgt.rest.api.store.v1.impl.ExternalEnvironmentsApiServiceImpl;
 import org.wso2.carbon.apimgt.api.APIManagementException;
@@ -44,11 +45,27 @@ ExternalEnvironmentsApiService delegate = new ExternalEnvironmentsApiServiceImpl
         @Authorization(value = "OAuth2Security", scopes = {
             @AuthorizationScope(scope = "apim:admin", description = "Manage all admin operations")
         })
-    }, tags={ "Environments" })
+    }, tags={ "Environments",  })
     @ApiResponses(value = { 
         @ApiResponse(code = 200, message = "OK. List of external gateway environments returned.", response = ExternalGatewayEnvironmentListDTO.class),
         @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
     public Response externalEnvironmentsGet() throws APIManagementException{
         return delegate.externalEnvironmentsGet(securityContext);
+    }
+
+    @GET
+    @Path("/federated-subscription-support")
+    
+    @Produces({ "application/json" })
+    @ApiOperation(value = "Get federated subscription capabilities for external gateways", notes = "This operation retrieves federated subscription support information for all external gateway environments. Returns credential schemas and invocation schemas supported by each gateway for federated subscriptions. ", response = FederatedSubscriptionSupportListDTO.class, authorizations = {
+        @Authorization(value = "OAuth2Security", scopes = {
+            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API")
+        })
+    }, tags={ "Environments" })
+    @ApiResponses(value = { 
+        @ApiResponse(code = 200, message = "OK. Federated subscription support information returned.", response = FederatedSubscriptionSupportListDTO.class),
+        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
+    public Response getFederatedSubscriptionSupport() throws APIManagementException{
+        return delegate.getFederatedSubscriptionSupport(securityContext);
     }
 }
