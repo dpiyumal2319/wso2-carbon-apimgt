@@ -6051,6 +6051,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
 
     /**
      * Deserializes an InvocationInstruction from a JSON string.
+     * Simply extracts the opaque body field from the reference artifact.
      */
     private InvocationInstruction deserializeInvocationInstruction(String json) {
         if (json == null || json.isEmpty()) {
@@ -6060,19 +6061,10 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             org.json.simple.JSONObject jsonObj = (org.json.simple.JSONObject)
                     new org.json.simple.parser.JSONParser().parse(json);
             InvocationInstruction instruction = new InvocationInstruction();
-            instruction.setGatewayType((String) jsonObj.get("gatewayType"));
-            instruction.setHeaderName((String) jsonObj.get("headerName"));
-            instruction.setBaseUrl((String) jsonObj.get("baseUrl"));
-            instruction.setBasePath((String) jsonObj.get("basePath"));
-            instruction.setCurlExample((String) jsonObj.get("curlExample"));
-            instruction.setNotes((String) jsonObj.get("notes"));
-            org.json.simple.JSONObject headers = (org.json.simple.JSONObject) jsonObj.get("additionalHeaders");
-            if (headers != null) {
-                java.util.Map<String, String> headerMap = new java.util.HashMap<>();
-                for (Object key : headers.keySet()) {
-                    headerMap.put((String) key, (String) headers.get(key));
-                }
-                instruction.setAdditionalHeaders(headerMap);
+            // Extract the opaque body field
+            String body = (String) jsonObj.get("body");
+            if (body != null) {
+                instruction.setBody(body);
             }
             return instruction;
         } catch (Exception e) {

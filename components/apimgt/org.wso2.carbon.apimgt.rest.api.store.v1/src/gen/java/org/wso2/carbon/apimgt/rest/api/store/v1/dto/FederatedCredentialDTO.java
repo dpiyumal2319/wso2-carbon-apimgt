@@ -7,7 +7,7 @@ import io.swagger.annotations.ApiModelProperty;
 import javax.validation.constraints.*;
 
 /**
- * API credential for accessing federated API
+ * API credential for accessing a federated API. The body field carries an opaque JSON string whose structure is defined by each gateway connector. 
  **/
 
 import io.swagger.annotations.*;
@@ -19,100 +19,31 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 
 import javax.validation.Valid;
 
-@ApiModel(description = "API credential for accessing federated API")
+@ApiModel(description = "API credential for accessing a federated API. The body field carries an opaque JSON string whose structure is defined by each gateway connector. ")
 
 public class FederatedCredentialDTO   {
   
-
-    @XmlType(name="CredentialTypeEnum")
-    @XmlEnum(String.class)
-    public enum CredentialTypeEnum {
-        API_KEY("api-key"),
-        SUBSCRIPTION_KEY("subscription-key");
-        private String value;
-
-        CredentialTypeEnum (String v) {
-            value = v;
-        }
-
-        public String value() {
-            return value;
-        }
-
-        @Override
-        public String toString() {
-            return String.valueOf(value);
-        }
-
-        @JsonCreator
-        public static CredentialTypeEnum fromValue(String v) {
-            for (CredentialTypeEnum b : CredentialTypeEnum.values()) {
-                if (String.valueOf(b.value).equals(v)) {
-                    return b;
-                }
-            }
-return null;
-        }
-    }
-    private CredentialTypeEnum credentialType = null;
-    private String credentialValue = null;
-    private Boolean isValueRetrievable = null;
+    private String body = null;
     private String externalSubscriptionId = null;
-    private java.util.Date createdTime = null;
-    private java.util.Date expiresAt = null;
+    private Boolean isValueRetrievable = null;
+    private Boolean masked = null;
 
   /**
-   * Type of credential
+   * Opaque JSON string containing credential details. Structure is connector-specific. On create/regenerate contains full credential value. On get contains masked value. 
    **/
-  public FederatedCredentialDTO credentialType(CredentialTypeEnum credentialType) {
-    this.credentialType = credentialType;
+  public FederatedCredentialDTO body(String body) {
+    this.body = body;
     return this;
   }
 
   
-  @ApiModelProperty(example = "api-key", value = "Type of credential")
-  @JsonProperty("credentialType")
-  public CredentialTypeEnum getCredentialType() {
-    return credentialType;
+  @ApiModelProperty(example = "{\"credentialType\":\"opaque-api-key\",\"value\":\"abc123...\",\"headerName\":\"Ocp-Apim-Subscription-Key\",\"createdTime\":\"2025-01-30T10:00:00Z\"}", value = "Opaque JSON string containing credential details. Structure is connector-specific. On create/regenerate contains full credential value. On get contains masked value. ")
+  @JsonProperty("body")
+  public String getBody() {
+    return body;
   }
-  public void setCredentialType(CredentialTypeEnum credentialType) {
-    this.credentialType = credentialType;
-  }
-
-  /**
-   * The credential value (full key on create/regenerate, masked on get)
-   **/
-  public FederatedCredentialDTO credentialValue(String credentialValue) {
-    this.credentialValue = credentialValue;
-    return this;
-  }
-
-  
-  @ApiModelProperty(example = "••••••••ab12", value = "The credential value (full key on create/regenerate, masked on get)")
-  @JsonProperty("credentialValue")
-  public String getCredentialValue() {
-    return credentialValue;
-  }
-  public void setCredentialValue(String credentialValue) {
-    this.credentialValue = credentialValue;
-  }
-
-  /**
-   * Whether the full credential can be retrieved later
-   **/
-  public FederatedCredentialDTO isValueRetrievable(Boolean isValueRetrievable) {
-    this.isValueRetrievable = isValueRetrievable;
-    return this;
-  }
-
-  
-  @ApiModelProperty(example = "false", value = "Whether the full credential can be retrieved later")
-  @JsonProperty("isValueRetrievable")
-  public Boolean isIsValueRetrievable() {
-    return isValueRetrievable;
-  }
-  public void setIsValueRetrievable(Boolean isValueRetrievable) {
-    this.isValueRetrievable = isValueRetrievable;
+  public void setBody(String body) {
+    this.body = body;
   }
 
   /**
@@ -124,7 +55,7 @@ return null;
   }
 
   
-  @ApiModelProperty(example = "abc123def456", value = "External gateway subscription identifier")
+  @ApiModelProperty(example = "wso2_abc123def456", value = "External gateway subscription identifier")
   @JsonProperty("externalSubscriptionId")
   public String getExternalSubscriptionId() {
     return externalSubscriptionId;
@@ -134,39 +65,39 @@ return null;
   }
 
   /**
-   * Credential creation timestamp
+   * Whether the full credential can be retrieved from the gateway after creation
    **/
-  public FederatedCredentialDTO createdTime(java.util.Date createdTime) {
-    this.createdTime = createdTime;
+  public FederatedCredentialDTO isValueRetrievable(Boolean isValueRetrievable) {
+    this.isValueRetrievable = isValueRetrievable;
     return this;
   }
 
   
-  @ApiModelProperty(value = "Credential creation timestamp")
-  @JsonProperty("createdTime")
-  public java.util.Date getCreatedTime() {
-    return createdTime;
+  @ApiModelProperty(example = "false", value = "Whether the full credential can be retrieved from the gateway after creation")
+  @JsonProperty("isValueRetrievable")
+  public Boolean isIsValueRetrievable() {
+    return isValueRetrievable;
   }
-  public void setCreatedTime(java.util.Date createdTime) {
-    this.createdTime = createdTime;
+  public void setIsValueRetrievable(Boolean isValueRetrievable) {
+    this.isValueRetrievable = isValueRetrievable;
   }
 
   /**
-   * Credential expiration timestamp (if applicable)
+   * Whether the credential value in body is masked
    **/
-  public FederatedCredentialDTO expiresAt(java.util.Date expiresAt) {
-    this.expiresAt = expiresAt;
+  public FederatedCredentialDTO masked(Boolean masked) {
+    this.masked = masked;
     return this;
   }
 
   
-  @ApiModelProperty(value = "Credential expiration timestamp (if applicable)")
-  @JsonProperty("expiresAt")
-  public java.util.Date getExpiresAt() {
-    return expiresAt;
+  @ApiModelProperty(example = "true", value = "Whether the credential value in body is masked")
+  @JsonProperty("masked")
+  public Boolean isMasked() {
+    return masked;
   }
-  public void setExpiresAt(java.util.Date expiresAt) {
-    this.expiresAt = expiresAt;
+  public void setMasked(Boolean masked) {
+    this.masked = masked;
   }
 
 
@@ -179,17 +110,15 @@ return null;
       return false;
     }
     FederatedCredentialDTO federatedCredential = (FederatedCredentialDTO) o;
-    return Objects.equals(credentialType, federatedCredential.credentialType) &&
-        Objects.equals(credentialValue, federatedCredential.credentialValue) &&
-        Objects.equals(isValueRetrievable, federatedCredential.isValueRetrievable) &&
+    return Objects.equals(body, federatedCredential.body) &&
         Objects.equals(externalSubscriptionId, federatedCredential.externalSubscriptionId) &&
-        Objects.equals(createdTime, federatedCredential.createdTime) &&
-        Objects.equals(expiresAt, federatedCredential.expiresAt);
+        Objects.equals(isValueRetrievable, federatedCredential.isValueRetrievable) &&
+        Objects.equals(masked, federatedCredential.masked);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(credentialType, credentialValue, isValueRetrievable, externalSubscriptionId, createdTime, expiresAt);
+    return Objects.hash(body, externalSubscriptionId, isValueRetrievable, masked);
   }
 
   @Override
@@ -197,12 +126,10 @@ return null;
     StringBuilder sb = new StringBuilder();
     sb.append("class FederatedCredentialDTO {\n");
     
-    sb.append("    credentialType: ").append(toIndentedString(credentialType)).append("\n");
-    sb.append("    credentialValue: ").append(toIndentedString(credentialValue)).append("\n");
-    sb.append("    isValueRetrievable: ").append(toIndentedString(isValueRetrievable)).append("\n");
+    sb.append("    body: ").append(toIndentedString(body)).append("\n");
     sb.append("    externalSubscriptionId: ").append(toIndentedString(externalSubscriptionId)).append("\n");
-    sb.append("    createdTime: ").append(toIndentedString(createdTime)).append("\n");
-    sb.append("    expiresAt: ").append(toIndentedString(expiresAt)).append("\n");
+    sb.append("    isValueRetrievable: ").append(toIndentedString(isValueRetrievable)).append("\n");
+    sb.append("    masked: ").append(toIndentedString(masked)).append("\n");
     sb.append("}");
     return sb.toString();
   }
