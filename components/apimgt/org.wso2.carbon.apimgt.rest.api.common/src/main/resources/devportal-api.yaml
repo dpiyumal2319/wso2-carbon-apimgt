@@ -4741,7 +4741,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FederatedCredential'
+                $ref: '#/components/schemas/FederatedSubscriptionInfo'
         400:
           description: |
             Bad Request.

@@ -119,14 +119,14 @@ SubscriptionsApiService delegate = new SubscriptionsApiServiceImpl();
     @Path("/{subscriptionId}/regenerate-credential")
     
     @Produces({ "application/json" })
-    @ApiOperation(value = "Regenerate Credential for Federated Subscription ", notes = "This operation can be used to regenerate the credential for a subscription to an API deployed on an external gateway. The old credential will be deleted and a new one will be generated. This operation only works for subscriptions to federated APIs. ", response = FederatedCredentialDTO.class, authorizations = {
+    @ApiOperation(value = "Regenerate Credential for Federated Subscription ", notes = "This operation can be used to regenerate the credential for a subscription to an API deployed on an external gateway. The old credential will be deleted and a new one will be generated. This operation only works for subscriptions to federated APIs. ", response = FederatedSubscriptionInfoDTO.class, authorizations = {
         @Authorization(value = "OAuth2Security", scopes = {
             @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
             @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
         })
     }, tags={ "Subscriptions",  })
     @ApiResponses(value = { 
-        @ApiResponse(code = 200, message = "OK. New credential generated successfully. ", response = FederatedCredentialDTO.class),
+        @ApiResponse(code = 200, message = "OK. New credential generated successfully. ", response = FederatedSubscriptionInfoDTO.class),
         @ApiResponse(code = 400, message = "Bad Request. Invalid request or subscription is not for a federated API. ", response = ErrorDTO.class),
         @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
         @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
