@@ -31,7 +31,6 @@ import org.wso2.carbon.apimgt.api.model.InvocationInstruction;
  * This interface handles the full subscription lifecycle:
  * - Creating subscriptions with credential generation
  * - Deleting subscriptions
- * - Regenerating credentials
  * - Providing API invocation instructions
  * </p>
  */
@@ -74,19 +73,6 @@ public interface FederatedSubscriptionAgent {
      * @throws APIManagementException If subscription deletion fails
      */
     void deleteSubscription(String externalSubscriptionId) throws APIManagementException;
-
-    /**
-     * Regenerates the credential for an existing subscription.
-     * <p>
-     * This invalidates the old credential and creates a new one.
-     * The new credential is returned in full for one-time display.
-     * </p>
-     *
-     * @param externalSubscriptionId The external gateway's subscription identifier
-     * @return FederatedCredential containing the new full credential value (Unmasked)
-     * @throws APIManagementException If credential regeneration fails
-     */
-    FederatedCredential regenerateCredential(String externalSubscriptionId) throws APIManagementException;
 
     /**
      * Retrieves the full credential value from the gateway.

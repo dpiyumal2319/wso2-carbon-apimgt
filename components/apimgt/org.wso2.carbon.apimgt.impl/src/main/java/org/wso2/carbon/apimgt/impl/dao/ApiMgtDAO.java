@@ -16768,14 +16768,15 @@ public class ApiMgtDAO {
              PreparedStatement ps = connection.prepareStatement(SQLConstants.UPDATE_SUBSCRIPTION_EXTERNAL_MAPPING_SQL)) {
 
             connection.setAutoCommit(false);
+            ps.setString(1, mapping.getExternalSubscriptionId());
             if (mapping.getReferenceArtifact() != null) {
-                ps.setBytes(1, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
+                ps.setBytes(2, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
             } else {
-                ps.setNull(1, java.sql.Types.BLOB);
+                ps.setNull(2, java.sql.Types.BLOB);
             }
-            ps.setTimestamp(2, new Timestamp(System.currentTimeMillis()));
-            ps.setString(3, mapping.getSubscriptionUuid());
-            ps.setString(4, mapping.getGatewayEnvironmentId());
+            ps.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
+            ps.setString(4, mapping.getSubscriptionUuid());
+            ps.setString(5, mapping.getGatewayEnvironmentId());
             ps.executeUpdate();
             connection.commit();
 

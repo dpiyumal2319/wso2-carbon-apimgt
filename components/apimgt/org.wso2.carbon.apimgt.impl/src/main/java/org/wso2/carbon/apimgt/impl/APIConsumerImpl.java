@@ -5115,41 +5115,69 @@ APIConstants.AuditLogConstants.DELETED, this.username);
     }
 
     @Override
-    public FederatedCredential regenerateFederatedSubscriptionCredential(String subscriptionId,
-            String gatewayEnvironmentId, String organization) throws APIManagementException {
-        
+    public FederatedCredential regenerateFederatedSubscriptionCredential(
+            FederatedSubscriptionRequest request,
+            String oldExternalSubscriptionId,
+            String organization) throws APIManagementException {
+
+        String subscriptionId = request.getSubscriptionUuid();
+        String environmentId = request.getEnvironmentId();
+
         try {
-            // Get subscription external mapping
-            SubscriptionExternalMapping mapping = apiMgtDAO.getSubscriptionExternalMapping(
-                    subscriptionId, gatewayEnvironmentId);
-            
-            if (mapping == null) {
-                throw new APIManagementException("No external subscription mapping found for subscription: "
-                        + subscriptionId + " in gateway environment: " + gatewayEnvironmentId);
-            }
-            
-            // Get gateway environment
-            Environment environment = apiMgtDAO.getEnvironment(organization, gatewayEnvironmentId);
+            // 1. Get environment
+            Environment environment = apiMgtDAO.getEnvironment(organization, environmentId);
             if (environment == null) {
-                throw new APIManagementException("Gateway environment not found: " + gatewayEnvironmentId);
+                throw new APIManagementException("Gateway environment not found: " + environmentId);
             }
-            
-            // Get subscription agent
+
+            // 2. Get subscription agent
             FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
                     environment, organization);
-            
-            // Regenerate credential
-            FederatedCredential newCredential = agent.regenerateCredential(mapping.getExternalSubscriptionId());
 
-            // Let the connector rebuild the reference artifact with new credential info
-            String updatedArtifact = agent.buildSubscriptionReferenceArtifact(newCredential, null);
-            mapping.setReferenceArtifact(updatedArtifact);
+            // 3. DELETE old subscription (best-effort)
+            try {
+                agent.deleteSubscription(oldExternalSubscriptionId);
+                if (log.isDebugEnabled()) {
+                    log.debug("Deleted old external subscription: " + oldExternalSubscriptionId);
+                }
+            } catch (APIManagementException e) {
+                log.warn("Failed to delete old subscription: " + oldExternalSubscriptionId +
+                        ". Proceeding with create.", e);
+            }
+
+            // 4. CREATE new subscription using validated request
+            FederatedCredential newCredential = agent.createSubscription(request);
+
+            // 5. Get invocation instruction
+            InvocationInstruction instruction = null;
+            if (request.getReferenceArtifact() != null) {
+                try {
+                    instruction = agent.getInvocationInstruction(request.getReferenceArtifact());
+                } catch (APIManagementException e) {
+                    log.warn("Failed to get invocation instruction", e);
+                }
+            }
+
+            // 6. Build new reference artifact
+            String newReferenceArtifact = agent.buildSubscriptionReferenceArtifact(newCredential, instruction);
+
+            // 7. UPDATE mapping with NEW external ID
+            SubscriptionExternalMapping mapping = apiMgtDAO.getSubscriptionExternalMapping(
+                    subscriptionId, environmentId);
+            mapping.setExternalSubscriptionId(newCredential.getExternalSubscriptionId());
+            mapping.setReferenceArtifact(newReferenceArtifact);
             mapping.setLastUpdatedTime(new java.sql.Timestamp(System.currentTimeMillis()));
             apiMgtDAO.updateSubscriptionExternalMapping(mapping);
 
-            // Return full credential for one-time display
+            if (log.isDebugEnabled()) {
+                log.debug("Regenerated credential. Old ID: " + oldExternalSubscriptionId +
+                        ", New ID: " + newCredential.getExternalSubscriptionId());
+            }
+
             return newCredential;
 
+        } catch (APIManagementException e) {
+            throw e;
         } catch (Exception e) {
             throw new APIManagementException("Failed to regenerate credential for subscription: " + subscriptionId, e);
         }
