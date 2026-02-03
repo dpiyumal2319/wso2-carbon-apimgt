@@ -1055,9 +1055,28 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                 return null;
             }
 
-            FederatedCredential regeneratedCredential =
-                    apiConsumer.regenerateFederatedSubscriptionCredential(
-                            subscriptionId, gatewayEnvironmentId, organization);
+            // Get the old external subscription ID from mapping
+            String oldExternalSubscriptionId = mapping.getExternalSubscriptionId();
+
+            // Get API reference artifact for the request
+            ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
+            String referenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(
+                    apiTypeWrapper.getApi().getUuid(), gatewayEnvironmentId);
+
+            // BUILD REQUEST AT CONTROLLER LEVEL (validated data)
+            FederatedSubscriptionRequest request = new FederatedSubscriptionRequest();
+            request.setSubscriptionUuid(subscriptionId);
+            request.setApiUuid(apiTypeWrapper.getApi().getUuid());
+            request.setApplicationUuid(subscribedAPI.getApplication().getUUID());
+            request.setOrganizationId(organization);
+            request.setEnvironmentId(gatewayEnvironmentId);
+            request.setSubscriberId(subscribedAPI.getSubscriber().getName());
+            request.setThrottlingPolicy(subscribedAPI.getTier().getName());
+            request.setReferenceArtifact(referenceArtifact);
+
+            // Call impl with validated request
+            FederatedCredential regeneratedCredential = apiConsumer.regenerateFederatedSubscriptionCredential(
+                    request, oldExternalSubscriptionId, organization);
 
             FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil
                     .fromFederatedSubscriptionInfoToDTO(
@@ -1070,10 +1089,6 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
             }
 
             // Add invocation instruction
-            ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
-            String referenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(
-                    apiTypeWrapper.getApi().getUuid(), gatewayEnvironmentId);
-
             if (referenceArtifact != null && !referenceArtifact.isEmpty()) {
                 try {
                     InvocationInstruction instruction = apiConsumer.getFederatedInvocationInstruction(

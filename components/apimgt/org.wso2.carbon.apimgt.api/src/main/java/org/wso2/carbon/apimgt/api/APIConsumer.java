@@ -1146,16 +1146,18 @@ public interface APIConsumer extends APIManager {
             throws APIManagementException;
 
     /**
-     * Regenerate credential for a federated API subscription
+     * Regenerate credential for a federated API subscription using delete + create pattern.
      * 
-     * @param subscriptionId UUID of the subscription
-     * @param gatewayEnvironmentId UUID of the gateway environment
+     * @param request The subscription request with validated data
+     * @param oldExternalSubscriptionId The current external subscription ID to be deleted
      * @param organization Organization name
      * @return regenerated credential with full key value
      * @throws APIManagementException if regeneration fails
      */
-    FederatedCredential regenerateFederatedSubscriptionCredential(String subscriptionId,
-            String gatewayEnvironmentId, String organization) throws APIManagementException;
+    FederatedCredential regenerateFederatedSubscriptionCredential(
+            FederatedSubscriptionRequest request,
+            String oldExternalSubscriptionId,
+            String organization) throws APIManagementException;
 
     /**
      * Create a federated subscription on an external gateway.
