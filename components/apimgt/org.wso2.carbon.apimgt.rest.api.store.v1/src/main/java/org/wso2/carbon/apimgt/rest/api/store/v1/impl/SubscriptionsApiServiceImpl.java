@@ -747,7 +747,11 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
 
             // Set gateway type (Azure, AWS, Kong, Envoy)
             if (api.getGatewayType() != null) {
-                dto.setGatewayType(FederatedSubscriptionInfoDTO.GatewayTypeEnum.fromValue(api.getGatewayType()));
+                dto.setGatewayType(
+                        FederatedSubscriptionInfoDTO.GatewayTypeEnum.fromValue(
+                                api.getGatewayType().toLowerCase()
+                        )
+                );
             }
 
             // Add invocation instruction
@@ -1055,10 +1059,36 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                     apiConsumer.regenerateFederatedSubscriptionCredential(
                             subscriptionId, gatewayEnvironmentId, organization);
 
-            FederatedCredentialDTO credentialDTO =
-                    FederatedSubscriptionMappingUtil.fromFederatedCredentialToDTO(regeneratedCredential);
+            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil
+                    .fromFederatedSubscriptionInfoToDTO(
+                            regeneratedCredential, apiTypeWrapper.getApi().getGatewayVendor(), gatewayEnvironmentId);
 
-            return Response.ok().entity(credentialDTO).build();
+            // Set gateway type
+            if (apiTypeWrapper.getApi().getGatewayType() != null) {
+                dto.setGatewayType(FederatedSubscriptionInfoDTO.GatewayTypeEnum.fromValue(
+                        apiTypeWrapper.getApi().getGatewayType()));
+            }
+
+            // Add invocation instruction
+            ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
+            String referenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(
+                    apiTypeWrapper.getApi().getUuid(), gatewayEnvironmentId);
+
+            if (referenceArtifact != null && !referenceArtifact.isEmpty()) {
+                try {
+                    InvocationInstruction instruction = apiConsumer.getFederatedInvocationInstruction(
+                            referenceArtifact, gatewayEnvironmentId, organization);
+                    if (instruction != null) {
+                        dto.setInvocationInstruction(
+                                InvocationInstructionMappingUtil.fromInvocationInstructionToDTO(instruction));
+                    }
+                } catch (APIManagementException e) {
+                    // Log but don't fail if invocation instruction unavailable
+                    log.warn("Unable to fetch invocation instruction for subscription: " + subscriptionId, e);
+                }
+            }
+
+            return Response.ok().entity(dto).build();
 
         } catch (APIManagementException e) {
             if (RestApiUtil.isDueToResourceNotFound(e)) {
