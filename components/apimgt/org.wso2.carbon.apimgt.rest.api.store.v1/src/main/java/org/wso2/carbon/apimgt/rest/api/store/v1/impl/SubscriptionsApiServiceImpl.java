@@ -1044,7 +1044,8 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                 return null;
             }
 
-            String gatewayEnvironmentId = getGatewayEnvironmentIdForFederatedApi(apiTypeWrapper.getApi());
+            API api = apiTypeWrapper.getApi();
+            String gatewayEnvironmentId = getGatewayEnvironmentIdForFederatedApi(api);
 
             // Check if federated subscription exists
             SubscriptionExternalMapping mapping = apiConsumer.getFederatedSubscriptionInfo(
@@ -1061,12 +1062,12 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
             // Get API reference artifact for the request
             ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
             String referenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(
-                    apiTypeWrapper.getApi().getUuid(), gatewayEnvironmentId);
+                    api.getUuid(), gatewayEnvironmentId);
 
             // BUILD REQUEST AT CONTROLLER LEVEL (validated data)
             FederatedSubscriptionRequest request = new FederatedSubscriptionRequest();
             request.setSubscriptionUuid(subscriptionId);
-            request.setApiUuid(apiTypeWrapper.getApi().getUuid());
+            request.setApiUuid(api.getUuid());
             request.setApplicationUuid(subscribedAPI.getApplication().getUUID());
             request.setOrganizationId(organization);
             request.setEnvironmentId(gatewayEnvironmentId);
@@ -1080,12 +1081,12 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
 
             FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil
                     .fromFederatedSubscriptionInfoToDTO(
-                            regeneratedCredential, apiTypeWrapper.getApi().getGatewayVendor(), gatewayEnvironmentId);
+                            regeneratedCredential, api.getGatewayVendor(), gatewayEnvironmentId);
 
-            // Set gateway type
-            if (apiTypeWrapper.getApi().getGatewayType() != null) {
+            // Set gateway type (Azure, AWS, Kong, Envoy)
+            if (api.getGatewayType() != null) {
                 dto.setGatewayType(FederatedSubscriptionInfoDTO.GatewayTypeEnum.fromValue(
-                        apiTypeWrapper.getApi().getGatewayType()));
+                        api.getGatewayType().toLowerCase()));
             }
 
             // Add invocation instruction
