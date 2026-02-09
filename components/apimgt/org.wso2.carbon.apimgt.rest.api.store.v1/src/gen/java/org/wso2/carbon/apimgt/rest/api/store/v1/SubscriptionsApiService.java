@@ -13,6 +13,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.APIMonetizationUsageDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.AdditionalSubscriptionInfoListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionCreateRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
 import java.util.List;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionDTO;
@@ -28,7 +29,7 @@ import javax.ws.rs.core.SecurityContext;
 
 
 public interface SubscriptionsApiService {
-      public Response createFederatedSubscription(String subscriptionId, MessageContext messageContext) throws APIManagementException;
+      public Response createFederatedSubscription(String subscriptionId, FederatedSubscriptionCreateRequestDTO federatedSubscriptionCreateRequestDTO, MessageContext messageContext) throws APIManagementException;
       public Response deleteFederatedSubscription(String subscriptionId, MessageContext messageContext) throws APIManagementException;
       public Response getAdditionalInfoOfAPISubscriptions(String apiId, String groupId, String xWSO2Tenant, Integer offset, Integer limit, String ifNoneMatch, MessageContext messageContext) throws APIManagementException;
       public Response getFederatedSubscription(String subscriptionId, MessageContext messageContext) throws APIManagementException;

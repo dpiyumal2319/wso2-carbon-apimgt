@@ -6,6 +6,7 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionOptionsDTO;
 import javax.validation.constraints.*;
 
 /**
@@ -27,6 +28,7 @@ public class SubscriptionSupportInfoDTO   {
   
     private List<String> supportedAuthTypes = new ArrayList<String>();
     private Boolean requiresSubscription = null;
+    private FederatedSubscriptionOptionsDTO subscriptionOptions = null;
 
   /**
    * Array of supported authentication types, empty if no subscription security
@@ -64,6 +66,24 @@ public class SubscriptionSupportInfoDTO   {
     this.requiresSubscription = requiresSubscription;
   }
 
+  /**
+   **/
+  public SubscriptionSupportInfoDTO subscriptionOptions(FederatedSubscriptionOptionsDTO subscriptionOptions) {
+    this.subscriptionOptions = subscriptionOptions;
+    return this;
+  }
+
+  
+  @ApiModelProperty(value = "")
+      @Valid
+  @JsonProperty("subscriptionOptions")
+  public FederatedSubscriptionOptionsDTO getSubscriptionOptions() {
+    return subscriptionOptions;
+  }
+  public void setSubscriptionOptions(FederatedSubscriptionOptionsDTO subscriptionOptions) {
+    this.subscriptionOptions = subscriptionOptions;
+  }
+
 
   @Override
   public boolean equals(java.lang.Object o) {
@@ -75,12 +95,13 @@ public class SubscriptionSupportInfoDTO   {
     }
     SubscriptionSupportInfoDTO subscriptionSupportInfo = (SubscriptionSupportInfoDTO) o;
     return Objects.equals(supportedAuthTypes, subscriptionSupportInfo.supportedAuthTypes) &&
-        Objects.equals(requiresSubscription, subscriptionSupportInfo.requiresSubscription);
+        Objects.equals(requiresSubscription, subscriptionSupportInfo.requiresSubscription) &&
+        Objects.equals(subscriptionOptions, subscriptionSupportInfo.subscriptionOptions);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(supportedAuthTypes, requiresSubscription);
+    return Objects.hash(supportedAuthTypes, requiresSubscription, subscriptionOptions);
   }
 
   @Override
@@ -90,6 +111,7 @@ public class SubscriptionSupportInfoDTO   {
     
     sb.append("    supportedAuthTypes: ").append(toIndentedString(supportedAuthTypes)).append("\n");
     sb.append("    requiresSubscription: ").append(toIndentedString(requiresSubscription)).append("\n");
+    sb.append("    subscriptionOptions: ").append(toIndentedString(subscriptionOptions)).append("\n");
     sb.append("}");
     return sb.toString();
   }

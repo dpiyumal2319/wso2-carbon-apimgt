@@ -4117,6 +4117,13 @@ paths:
       operationId: createFederatedSubscription
       parameters:
         - $ref: '#/components/parameters/subscriptionId'
+      requestBody:
+        description: |
+          Optional subscription request parameters
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FederatedSubscriptionCreateRequest'
       responses:
         201:
           description: |
@@ -6327,6 +6334,30 @@ components:
           type: boolean
           description: Whether the API requires subscription-level authentication
           example: true
+        subscriptionOptions:
+          $ref: '#/components/schemas/FederatedSubscriptionOptions'
+    FederatedSubscriptionOptions:
+      title: Federated Subscription Options
+      type: object
+      description: Subscription options available from external gateway (e.g., usage plans)
+      properties:
+        body:
+          type: string
+          description: Opaque JSON containing gateway-specific subscription options
+          example: '{"options":[{"id":"plan1","name":"Basic","rateLimit":100}]}'
+        optionsSchema:
+          type: string
+          description: Schema identifier for frontend renderer selection
+          example: tier-selector
+    FederatedSubscriptionCreateRequest:
+      title: Federated Subscription Create Request
+      type: object
+      description: Optional parameters for creating a federated subscription
+      properties:
+        selectedOption:
+          type: string
+          description: Opaque JSON containing the developer's selected subscription option
+          example: '{"id":"plan1","name":"Basic"}'
     Tag:
       title: Tag
       type: object
