@@ -4776,6 +4776,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/subscriptionId'
       requestBody:
+        required: false
         description: |
           Optional subscription request parameters
         content:
