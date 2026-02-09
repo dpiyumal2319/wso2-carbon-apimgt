@@ -75,6 +75,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
 import java.util.Arrays;
+import java.util.Collections;
 
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.*;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.APIMappingUtil;
@@ -1289,35 +1290,44 @@ public class ApisApiServiceImpl implements ApisApiService {
 
             // Get subscription agent and check support
             Environment environment = apiMgtDAO.getEnvironment(organization, gatewayEnvironmentId);
-            FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
-                    environment, organization);
-
-            // Build minimal context for checking supported auth types
-            FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
-                    .apiReferenceArtifact(apiReferenceArtifact)
-                    .apiName(api.getId().getApiName())
-                    .apiVersion(api.getId().getVersion())
-                    .apiUuid(api.getUuid())
-                    .environmentId(gatewayEnvironmentId)
-                    .organizationId(organization)
-                    .build();
-
-            String[] supportedAuthTypes = agent.getSupportedAuthTypes(context);
-
-            // Get subscription options from gateway
-            FederatedSubscriptionOptions subscriptionOptions = agent.getSubscriptionOptions(context);
-
-            // Build response DTO
             SubscriptionSupportInfoDTO dto = new SubscriptionSupportInfoDTO();
-            dto.setSupportedAuthTypes(Arrays.asList(supportedAuthTypes));
-            dto.setRequiresSubscription(supportedAuthTypes.length > 0);
             
-            // Add subscription options if available
-            if (subscriptionOptions != null) {
-                FederatedSubscriptionOptionsDTO optionsDTO = new FederatedSubscriptionOptionsDTO();
-                optionsDTO.setBody(subscriptionOptions.getBody());
-                optionsDTO.setOptionsSchema(subscriptionOptions.getOptionsSchema());
-                dto.setSubscriptionOptions(optionsDTO);
+            try {
+                FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
+                        environment, organization);
+
+                // Build minimal context for checking supported auth types
+                FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
+                        .apiReferenceArtifact(apiReferenceArtifact)
+                        .apiName(api.getId().getApiName())
+                        .apiVersion(api.getId().getVersion())
+                        .apiUuid(api.getUuid())
+                        .environmentId(gatewayEnvironmentId)
+                        .organizationId(organization)
+                        .build();
+
+                String[] supportedAuthTypes = agent.getSupportedAuthTypes(context);
+
+                // Get subscription options from gateway
+                FederatedSubscriptionOptions subscriptionOptions = agent.getSubscriptionOptions(context);
+
+                // Build response DTO
+                dto.setSupportedAuthTypes(Arrays.asList(supportedAuthTypes));
+                dto.setRequiresSubscription(supportedAuthTypes.length > 0);
+                
+                // Add subscription options if available
+                if (subscriptionOptions != null) {
+                    FederatedSubscriptionOptionsDTO optionsDTO = new FederatedSubscriptionOptionsDTO();
+                    optionsDTO.setBody(subscriptionOptions.getBody());
+                    optionsDTO.setOptionsSchema(subscriptionOptions.getOptionsSchema());
+                    dto.setSubscriptionOptions(optionsDTO);
+                }
+            } catch (APIManagementException e) {
+                // Graceful fallback for gateways without subscription agents (e.g., Kong, Envoy)
+                log.warn("Subscription agent not available for gateway type: " + environment.getGatewayType() 
+                        + ". Marking as no subscription required.", e);
+                dto.setSupportedAuthTypes(Collections.emptyList());
+                dto.setRequiresSubscription(false);
             }
 
             return Response.ok().entity(dto).build();
