@@ -48,12 +48,13 @@ import org.wso2.carbon.apimgt.rest.api.common.RestApiConstants;
 import org.wso2.carbon.apimgt.rest.api.store.v1.SubscriptionsApiService;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.AdditionalSubscriptionInfoListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.APIMonetizationUsageDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionCreateRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionListDTO;
 import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.ApplicationExternalMapping;
 import org.wso2.carbon.apimgt.api.model.FederatedCredential;
-import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionRequest;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
 import org.wso2.carbon.apimgt.api.model.InvocationInstruction;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.InvocationInstructionDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.InvocationInstructionMappingUtil;
@@ -680,7 +681,9 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
     }
 
     @Override
-    public Response createFederatedSubscription(String subscriptionId, MessageContext messageContext)
+    public Response createFederatedSubscription(String subscriptionId, 
+            FederatedSubscriptionCreateRequestDTO federatedSubscriptionCreateRequestDTO,
+            MessageContext messageContext)
             throws APIManagementException {
         String username = RestApiCommonUtil.getLoggedInUsername();
         try {
@@ -728,18 +731,33 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
             String referenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(
                     api.getUuid(), gatewayEnvironmentId);
 
-            FederatedSubscriptionRequest request = new FederatedSubscriptionRequest();
-            request.setSubscriptionUuid(subscribedAPI.getUUID());
-            request.setApplicationUuid(application.getUUID());
-            request.setApiUuid(api.getUuid());
-            request.setOrganizationId(organization);
-            request.setEnvironmentId(gatewayEnvironmentId);
-            request.setSubscriberId(subscribedAPI.getSubscriber().getName());
-            request.setThrottlingPolicy(subscribedAPI.getTier().getName());
-            request.setReferenceArtifact(referenceArtifact);
+            // Extract selectedOption from request body (if provided)
+            String selectedOption = null;
+            if (federatedSubscriptionCreateRequestDTO != null) {
+                selectedOption = federatedSubscriptionCreateRequestDTO.getSelectedOption();
+            }
+
+            // Build context with complete information
+            FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
+                    .subscriptionUuid(subscribedAPI.getUUID())
+                    .externalSubscriptionId(null)  // null for CREATE
+                    .apiReferenceArtifact(referenceArtifact)
+                    .subscriptionReferenceArtifact(null)  // will be created
+                    .selectedOption(selectedOption)  // Developer's selected subscription option
+                    .apiName(api.getId().getApiName())
+                    .apiVersion(api.getId().getVersion())
+                    .apiContext(api.getContext())
+                    .apiUuid(api.getUuid())
+                    .applicationName(application.getName())
+                    .applicationUuid(application.getUUID())
+                    .subscriberName(subscribedAPI.getSubscriber().getName())
+                    .organizationId(organization)
+                    .environmentId(gatewayEnvironmentId)
+                    .throttlingPolicy(subscribedAPI.getTier().getName())
+                    .build();
 
             // Create returns full credential (one-time display to user)
-            FederatedCredential fullCredential = apiConsumer.createFederatedSubscription(request, organization);
+            FederatedCredential fullCredential = apiConsumer.createFederatedSubscription(context, organization);
 
             FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil
                     .fromFederatedSubscriptionInfoToDTO(
@@ -1064,20 +1082,27 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
             String referenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(
                     api.getUuid(), gatewayEnvironmentId);
 
-            // BUILD REQUEST AT CONTROLLER LEVEL (validated data)
-            FederatedSubscriptionRequest request = new FederatedSubscriptionRequest();
-            request.setSubscriptionUuid(subscriptionId);
-            request.setApiUuid(api.getUuid());
-            request.setApplicationUuid(subscribedAPI.getApplication().getUUID());
-            request.setOrganizationId(organization);
-            request.setEnvironmentId(gatewayEnvironmentId);
-            request.setSubscriberId(subscribedAPI.getSubscriber().getName());
-            request.setThrottlingPolicy(subscribedAPI.getTier().getName());
-            request.setReferenceArtifact(referenceArtifact);
+            // Build context with complete information (including old external ID)
+            FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
+                    .subscriptionUuid(subscriptionId)
+                    .externalSubscriptionId(oldExternalSubscriptionId)  // Old ID for deletion
+                    .apiReferenceArtifact(referenceArtifact)
+                    .subscriptionReferenceArtifact(mapping.getReferenceArtifact())
+                    .apiName(api.getId().getApiName())
+                    .apiVersion(api.getId().getVersion())
+                    .apiContext(api.getContext())
+                    .apiUuid(api.getUuid())
+                    .applicationName(subscribedAPI.getApplication().getName())
+                    .applicationUuid(subscribedAPI.getApplication().getUUID())
+                    .subscriberName(subscribedAPI.getSubscriber().getName())
+                    .organizationId(organization)
+                    .environmentId(gatewayEnvironmentId)
+                    .throttlingPolicy(subscribedAPI.getTier().getName())
+                    .build();
 
-            // Call impl with validated request
+            // Call impl with context
             FederatedCredential regeneratedCredential = apiConsumer.regenerateFederatedSubscriptionCredential(
-                    request, oldExternalSubscriptionId, organization);
+                    context, organization);
 
             FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil
                     .fromFederatedSubscriptionInfoToDTO(

@@ -79,7 +79,7 @@ import org.wso2.carbon.apimgt.api.model.DocumentationContent;
 import org.wso2.carbon.apimgt.api.model.DocumentationType;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.FederatedCredential;
-import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionRequest;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
 import org.wso2.carbon.apimgt.api.model.InvocationInstruction;
 import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
 import org.wso2.carbon.apimgt.api.FederatedSubscriptionAgent;
@@ -5849,12 +5849,12 @@ APIConstants.AuditLogConstants.DELETED, this.username);
 
     @Override
     public FederatedCredential regenerateFederatedSubscriptionCredential(
-            FederatedSubscriptionRequest request,
-            String oldExternalSubscriptionId,
+            FederatedSubscriptionContext context,
             String organization) throws APIManagementException {
 
-        String subscriptionId = request.getSubscriptionUuid();
-        String environmentId = request.getEnvironmentId();
+        String subscriptionId = context.getSubscriptionUuid();
+        String environmentId = context.getEnvironmentId();
+        String oldExternalSubscriptionId = context.getExternalSubscriptionId();
 
         try {
             // 1. Get environment
@@ -5867,9 +5867,26 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
                     environment, organization);
 
-            // 3. DELETE old subscription (best-effort)
+            // 3. DELETE old subscription (best-effort) - pass context with old ID
             try {
-                agent.deleteSubscription(oldExternalSubscriptionId);
+                FederatedSubscriptionContext deleteContext = FederatedSubscriptionContext.builder()
+                        .subscriptionUuid(context.getSubscriptionUuid())
+                        .externalSubscriptionId(oldExternalSubscriptionId)
+                        .apiReferenceArtifact(context.getApiReferenceArtifact())
+                        .subscriptionReferenceArtifact(context.getSubscriptionReferenceArtifact())
+                        .apiName(context.getApiName())
+                        .apiVersion(context.getApiVersion())
+                        .apiContext(context.getApiContext())
+                        .apiUuid(context.getApiUuid())
+                        .applicationName(context.getApplicationName())
+                        .applicationUuid(context.getApplicationUuid())
+                        .subscriberName(context.getSubscriberName())
+                        .organizationId(context.getOrganizationId())
+                        .environmentId(context.getEnvironmentId())
+                        .throttlingPolicy(context.getThrottlingPolicy())
+                        .properties(context.getProperties())
+                        .build();
+                agent.deleteSubscription(deleteContext);
                 if (log.isDebugEnabled()) {
                     log.debug("Deleted old external subscription: " + oldExternalSubscriptionId);
                 }
@@ -5878,21 +5895,39 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                         ". Proceeding with create.", e);
             }
 
-            // 4. CREATE new subscription using validated request
-            FederatedCredential newCredential = agent.createSubscription(request);
+            // 4. CREATE new subscription using context (with null externalSubscriptionId for creation)
+            // Pass old reference artifact so agent can extract previous selectedOption for regeneration
+            FederatedSubscriptionContext createContext = FederatedSubscriptionContext.builder()
+                    .subscriptionUuid(context.getSubscriptionUuid())
+                    .externalSubscriptionId(null)  // null for CREATE
+                    .apiReferenceArtifact(context.getApiReferenceArtifact())
+                    .subscriptionReferenceArtifact(context.getSubscriptionReferenceArtifact())  // old artifact for reading previous option
+                    .apiName(context.getApiName())
+                    .apiVersion(context.getApiVersion())
+                    .apiContext(context.getApiContext())
+                    .apiUuid(context.getApiUuid())
+                    .applicationName(context.getApplicationName())
+                    .applicationUuid(context.getApplicationUuid())
+                    .subscriberName(context.getSubscriberName())
+                    .organizationId(context.getOrganizationId())
+                    .environmentId(context.getEnvironmentId())
+                    .throttlingPolicy(context.getThrottlingPolicy())
+                    .properties(context.getProperties())
+                    .build();
+            FederatedCredential newCredential = agent.createSubscription(createContext);
 
             // 5. Get invocation instruction
             InvocationInstruction instruction = null;
-            if (request.getReferenceArtifact() != null) {
+            if (context.getApiReferenceArtifact() != null) {
                 try {
-                    instruction = agent.getInvocationInstruction(request.getReferenceArtifact());
+                    instruction = agent.getInvocationInstruction(context);
                 } catch (APIManagementException e) {
                     log.warn("Failed to get invocation instruction", e);
                 }
             }
 
             // 6. Build new reference artifact
-            String newReferenceArtifact = agent.buildSubscriptionReferenceArtifact(newCredential, instruction);
+            String newReferenceArtifact = agent.buildSubscriptionReferenceArtifact(newCredential, instruction, createContext);
 
             // 7. UPDATE mapping with NEW external ID
             SubscriptionExternalMapping mapping = apiMgtDAO.getSubscriptionExternalMapping(
@@ -5917,11 +5952,11 @@ APIConstants.AuditLogConstants.DELETED, this.username);
     }
 
     @Override
-    public FederatedCredential createFederatedSubscription(FederatedSubscriptionRequest request, String organization)
+    public FederatedCredential createFederatedSubscription(FederatedSubscriptionContext context, String organization)
             throws APIManagementException {
 
-        String subscriptionUuid = request.getSubscriptionUuid();
-        String environmentId = request.getEnvironmentId();
+        String subscriptionUuid = context.getSubscriptionUuid();
+        String environmentId = context.getEnvironmentId();
 
         // Check if mapping already exists
         if (apiMgtDAO.subscriptionExternalMappingExists(subscriptionUuid, environmentId)) {
@@ -5940,20 +5975,20 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                 environment, organization);
 
         // Create subscription on external gateway
-        FederatedCredential credential = agent.createSubscription(request);
+        FederatedCredential credential = agent.createSubscription(context);
 
-        // Get invocation instruction (kept for now, pending API team discussion)
+        // Get invocation instruction
         InvocationInstruction instruction = null;
-        if (request.getReferenceArtifact() != null) {
+        if (context.getApiReferenceArtifact() != null) {
             try {
-                instruction = agent.getInvocationInstruction(request.getReferenceArtifact());
+                instruction = agent.getInvocationInstruction(context);
             } catch (APIManagementException e) {
-                log.warn("Failed to get invocation instruction for subscription: " + request.getSubscriptionUuid(), e);
+                log.warn("Failed to get invocation instruction for subscription: " + context.getSubscriptionUuid(), e);
             }
         }
 
         // Let the connector build its own reference artifact format
-        String subscriptionReferenceArtifact = agent.buildSubscriptionReferenceArtifact(credential, instruction);
+        String subscriptionReferenceArtifact = agent.buildSubscriptionReferenceArtifact(credential, instruction, context);
 
         // Store mapping in database
         SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
@@ -5998,7 +6033,17 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         try {
             FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
                     environment, organization);
-            agent.deleteSubscription(mapping.getExternalSubscriptionId());
+            
+            // Build deletion context with available information
+            FederatedSubscriptionContext deleteContext = FederatedSubscriptionContext.builder()
+                    .subscriptionUuid(subscriptionUuid)
+                    .externalSubscriptionId(mapping.getExternalSubscriptionId())
+                    .subscriptionReferenceArtifact(mapping.getReferenceArtifact())
+                    .environmentId(gatewayEnvironmentId)
+                    .organizationId(organization)
+                    .build();
+            
+            agent.deleteSubscription(deleteContext);
         } catch (APIManagementException e) {
             log.error("Failed to delete subscription from external gateway. External subscription ID: "
                     + mapping.getExternalSubscriptionId() + ". Proceeding to delete local mapping.", e);
@@ -6026,7 +6071,15 @@ APIConstants.AuditLogConstants.DELETED, this.username);
 
         FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
                 environment, organization);
-        return agent.extractCredentialFromReferenceArtifact(subscriptionReferenceArtifact);
+        
+        // Build minimal context for extraction
+        FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
+                .subscriptionReferenceArtifact(subscriptionReferenceArtifact)
+                .environmentId(gatewayEnvironmentId)
+                .organizationId(organization)
+                .build();
+        
+        return agent.extractCredentialFromReferenceArtifact(context);
     }
 
     @Override
@@ -6052,14 +6105,31 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
                 environment, organization);
 
+        // Build context for credential extraction check
+        FederatedSubscriptionContext extractContext = FederatedSubscriptionContext.builder()
+                .subscriptionUuid(subscriptionUuid)
+                .subscriptionReferenceArtifact(mapping.getReferenceArtifact())
+                .environmentId(gatewayEnvironmentId)
+                .organizationId(organization)
+                .build();
+
         // Check if gateway supports credential retrieval
-        FederatedCredential maskedCred = agent.extractCredentialFromReferenceArtifact(mapping.getReferenceArtifact());
+        FederatedCredential maskedCred = agent.extractCredentialFromReferenceArtifact(extractContext);
         if (maskedCred == null || !maskedCred.isValueRetrievable()) {
             throw new APIManagementException("This gateway does not support credential retrieval");
         }
 
+        // Build context for credential retrieval
+        FederatedSubscriptionContext retrieveContext = FederatedSubscriptionContext.builder()
+                .subscriptionUuid(subscriptionUuid)
+                .externalSubscriptionId(mapping.getExternalSubscriptionId())
+                .subscriptionReferenceArtifact(mapping.getReferenceArtifact())
+                .environmentId(gatewayEnvironmentId)
+                .organizationId(organization)
+                .build();
+
         // Retrieve full credential from gateway
-        return agent.retrieveCredential(mapping.getExternalSubscriptionId());
+        return agent.retrieveCredential(retrieveContext);
     }
 
     @Override
@@ -6073,7 +6143,15 @@ APIConstants.AuditLogConstants.DELETED, this.username);
 
         FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
                 environment, organization);
-        return agent.getInvocationInstruction(referenceArtifact);
+        
+        // Build minimal context for invocation instruction
+        FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
+                .apiReferenceArtifact(referenceArtifact)
+                .environmentId(gatewayEnvironmentId)
+                .organizationId(organization)
+                .build();
+        
+        return agent.getInvocationInstruction(context);
     }
 
 

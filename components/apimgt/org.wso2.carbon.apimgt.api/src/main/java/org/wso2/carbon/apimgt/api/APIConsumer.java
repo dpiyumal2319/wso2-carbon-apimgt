@@ -49,7 +49,7 @@ import org.wso2.carbon.apimgt.api.model.Tag;
 import org.wso2.carbon.apimgt.api.model.Tier;
 import org.wso2.carbon.apimgt.api.model.TierPermission;
 import org.wso2.carbon.apimgt.api.model.FederatedCredential;
-import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionRequest;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
 import org.wso2.carbon.apimgt.api.model.InvocationInstruction;
 import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
 import org.wso2.carbon.apimgt.api.model.webhooks.Subscription;
@@ -1148,15 +1148,13 @@ public interface APIConsumer extends APIManager {
     /**
      * Regenerate credential for a federated API subscription using delete + create pattern.
      * 
-     * @param request The subscription request with validated data
-     * @param oldExternalSubscriptionId The current external subscription ID to be deleted
+     * @param context The subscription context with all required information
      * @param organization Organization name
      * @return regenerated credential with full key value
      * @throws APIManagementException if regeneration fails
      */
     FederatedCredential regenerateFederatedSubscriptionCredential(
-            FederatedSubscriptionRequest request,
-            String oldExternalSubscriptionId,
+            FederatedSubscriptionContext context,
             String organization) throws APIManagementException;
 
     /**
@@ -1166,12 +1164,12 @@ public interface APIConsumer extends APIManager {
      * Returns the full credential for one-time display.
      * </p>
      *
-     * @param request The federated subscription request
+     * @param context The federated subscription context
      * @param organization Organization name
      * @return FederatedCredential with full key value (one-time display)
      * @throws APIManagementException if creation fails
      */
-    FederatedCredential createFederatedSubscription(FederatedSubscriptionRequest request, String organization)
+    FederatedCredential createFederatedSubscription(FederatedSubscriptionContext context, String organization)
             throws APIManagementException;
 
     /**

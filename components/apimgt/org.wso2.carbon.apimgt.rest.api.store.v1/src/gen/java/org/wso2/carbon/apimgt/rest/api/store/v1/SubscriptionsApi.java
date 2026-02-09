@@ -4,6 +4,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.APIMonetizationUsageDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.AdditionalSubscriptionInfoListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionCreateRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
 import java.util.List;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionDTO;
@@ -45,7 +46,7 @@ SubscriptionsApiService delegate = new SubscriptionsApiServiceImpl();
 
     @POST
     @Path("/{subscriptionId}/federated-subscription")
-    
+    @Consumes({ "application/json" })
     @Produces({ "application/json" })
     @ApiOperation(value = "Create Federated Subscription on External Gateway ", notes = "This operation creates a subscription on the external gateway for a federated API. Returns the credential (one-time full display) and invocation instructions. ", response = FederatedSubscriptionInfoDTO.class, authorizations = {
         @Authorization(value = "OAuth2Security", scopes = {
@@ -59,8 +60,8 @@ SubscriptionsApiService delegate = new SubscriptionsApiServiceImpl();
         @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
         @ApiResponse(code = 409, message = "Conflict. Federated subscription already exists. ", response = ErrorDTO.class),
         @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
-    public Response createFederatedSubscription(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId) throws APIManagementException{
-        return delegate.createFederatedSubscription(subscriptionId, securityContext);
+    public Response createFederatedSubscription(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId, @ApiParam(value = "Optional subscription request parameters " ) FederatedSubscriptionCreateRequestDTO federatedSubscriptionCreateRequestDTO) throws APIManagementException{
+        return delegate.createFederatedSubscription(subscriptionId, federatedSubscriptionCreateRequestDTO, securityContext);
     }
 
     @DELETE

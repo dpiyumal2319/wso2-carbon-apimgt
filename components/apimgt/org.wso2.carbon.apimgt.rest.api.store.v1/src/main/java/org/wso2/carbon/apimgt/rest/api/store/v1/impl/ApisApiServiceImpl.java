@@ -44,6 +44,8 @@ import org.wso2.carbon.apimgt.api.model.CommentList;
 import org.wso2.carbon.apimgt.api.model.Documentation;
 import org.wso2.carbon.apimgt.api.model.DocumentationContent;
 import org.wso2.carbon.apimgt.api.model.Environment;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionOptions;
 import org.wso2.carbon.apimgt.api.model.OrganizationInfo;
 import org.wso2.carbon.apimgt.api.model.ResourceFile;
 import org.wso2.carbon.apimgt.api.model.Tier;
@@ -1627,12 +1629,33 @@ public class ApisApiServiceImpl implements ApisApiService {
             FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
                     environment, organization);
 
-            String[] supportedAuthTypes = agent.getSupportedAuthTypes(apiReferenceArtifact);
+            // Build minimal context for checking supported auth types
+            FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
+                    .apiReferenceArtifact(apiReferenceArtifact)
+                    .apiName(api.getId().getApiName())
+                    .apiVersion(api.getId().getVersion())
+                    .apiUuid(api.getUuid())
+                    .environmentId(gatewayEnvironmentId)
+                    .organizationId(organization)
+                    .build();
+
+            String[] supportedAuthTypes = agent.getSupportedAuthTypes(context);
+
+            // Get subscription options from gateway
+            FederatedSubscriptionOptions subscriptionOptions = agent.getSubscriptionOptions(context);
 
             // Build response DTO
             SubscriptionSupportInfoDTO dto = new SubscriptionSupportInfoDTO();
             dto.setSupportedAuthTypes(Arrays.asList(supportedAuthTypes));
             dto.setRequiresSubscription(supportedAuthTypes.length > 0);
+            
+            // Add subscription options if available
+            if (subscriptionOptions != null) {
+                FederatedSubscriptionOptionsDTO optionsDTO = new FederatedSubscriptionOptionsDTO();
+                optionsDTO.setBody(subscriptionOptions.getBody());
+                optionsDTO.setOptionsSchema(subscriptionOptions.getOptionsSchema());
+                dto.setSubscriptionOptions(optionsDTO);
+            }
 
             return Response.ok().entity(dto).build();
         } catch (APIManagementException e) {

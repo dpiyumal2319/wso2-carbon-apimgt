@@ -20,7 +20,8 @@ package org.wso2.carbon.apimgt.api;
 
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.FederatedCredential;
-import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionRequest;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionOptions;
 import org.wso2.carbon.apimgt.api.model.InvocationInstruction;
 
 /**
@@ -55,11 +56,11 @@ public interface FederatedSubscriptionAgent {
      * and returns the full credential for one-time display to the user.
      * </p>
      *
-     * @param request The subscription request containing WSO2 and external identifiers
+     * @param context The subscription context containing complete WSO2 and gateway information
      * @return FederatedCredential containing the full credential value (one-time display) (Unmasked)
      * @throws APIManagementException If subscription creation fails
      */
-    FederatedCredential createSubscription(FederatedSubscriptionRequest request) throws APIManagementException;
+    FederatedCredential createSubscription(FederatedSubscriptionContext context) throws APIManagementException;
 
     /**
      * Deletes a subscription from the external gateway.
@@ -69,10 +70,10 @@ public interface FederatedSubscriptionAgent {
      * subscription doesn't exist, it should not throw an error.
      * </p>
      *
-     * @param externalSubscriptionId The external gateway's subscription identifier
+     * @param context The subscription context containing all information needed for deletion
      * @throws APIManagementException If subscription deletion fails
      */
-    void deleteSubscription(String externalSubscriptionId) throws APIManagementException;
+    void deleteSubscription(FederatedSubscriptionContext context) throws APIManagementException;
 
     /**
      * Retrieves the full credential value from the gateway.
@@ -81,23 +82,23 @@ public interface FederatedSubscriptionAgent {
      * Default implementation throws an exception. Override for gateways that support it.
      * </p>
      *
-     * @param externalSubscriptionId The external gateway's subscription identifier
+     * @param context The subscription context containing all information needed for retrieval
      * @return FederatedCredential containing the full credential value
      * @throws APIManagementException If retrieval fails or is not supported
      */
-    default FederatedCredential retrieveCredential(String externalSubscriptionId) throws APIManagementException {
+    default FederatedCredential retrieveCredential(FederatedSubscriptionContext context) throws APIManagementException {
         throw new APIManagementException("This gateway does not support credential retrieval");
     }
 
     /**
-     * Gets the API invocation instructions from the reference artifact.
+     * Gets the API invocation instructions from the context.
      * Each connector implementation parses its own reference artifact format.
      *
-     * @param referenceArtifact The raw reference artifact JSON from AM_API_EXTERNAL_API_MAPPING
+     * @param context The subscription context containing API reference artifact
      * @return InvocationInstruction containing API invocation details
      * @throws APIManagementException If fetching instructions fails
      */
-    InvocationInstruction getInvocationInstruction(String referenceArtifact) throws APIManagementException;
+    InvocationInstruction getInvocationInstruction(FederatedSubscriptionContext context) throws APIManagementException;
 
     /**
      * Builds the subscription reference artifact JSON for storage in AM_SUBSCRIPTION_EXTERNAL_MAPPING.
@@ -106,19 +107,21 @@ public interface FederatedSubscriptionAgent {
      *
      * @param credential  The credential returned from createSubscription/regenerateCredential
      * @param instruction The invocation instruction (may be null)
+     * @param context     The subscription context containing selectedOption for regeneration
      * @return JSON string to store as the subscription reference artifact
      */
     String buildSubscriptionReferenceArtifact(FederatedCredential credential,
-                                               InvocationInstruction instruction);
+                                               InvocationInstruction instruction,
+                                               FederatedSubscriptionContext context);
 
     /**
      * Extracts a masked credential from the subscription reference artifact.
      * Each connector parses its own reference artifact format.
      *
-     * @param subscriptionReferenceArtifact The reference artifact from AM_SUBSCRIPTION_EXTERNAL_MAPPING
+     * @param context The subscription context containing subscription reference artifact
      * @return FederatedCredential with masked values, or null if not available
      */
-    FederatedCredential extractCredentialFromReferenceArtifact(String subscriptionReferenceArtifact);
+    FederatedCredential extractCredentialFromReferenceArtifact(FederatedSubscriptionContext context);
 
     /**
      * Checks if a subscription exists in the external gateway.
@@ -127,11 +130,11 @@ public interface FederatedSubscriptionAgent {
      * existence checking.
      * </p>
      *
-     * @param externalSubscriptionId The external gateway's subscription identifier
+     * @param context The subscription context containing external subscription identifier
      * @return true if the subscription exists, false otherwise
      * @throws APIManagementException If the validation fails
      */
-    default boolean subscriptionExists(String externalSubscriptionId) throws APIManagementException {
+    default boolean subscriptionExists(FederatedSubscriptionContext context) throws APIManagementException {
         return true;
     }
 
@@ -154,12 +157,32 @@ public interface FederatedSubscriptionAgent {
      * Override this method to implement gateway-specific logic.
      * </p>
      *
-     * @param apiReferenceArtifact The API reference artifact from AM_API_EXTERNAL_API_MAPPING
+     * @param context The subscription context containing API reference artifact
      * @return Array of supported auth type strings (e.g., ["opaque-api-key"]), empty if no subscription security
      * @throws APIManagementException if check fails
      */
-    default String[] getSupportedAuthTypes(String apiReferenceArtifact) throws APIManagementException {
+    default String[] getSupportedAuthTypes(FederatedSubscriptionContext context) throws APIManagementException {
         // Default: assume subscription required with opaque API key
         return new String[]{"opaque-api-key"};
+    }
+
+    /**
+     * Discovers subscription options available from the external gateway for an API.
+     * <p>
+     * Returns gateway-specific subscription tiers/plans (e.g., AWS usage plans with throttle/quota).
+     * Uses opaque body pattern - backend never parses options, only frontend.
+     * </p>
+     * <p>
+     * Default implementation returns null, indicating no subscription options are available.
+     * Gateways with subscription tiers should override this method.
+     * </p>
+     *
+     * @param context The subscription context containing API reference artifact
+     * @return FederatedSubscriptionOptions with opaque body and schema, or null if no options
+     * @throws APIManagementException if discovery fails
+     */
+    default FederatedSubscriptionOptions getSubscriptionOptions(FederatedSubscriptionContext context) 
+            throws APIManagementException {
+        return null;  // Default: no subscription options
     }
 }
