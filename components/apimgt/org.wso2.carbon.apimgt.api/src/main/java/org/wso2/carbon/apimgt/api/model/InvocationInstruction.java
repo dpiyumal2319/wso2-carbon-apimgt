@@ -18,30 +18,49 @@
 
 package org.wso2.carbon.apimgt.api.model;
 
+import org.wso2.carbon.apimgt.api.model.schema.InvocationBody;
+
 /**
  * Contains instructions for invoking an API through an external gateway.
  * <p>
- * The {@code body} field carries an opaque JSON string whose structure is defined
- * by each gateway connector. The backend never parses this body — only the connector
- * (producer) and the frontend (consumer) understand its schema.
+ * The {@code body} field is a typed {@link InvocationBody} whose schema name is derived
+ * from the implementation type, preventing mismatches between body content and schema.
  * </p>
  */
 public class InvocationInstruction {
 
     /**
-     * Opaque JSON body containing invocation details.
-     * Structure is connector-specific (e.g., headerName, baseUrl, basePath, curlExample, notes).
+     * Typed invocation body. Schema name is derived from the body type.
      */
-    private String body;
+    private InvocationBody body;
 
     public InvocationInstruction() {
     }
 
-    public String getBody() {
+    /**
+     * Returns the schema name derived from the body type.
+     *
+     * @return schema name, or null if body is null
+     */
+    public String getSchemaName() {
+        return body != null ? body.getSchemaName() : null;
+    }
+
+    /**
+     * Returns the body serialized as a JSON string.
+     * Used by mapping utilities and reference artifact builders.
+     *
+     * @return JSON string, or null if body is null
+     */
+    public String getBodyAsJson() {
+        return body != null ? body.toJson() : null;
+    }
+
+    public InvocationBody getBody() {
         return body;
     }
 
-    public void setBody(String body) {
+    public void setBody(InvocationBody body) {
         this.body = body;
     }
 }

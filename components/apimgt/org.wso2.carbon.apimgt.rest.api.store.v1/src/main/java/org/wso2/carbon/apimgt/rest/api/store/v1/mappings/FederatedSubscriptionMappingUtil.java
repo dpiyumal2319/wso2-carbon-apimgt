@@ -39,7 +39,8 @@ public class FederatedSubscriptionMappingUtil {
         }
 
         FederatedCredentialDTO dto = new FederatedCredentialDTO();
-        dto.setBody(credential.getBody());
+        dto.setSchemaName(credential.getSchemaName());
+        dto.setBody(credential.getBodyAsJson());
         dto.setExternalSubscriptionId(credential.getExternalSubscriptionId());
         dto.setIsValueRetrievable(credential.isValueRetrievable());
         dto.setMasked(credential.isMasked());

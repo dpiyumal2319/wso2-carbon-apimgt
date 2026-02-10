@@ -6978,12 +6978,16 @@ components:
         API credential for accessing a federated API. The body field carries an opaque
         JSON string whose structure is defined by each gateway connector.
       properties:
+        schemaName:
+          type: string
+          description: Schema identifier for renderer selection (e.g., "opaque-api-key", "primary-secondary-key-pair")
+          example: opaque-api-key
         body:
           type: string
           description: |
             Opaque JSON string containing credential details. Structure is connector-specific.
             On create/regenerate contains full credential value. On get contains masked value.
-          example: '{"credentialType":"opaque-api-key","value":"abc123...","headerName":"Ocp-Apim-Subscription-Key","createdTime":"2025-01-30T10:00:00Z"}'
+          example: '{"value":"abc123...","headerName":"x-api-key","createdTime":"2025-01-30T10:00:00Z"}'
         externalSubscriptionId:
           type: string
           description: External gateway subscription identifier
@@ -7003,6 +7007,10 @@ components:
         Instructions for invoking a federated API. The body field carries an opaque
         JSON string whose structure is defined by each gateway connector.
       properties:
+        schemaName:
+          type: string
+          description: Schema identifier for renderer selection (e.g., "header-based", "header-with-query-fallback")
+          example: header-based
         body:
           type: string
           description: |
@@ -7035,9 +7043,9 @@ components:
           type: string
           description: Opaque JSON containing gateway-specific subscription options
           example: '{"options":[{"id":"plan1","name":"Basic","rateLimit":100}]}'
-        optionsSchema:
+        schemaName:
           type: string
-          description: Schema identifier for frontend renderer selection
+          description: Schema identifier for frontend renderer selection (e.g., "tier-selector")
           example: tier-selector
     FederatedSubscriptionCreateRequest:
       title: Federated Subscription Create Request

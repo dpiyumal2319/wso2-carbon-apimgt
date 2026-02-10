@@ -24,7 +24,7 @@ import javax.validation.Valid;
 public class FederatedSubscriptionOptionsDTO   {
   
     private String body = null;
-    private String optionsSchema = null;
+    private String schemaName = null;
 
   /**
    * Opaque JSON containing gateway-specific subscription options
@@ -45,21 +45,21 @@ public class FederatedSubscriptionOptionsDTO   {
   }
 
   /**
-   * Schema identifier for frontend renderer selection
+   * Schema identifier for frontend renderer selection (e.g., \&quot;tier-selector\&quot;)
    **/
-  public FederatedSubscriptionOptionsDTO optionsSchema(String optionsSchema) {
-    this.optionsSchema = optionsSchema;
+  public FederatedSubscriptionOptionsDTO schemaName(String schemaName) {
+    this.schemaName = schemaName;
     return this;
   }
 
   
-  @ApiModelProperty(example = "tier-selector", value = "Schema identifier for frontend renderer selection")
-  @JsonProperty("optionsSchema")
-  public String getOptionsSchema() {
-    return optionsSchema;
+  @ApiModelProperty(example = "tier-selector", value = "Schema identifier for frontend renderer selection (e.g., \"tier-selector\")")
+  @JsonProperty("schemaName")
+  public String getSchemaName() {
+    return schemaName;
   }
-  public void setOptionsSchema(String optionsSchema) {
-    this.optionsSchema = optionsSchema;
+  public void setSchemaName(String schemaName) {
+    this.schemaName = schemaName;
   }
 
 
@@ -73,12 +73,12 @@ public class FederatedSubscriptionOptionsDTO   {
     }
     FederatedSubscriptionOptionsDTO federatedSubscriptionOptions = (FederatedSubscriptionOptionsDTO) o;
     return Objects.equals(body, federatedSubscriptionOptions.body) &&
-        Objects.equals(optionsSchema, federatedSubscriptionOptions.optionsSchema);
+        Objects.equals(schemaName, federatedSubscriptionOptions.schemaName);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(body, optionsSchema);
+    return Objects.hash(body, schemaName);
   }
 
   @Override
@@ -87,7 +87,7 @@ public class FederatedSubscriptionOptionsDTO   {
     sb.append("class FederatedSubscriptionOptionsDTO {\n");
     
     sb.append("    body: ").append(toIndentedString(body)).append("\n");
-    sb.append("    optionsSchema: ").append(toIndentedString(optionsSchema)).append("\n");
+    sb.append("    schemaName: ").append(toIndentedString(schemaName)).append("\n");
     sb.append("}");
     return sb.toString();
   }

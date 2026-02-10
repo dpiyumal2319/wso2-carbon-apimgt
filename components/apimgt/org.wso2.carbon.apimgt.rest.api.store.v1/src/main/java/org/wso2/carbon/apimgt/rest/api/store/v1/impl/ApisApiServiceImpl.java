@@ -1655,8 +1655,8 @@ public class ApisApiServiceImpl implements ApisApiService {
                 // Add subscription options if available
                 if (subscriptionOptions != null) {
                     FederatedSubscriptionOptionsDTO optionsDTO = new FederatedSubscriptionOptionsDTO();
-                    optionsDTO.setBody(subscriptionOptions.getBody());
-                    optionsDTO.setOptionsSchema(subscriptionOptions.getOptionsSchema());
+                    optionsDTO.setBody(subscriptionOptions.getBodyAsJson());
+                    optionsDTO.setSchemaName(subscriptionOptions.getSchemaName());
                     dto.setSubscriptionOptions(optionsDTO);
                 }
             } catch (APIManagementException e) {
