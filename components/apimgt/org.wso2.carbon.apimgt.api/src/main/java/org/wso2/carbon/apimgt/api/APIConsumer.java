@@ -49,7 +49,7 @@ import org.wso2.carbon.apimgt.api.model.Tag;
 import org.wso2.carbon.apimgt.api.model.Tier;
 import org.wso2.carbon.apimgt.api.model.TierPermission;
 import org.wso2.carbon.apimgt.api.model.FederatedCredential;
-import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionResult;
 import org.wso2.carbon.apimgt.api.model.InvocationInstruction;
 import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
 import org.wso2.carbon.apimgt.api.model.webhooks.Subscription;
@@ -1146,95 +1146,68 @@ public interface APIConsumer extends APIManager {
             throws APIManagementException;
 
     /**
-     * Regenerate credential for a federated API subscription using delete + create pattern.
-     * 
-     * @param context The subscription context with all required information
+     * Regenerate credential for a federated API subscription.
+     * Service builds context, orchestrates agent delete + create, and returns complete result.
+     *
+     * @param subscribedAPI The subscription
+     * @param api The API
      * @param organization Organization name
-     * @return regenerated credential with full key value
+     * @return FederatedSubscriptionResult with new credential, instruction, and gateway info
      * @throws APIManagementException if regeneration fails
      */
-    FederatedCredential regenerateFederatedSubscriptionCredential(
-            FederatedSubscriptionContext context,
-            String organization) throws APIManagementException;
+    FederatedSubscriptionResult regenerateFederatedSubscriptionCredential(
+            SubscribedAPI subscribedAPI, API api, String organization) throws APIManagementException;
 
     /**
      * Create a federated subscription on an external gateway.
-     * <p>
-     * Creates the subscription on the external gateway and stores the mapping in the database.
-     * Returns the full credential for one-time display.
-     * </p>
+     * Service resolves environment, builds context, creates on gateway, persists mapping,
+     * and returns complete result.
      *
-     * @param context The federated subscription context
+     * @param subscribedAPI The subscription
+     * @param api The API
      * @param organization Organization name
-     * @return FederatedCredential with full key value (one-time display)
+     * @param selectedOption Developer's selected subscription option (may be null)
+     * @return FederatedSubscriptionResult with full credential (one-time display), instruction, and gateway info
      * @throws APIManagementException if creation fails
      */
-    FederatedCredential createFederatedSubscription(FederatedSubscriptionContext context, String organization)
-            throws APIManagementException;
-
-    /**
-     * Delete a federated subscription from an external gateway.
-     * <p>
-     * Removes the subscription from the external gateway and deletes the mapping from the database.
-     * </p>
-     *
-     * @param subscriptionUuid UUID of the WSO2 subscription
-     * @param gatewayEnvironmentId UUID of the gateway environment
-     * @param organization Organization name
-     * @throws APIManagementException if deletion fails
-     */
-    void deleteFederatedSubscription(String subscriptionUuid, String gatewayEnvironmentId, String organization)
-            throws APIManagementException;
+    FederatedSubscriptionResult createFederatedSubscription(SubscribedAPI subscribedAPI, API api,
+            String organization, String selectedOption) throws APIManagementException;
 
     /**
      * Get federated subscription info including masked credential and invocation instructions.
      *
      * @param subscriptionUuid UUID of the WSO2 subscription
-     * @param gatewayEnvironmentId UUID of the gateway environment
+     * @param api The API
      * @param organization Organization name
-     * @return SubscriptionExternalMapping with masked credential, or null if not found
+     * @return FederatedSubscriptionResult with masked credential and instruction, or null if not found
      * @throws APIManagementException if retrieval fails
      */
-    SubscriptionExternalMapping getFederatedSubscriptionInfo(String subscriptionUuid,
-            String gatewayEnvironmentId, String organization) throws APIManagementException;
+    FederatedSubscriptionResult getFederatedSubscription(String subscriptionUuid, API api,
+            String organization) throws APIManagementException;
 
     /**
-     * Extracts a masked credential from the subscription reference artifact using the
-     * appropriate gateway connector agent.
+     * Delete a federated subscription from an external gateway.
      *
-     * @param subscriptionReferenceArtifact The reference artifact from AM_SUBSCRIPTION_EXTERNAL_MAPPING
-     * @param gatewayEnvironmentId UUID of the gateway environment
+     * @param subscriptionUuid UUID of the WSO2 subscription
+     * @param api The API
      * @param organization Organization name
-     * @return FederatedCredential with masked values
-     * @throws APIManagementException if extraction fails
+     * @throws APIManagementException if deletion fails
      */
-    FederatedCredential getFederatedCredentialFromReferenceArtifact(String subscriptionReferenceArtifact,
-            String gatewayEnvironmentId, String organization) throws APIManagementException;
+    void deleteFederatedSubscription(String subscriptionUuid, API api, String organization)
+            throws APIManagementException;
 
     /**
      * Retrieves the full credential value from the external gateway.
      * Only works for gateways that support credential retrieval (Azure).
      *
      * @param subscriptionUuid UUID of the WSO2 subscription
-     * @param gatewayEnvironmentId UUID of the gateway environment
+     * @param api The API
      * @param organization Organization name
      * @return FederatedCredential with full credential value
      * @throws APIManagementException if retrieval fails or gateway doesn't support it
      */
-    FederatedCredential retrieveFederatedCredential(String subscriptionUuid,
-            String gatewayEnvironmentId, String organization) throws APIManagementException;
-
-    /**
-     * Get invocation instruction for a federated API from the external gateway.
-     *
-     * @param referenceArtifact Raw reference artifact JSON from AM_API_EXTERNAL_API_MAPPING
-     * @param gatewayEnvironmentId UUID of the gateway environment
-     * @param organization Organization name
-     * @return InvocationInstruction with API invocation details
-     * @throws APIManagementException if retrieval fails
-     */
-     InvocationInstruction getFederatedInvocationInstruction(String referenceArtifact,
-             String gatewayEnvironmentId, String organization) throws APIManagementException;
+    FederatedCredential retrieveFederatedCredential(String subscriptionUuid, API api,
+            String organization) throws APIManagementException;
 
     /**
      * This method is used to validate the signed URL and retrieve the API information related to the URL.

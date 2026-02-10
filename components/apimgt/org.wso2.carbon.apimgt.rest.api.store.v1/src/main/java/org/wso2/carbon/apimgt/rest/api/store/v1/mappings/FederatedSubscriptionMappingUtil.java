@@ -19,6 +19,7 @@
 package org.wso2.carbon.apimgt.rest.api.store.v1.mappings;
 
 import org.wso2.carbon.apimgt.api.model.FederatedCredential;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionResult;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
 
@@ -63,6 +64,26 @@ public class FederatedSubscriptionMappingUtil {
         dto.setGatewayType(FederatedSubscriptionInfoDTO.GatewayTypeEnum.fromValue(
                 gatewayType != null ? gatewayType.toLowerCase() : null));
         dto.setGatewayEnvironmentId(gatewayEnvironmentId);
+
+        return dto;
+    }
+
+    /**
+     * Converts a FederatedSubscriptionResult to DTO.
+     * Single mapping call that assembles the complete response DTO.
+     */
+    public static FederatedSubscriptionInfoDTO toDTO(FederatedSubscriptionResult result) {
+        if (result == null) {
+            return null;
+        }
+
+        FederatedSubscriptionInfoDTO dto = new FederatedSubscriptionInfoDTO();
+        dto.setCredential(fromFederatedCredentialToDTO(result.getCredential()));
+        dto.setInvocationInstruction(
+                InvocationInstructionMappingUtil.fromInvocationInstructionToDTO(result.getInvocationInstruction()));
+        dto.setGatewayType(FederatedSubscriptionInfoDTO.GatewayTypeEnum.fromValue(
+                result.getGatewayType() != null ? result.getGatewayType().toLowerCase() : null));
+        dto.setGatewayEnvironmentId(result.getGatewayEnvironmentId());
 
         return dto;
     }
