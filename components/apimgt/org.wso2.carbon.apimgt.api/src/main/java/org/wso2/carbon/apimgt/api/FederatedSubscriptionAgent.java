@@ -91,6 +91,27 @@ public interface FederatedSubscriptionAgent {
     }
 
     /**
+     * Regenerates a credential for an existing subscription using delete + create pattern.
+     * <p>
+     * Default implementation performs a best-effort delete followed by a fresh create.
+     * Agents that need special handling (e.g., preserving selectedOption) should override.
+     * </p>
+     *
+     * @param context The subscription context containing all information needed for regeneration
+     * @return FederatedCredential with the new full credential value (unmasked)
+     * @throws APIManagementException If regeneration fails
+     */
+    default FederatedCredential regenerateCredential(FederatedSubscriptionContext context)
+            throws APIManagementException {
+        try {
+            deleteSubscription(context);
+        } catch (APIManagementException e) {
+            // best-effort delete, continue with create
+        }
+        return createSubscription(context);
+    }
+
+    /**
      * Gets the API invocation instructions from the context.
      * Each connector implementation parses its own reference artifact format.
      *

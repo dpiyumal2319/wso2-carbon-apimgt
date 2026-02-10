@@ -54,12 +54,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionListDTO;
 import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.ApplicationExternalMapping;
 import org.wso2.carbon.apimgt.api.model.FederatedCredential;
-import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
-import org.wso2.carbon.apimgt.api.model.InvocationInstruction;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.InvocationInstructionDTO;
-import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.InvocationInstructionMappingUtil;
-import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
-import org.wso2.carbon.apimgt.impl.dao.ApiMgtDAO;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionResult;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.FederatedSubscriptionMappingUtil;
@@ -598,27 +593,28 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
     }
 
     /**
-     * Gets the gateway environment UUID for a federated API from AM_API_EXTERNAL_API_MAPPING table.
+     * Validates that the subscription's API is a federated API with external gateway vendor.
+     * Returns the API if valid, or null if not (caller decides error type).
      *
-     * @param api The API object
-     * @return The gateway environment UUID
-     * @throws APIManagementException if API is not federated or no environment mapping found
+     * @param subscribedAPI The subscription
+     * @param apiConsumer The API consumer
+     * @param organization Organization name
+     * @return API if valid federated API, null otherwise
+     * @throws APIManagementException if API lookup fails
      */
-    private String getGatewayEnvironmentIdForFederatedApi(API api) throws APIManagementException {
+    private API validateFederatedApi(SubscribedAPI subscribedAPI, APIConsumer apiConsumer,
+            String organization) throws APIManagementException {
+        ApiTypeWrapper apiTypeWrapper = apiConsumer.getAPIorAPIProductByUUID(
+                subscribedAPI.getIdentifier().getUUID(), organization);
+        if (apiTypeWrapper.isAPIProduct()) {
+            return null;
+        }
+        API api = apiTypeWrapper.getApi();
         if (api == null || StringUtils.isEmpty(api.getGatewayVendor())
                 || !APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor())) {
-            throw new APIManagementException("API is not a federated API with external gateway vendor");
+            return null;
         }
-
-        ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
-        String gatewayEnvId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(api.getUuid());
-
-        if (gatewayEnvId == null) {
-            throw new APIManagementException(
-                    "No external gateway environment mapping found for federated API: " + api.getUuid());
-        }
-
-        return gatewayEnvId;
+        return api;
     }
 
     /**
@@ -697,39 +693,12 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                 return null;
             }
 
-            ApiTypeWrapper apiTypeWrapper = apiConsumer.getAPIorAPIProductByUUID(
-                    subscribedAPI.getIdentifier().getUUID(), organization);
-            if (apiTypeWrapper.isAPIProduct()) {
+            API api = validateFederatedApi(subscribedAPI, apiConsumer, organization);
+            if (api == null) {
                 RestApiUtil.handleBadRequest(
-                        "Federated subscriptions are not supported for API Products", log);
+                        "Federated subscription is only supported for external gateway APIs (not API Products)", log);
                 return null;
             }
-
-            API api = apiTypeWrapper.getApi();
-            if (api == null || StringUtils.isEmpty(api.getGatewayVendor())
-                    || !APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor())) {
-                RestApiUtil.handleBadRequest(
-                        "Federated subscription is only supported for external gateway APIs", log);
-                return null;
-            }
-
-            String gatewayEnvironmentId = getGatewayEnvironmentIdForFederatedApi(api);
-
-            // Check if federated subscription already exists
-            SubscriptionExternalMapping existingMapping = apiConsumer.getFederatedSubscriptionInfo(
-                    subscriptionId, gatewayEnvironmentId, organization);
-            if (existingMapping != null) {
-                RestApiUtil.handleResourceAlreadyExistsError(
-                        "Federated subscription already exists for subscription: " + subscriptionId, log);
-                return null;
-            }
-
-            Application application = subscribedAPI.getApplication();
-            ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
-
-            // Get raw reference artifact — connector will parse its own format
-            String referenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(
-                    api.getUuid(), gatewayEnvironmentId);
 
             // Extract selectedOption from request body (if provided)
             String selectedOption = null;
@@ -737,57 +706,11 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                 selectedOption = federatedSubscriptionCreateRequestDTO.getSelectedOption();
             }
 
-            // Build context with complete information
-            FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
-                    .subscriptionUuid(subscribedAPI.getUUID())
-                    .externalSubscriptionId(null)  // null for CREATE
-                    .apiReferenceArtifact(referenceArtifact)
-                    .subscriptionReferenceArtifact(null)  // will be created
-                    .selectedOption(selectedOption)  // Developer's selected subscription option
-                    .apiName(api.getId().getApiName())
-                    .apiVersion(api.getId().getVersion())
-                    .apiContext(api.getContext())
-                    .apiUuid(api.getUuid())
-                    .applicationName(application.getName())
-                    .applicationUuid(application.getUUID())
-                    .subscriberName(subscribedAPI.getSubscriber().getName())
-                    .organizationId(organization)
-                    .environmentId(gatewayEnvironmentId)
-                    .throttlingPolicy(subscribedAPI.getTier().getName())
-                    .build();
+            // Single service call — returns complete result
+            FederatedSubscriptionResult result = apiConsumer.createFederatedSubscription(
+                    subscribedAPI, api, organization, selectedOption);
 
-            // Create returns full credential (one-time display to user)
-            FederatedCredential fullCredential = apiConsumer.createFederatedSubscription(context, organization);
-
-            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil
-                    .fromFederatedSubscriptionInfoToDTO(
-                            fullCredential, api.getGatewayVendor(), gatewayEnvironmentId);
-
-            // Set gateway type (Azure, AWS, Kong, Envoy)
-            if (api.getGatewayType() != null) {
-                dto.setGatewayType(
-                        FederatedSubscriptionInfoDTO.GatewayTypeEnum.fromValue(
-                                api.getGatewayType().toLowerCase()
-                        )
-                );
-            }
-
-            // Add invocation instruction
-            InvocationInstruction instruction = null;
-            if (referenceArtifact != null && !referenceArtifact.isEmpty()) {
-                try {
-                    instruction = apiConsumer.getFederatedInvocationInstruction(
-                            referenceArtifact, gatewayEnvironmentId, organization);
-                    if (instruction != null) {
-                        dto.setInvocationInstruction(
-                                InvocationInstructionMappingUtil.fromInvocationInstructionToDTO(instruction));
-                    }
-                } catch (APIManagementException e) {
-                    // Log but don't fail if invocation instruction unavailable
-                    log.warn("Unable to fetch invocation instruction for subscription: " + subscriptionId, e);
-                }
-            }
-
+            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
             return Response.status(Response.Status.CREATED).entity(dto).build();
 
         } catch (APIManagementException e) {
@@ -823,71 +746,23 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                 return null;
             }
 
-            ApiTypeWrapper apiTypeWrapper = apiConsumer.getAPIorAPIProductByUUID(
-                    subscribedAPI.getIdentifier().getUUID(), organization);
-            if (apiTypeWrapper.isAPIProduct()) {
+            API api = validateFederatedApi(subscribedAPI, apiConsumer, organization);
+            if (api == null) {
                 RestApiUtil.handleResourceNotFoundError(
                         "Federated subscription", subscriptionId, log);
                 return null;
             }
 
-            API api = apiTypeWrapper.getApi();
-            if (api == null || StringUtils.isEmpty(api.getGatewayVendor())
-                    || !APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor())) {
+            // Single service call — returns complete result (or null if not found)
+            FederatedSubscriptionResult result = apiConsumer.getFederatedSubscription(
+                    subscriptionId, api, organization);
+            if (result == null) {
                 RestApiUtil.handleResourceNotFoundError(
                         "Federated subscription", subscriptionId, log);
                 return null;
             }
 
-            String gatewayEnvironmentId = getGatewayEnvironmentIdForFederatedApi(api);
-            SubscriptionExternalMapping mapping = apiConsumer.getFederatedSubscriptionInfo(
-                    subscriptionId, gatewayEnvironmentId, organization);
-            if (mapping == null) {
-                RestApiUtil.handleResourceNotFoundError(
-                        "Federated subscription", subscriptionId, log);
-                return null;
-            }
-
-            // Extract masked credential from reference artifact via the gateway connector
-            FederatedCredential maskedCredential = apiConsumer.getFederatedCredentialFromReferenceArtifact(
-                    mapping.getReferenceArtifact(), gatewayEnvironmentId, organization);
-            if (maskedCredential == null) {
-                maskedCredential = new FederatedCredential();
-            }
-            maskedCredential.setExternalSubscriptionId(mapping.getExternalSubscriptionId());
-            maskedCredential.setMasked(true);
-
-            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil
-                    .fromFederatedSubscriptionInfoToDTO(
-                            maskedCredential, api.getGatewayVendor(), gatewayEnvironmentId);
-
-            // Set gateway type (Azure, AWS, Kong, Envoy)
-            if (api.getGatewayType() != null) {
-                dto.setGatewayType(
-                        FederatedSubscriptionInfoDTO.GatewayTypeEnum.fromValue(
-                                api.getGatewayType().toLowerCase()
-                        )
-                );
-            }
-
-            // Add invocation instruction
-            ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
-            String apiReferenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(
-                    api.getUuid(), gatewayEnvironmentId);
-            if (apiReferenceArtifact != null && !apiReferenceArtifact.isEmpty()) {
-                try {
-                    InvocationInstruction instruction = apiConsumer.getFederatedInvocationInstruction(
-                            apiReferenceArtifact, gatewayEnvironmentId, organization);
-                    if (instruction != null) {
-                        dto.setInvocationInstruction(
-                                InvocationInstructionMappingUtil.fromInvocationInstructionToDTO(instruction));
-                    }
-                } catch (APIManagementException e) {
-                    // Log but don't fail if invocation instruction unavailable
-                    log.warn("Unable to fetch invocation instruction for subscription: " + subscriptionId, e);
-                }
-            }
-
+            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
             return Response.ok().entity(dto).build();
 
         } catch (APIManagementException e) {
@@ -920,34 +795,15 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                 return null;
             }
 
-            ApiTypeWrapper apiTypeWrapper = apiConsumer.getAPIorAPIProductByUUID(
-                    subscribedAPI.getIdentifier().getUUID(), organization);
-            if (apiTypeWrapper.isAPIProduct()) {
+            API api = validateFederatedApi(subscribedAPI, apiConsumer, organization);
+            if (api == null) {
                 RestApiUtil.handleResourceNotFoundError(
                         "Federated subscription", subscriptionId, log);
                 return null;
             }
 
-            API api = apiTypeWrapper.getApi();
-            if (api == null || StringUtils.isEmpty(api.getGatewayVendor())
-                    || !APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor())) {
-                RestApiUtil.handleResourceNotFoundError(
-                        "Federated subscription", subscriptionId, log);
-                return null;
-            }
-
-            String gatewayEnvironmentId = getGatewayEnvironmentIdForFederatedApi(api);
-
-            // Check if federated subscription exists before deleting
-            SubscriptionExternalMapping mapping = apiConsumer.getFederatedSubscriptionInfo(
-                    subscriptionId, gatewayEnvironmentId, organization);
-            if (mapping == null) {
-                RestApiUtil.handleResourceNotFoundError(
-                        "Federated subscription", subscriptionId, log);
-                return null;
-            }
-
-            apiConsumer.deleteFederatedSubscription(subscriptionId, gatewayEnvironmentId, organization);
+            // Single service call
+            apiConsumer.deleteFederatedSubscription(subscriptionId, api, organization);
 
             return Response.ok().build();
 
@@ -981,36 +837,16 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                 return null;
             }
 
-            ApiTypeWrapper apiTypeWrapper = apiConsumer.getAPIorAPIProductByUUID(
-                    subscribedAPI.getIdentifier().getUUID(), organization);
-            if (apiTypeWrapper.isAPIProduct()) {
-                RestApiUtil.handleBadRequest(
-                        "Credential retrieval is not supported for API Products", log);
-                return null;
-            }
-
-            API api = apiTypeWrapper.getApi();
-            if (api == null || StringUtils.isEmpty(api.getGatewayVendor())
-                    || !APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor())) {
+            API api = validateFederatedApi(subscribedAPI, apiConsumer, organization);
+            if (api == null) {
                 RestApiUtil.handleBadRequest(
                         "Credential retrieval is only supported for external gateway APIs", log);
                 return null;
             }
 
-            String gatewayEnvironmentId = getGatewayEnvironmentIdForFederatedApi(api);
-
-            // Check if federated subscription exists
-            SubscriptionExternalMapping mapping = apiConsumer.getFederatedSubscriptionInfo(
-                    subscriptionId, gatewayEnvironmentId, organization);
-            if (mapping == null) {
-                RestApiUtil.handleResourceNotFoundError(
-                        "Federated subscription", subscriptionId, log);
-                return null;
-            }
-
-            // Retrieve full credential from gateway
+            // Single service call
             FederatedCredential fullCredential = apiConsumer.retrieveFederatedCredential(
-                    subscriptionId, gatewayEnvironmentId, organization);
+                    subscriptionId, api, organization);
 
             FederatedCredentialDTO dto = FederatedSubscriptionMappingUtil
                     .fromFederatedCredentialToDTO(fullCredential);
@@ -1050,85 +886,18 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                 return null;
             }
 
-            ApiTypeWrapper apiTypeWrapper = apiConsumer.getAPIorAPIProductByUUID(
-                    subscribedAPI.getIdentifier().getUUID(), organization);
-
-            if (apiTypeWrapper.isAPIProduct() || apiTypeWrapper.getApi() == null
-                    || StringUtils.isEmpty(apiTypeWrapper.getApi().getGatewayVendor())
-                    || !APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(
-                            apiTypeWrapper.getApi().getGatewayVendor())) {
+            API api = validateFederatedApi(subscribedAPI, apiConsumer, organization);
+            if (api == null) {
                 RestApiUtil.handleBadRequest(
                         "Credential regeneration is only supported for external gateway API subscriptions", log);
                 return null;
             }
 
-            API api = apiTypeWrapper.getApi();
-            String gatewayEnvironmentId = getGatewayEnvironmentIdForFederatedApi(api);
+            // Single service call — returns complete result
+            FederatedSubscriptionResult result = apiConsumer.regenerateFederatedSubscriptionCredential(
+                    subscribedAPI, api, organization);
 
-            // Check if federated subscription exists
-            SubscriptionExternalMapping mapping = apiConsumer.getFederatedSubscriptionInfo(
-                    subscriptionId, gatewayEnvironmentId, organization);
-            if (mapping == null) {
-                RestApiUtil.handleResourceNotFoundError(
-                        "Federated subscription", subscriptionId, log);
-                return null;
-            }
-
-            // Get the old external subscription ID from mapping
-            String oldExternalSubscriptionId = mapping.getExternalSubscriptionId();
-
-            // Get API reference artifact for the request
-            ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
-            String referenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(
-                    api.getUuid(), gatewayEnvironmentId);
-
-            // Build context with complete information (including old external ID)
-            FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
-                    .subscriptionUuid(subscriptionId)
-                    .externalSubscriptionId(oldExternalSubscriptionId)  // Old ID for deletion
-                    .apiReferenceArtifact(referenceArtifact)
-                    .subscriptionReferenceArtifact(mapping.getReferenceArtifact())
-                    .apiName(api.getId().getApiName())
-                    .apiVersion(api.getId().getVersion())
-                    .apiContext(api.getContext())
-                    .apiUuid(api.getUuid())
-                    .applicationName(subscribedAPI.getApplication().getName())
-                    .applicationUuid(subscribedAPI.getApplication().getUUID())
-                    .subscriberName(subscribedAPI.getSubscriber().getName())
-                    .organizationId(organization)
-                    .environmentId(gatewayEnvironmentId)
-                    .throttlingPolicy(subscribedAPI.getTier().getName())
-                    .build();
-
-            // Call impl with context
-            FederatedCredential regeneratedCredential = apiConsumer.regenerateFederatedSubscriptionCredential(
-                    context, organization);
-
-            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil
-                    .fromFederatedSubscriptionInfoToDTO(
-                            regeneratedCredential, api.getGatewayVendor(), gatewayEnvironmentId);
-
-            // Set gateway type (Azure, AWS, Kong, Envoy)
-            if (api.getGatewayType() != null) {
-                dto.setGatewayType(FederatedSubscriptionInfoDTO.GatewayTypeEnum.fromValue(
-                        api.getGatewayType().toLowerCase()));
-            }
-
-            // Add invocation instruction
-            if (referenceArtifact != null && !referenceArtifact.isEmpty()) {
-                try {
-                    InvocationInstruction instruction = apiConsumer.getFederatedInvocationInstruction(
-                            referenceArtifact, gatewayEnvironmentId, organization);
-                    if (instruction != null) {
-                        dto.setInvocationInstruction(
-                                InvocationInstructionMappingUtil.fromInvocationInstructionToDTO(instruction));
-                    }
-                } catch (APIManagementException e) {
-                    // Log but don't fail if invocation instruction unavailable
-                    log.warn("Unable to fetch invocation instruction for subscription: " + subscriptionId, e);
-                }
-            }
-
+            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
             return Response.ok().entity(dto).build();
 
         } catch (APIManagementException e) {
