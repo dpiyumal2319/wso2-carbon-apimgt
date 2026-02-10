@@ -18,12 +18,16 @@
 
 package org.wso2.carbon.apimgt.api.model;
 
+import org.wso2.carbon.apimgt.api.model.schema.CredentialBody;
+
 /**
  * Represents a credential returned from an external gateway subscription.
  * <p>
- * The {@code body} field carries an opaque JSON string whose structure is defined
- * by each gateway connector. The backend never parses this body — only the connector
- * (producer) and the frontend (consumer) understand its schema.
+ * The {@code body} field is a typed {@link CredentialBody} whose schema name is derived
+ * from the implementation type, preventing mismatches between body content and schema.
+ * The service layer interacts with the body only through the interface (getSchemaName,
+ * toJson, masked) — it never accesses body-specific fields.
+ * </p>
  * <p>
  * On CREATE or REGENERATE, the body contains the full credential value (masked = false).
  * On GET (from reference artifact), the body contains a masked credential (masked = true).
@@ -32,10 +36,9 @@ package org.wso2.carbon.apimgt.api.model;
 public class FederatedCredential {
 
     /**
-     * Opaque JSON body containing credential details.
-     * Structure is connector-specific (e.g., credentialType, value, headerName, timestamps).
+     * Typed credential body. Schema name is derived from the body type.
      */
-    private String body;
+    private CredentialBody body;
 
     /**
      * The external subscription identifier in the gateway.
@@ -55,11 +58,30 @@ public class FederatedCredential {
     public FederatedCredential() {
     }
 
-    public String getBody() {
+    /**
+     * Returns the schema name derived from the body type.
+     *
+     * @return schema name, or null if body is null
+     */
+    public String getSchemaName() {
+        return body != null ? body.getSchemaName() : null;
+    }
+
+    /**
+     * Returns the body serialized as a JSON string.
+     * Used by mapping utilities and reference artifact builders.
+     *
+     * @return JSON string, or null if body is null
+     */
+    public String getBodyAsJson() {
+        return body != null ? body.toJson() : null;
+    }
+
+    public CredentialBody getBody() {
         return body;
     }
 
-    public void setBody(String body) {
+    public void setBody(CredentialBody body) {
         this.body = body;
     }
 

@@ -5420,29 +5420,4 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         
         return agent.getInvocationInstruction(context);
     }
-
-
-    /**
-     * Deserializes an InvocationInstruction from a JSON string.
-     * Simply extracts the opaque body field from the reference artifact.
-     */
-    private InvocationInstruction deserializeInvocationInstruction(String json) {
-        if (json == null || json.isEmpty()) {
-            return null;
-        }
-        try {
-            org.json.simple.JSONObject jsonObj = (org.json.simple.JSONObject)
-                    new org.json.simple.parser.JSONParser().parse(json);
-            InvocationInstruction instruction = new InvocationInstruction();
-            // Extract the opaque body field
-            String body = (String) jsonObj.get("body");
-            if (body != null) {
-                instruction.setBody(body);
-            }
-            return instruction;
-        } catch (Exception e) {
-            log.warn("Failed to deserialize invocation instruction", e);
-            return null;
-        }
-    }
 }

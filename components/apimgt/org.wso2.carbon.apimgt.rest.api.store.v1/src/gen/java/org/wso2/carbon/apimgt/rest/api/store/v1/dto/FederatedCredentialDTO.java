@@ -23,10 +23,29 @@ import javax.validation.Valid;
 
 public class FederatedCredentialDTO   {
   
+    private String schemaName = null;
     private String body = null;
     private String externalSubscriptionId = null;
     private Boolean isValueRetrievable = null;
     private Boolean masked = null;
+
+  /**
+   * Schema identifier for renderer selection (e.g., \&quot;opaque-api-key\&quot;, \&quot;primary-secondary-key-pair\&quot;)
+   **/
+  public FederatedCredentialDTO schemaName(String schemaName) {
+    this.schemaName = schemaName;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "opaque-api-key", value = "Schema identifier for renderer selection (e.g., \"opaque-api-key\", \"primary-secondary-key-pair\")")
+  @JsonProperty("schemaName")
+  public String getSchemaName() {
+    return schemaName;
+  }
+  public void setSchemaName(String schemaName) {
+    this.schemaName = schemaName;
+  }
 
   /**
    * Opaque JSON string containing credential details. Structure is connector-specific. On create/regenerate contains full credential value. On get contains masked value. 
@@ -37,7 +56,7 @@ public class FederatedCredentialDTO   {
   }
 
   
-  @ApiModelProperty(example = "{\"credentialType\":\"opaque-api-key\",\"value\":\"abc123...\",\"headerName\":\"Ocp-Apim-Subscription-Key\",\"createdTime\":\"2025-01-30T10:00:00Z\"}", value = "Opaque JSON string containing credential details. Structure is connector-specific. On create/regenerate contains full credential value. On get contains masked value. ")
+  @ApiModelProperty(example = "{\"value\":\"abc123...\",\"headerName\":\"x-api-key\",\"createdTime\":\"2025-01-30T10:00:00Z\"}", value = "Opaque JSON string containing credential details. Structure is connector-specific. On create/regenerate contains full credential value. On get contains masked value. ")
   @JsonProperty("body")
   public String getBody() {
     return body;
@@ -110,7 +129,8 @@ public class FederatedCredentialDTO   {
       return false;
     }
     FederatedCredentialDTO federatedCredential = (FederatedCredentialDTO) o;
-    return Objects.equals(body, federatedCredential.body) &&
+    return Objects.equals(schemaName, federatedCredential.schemaName) &&
+        Objects.equals(body, federatedCredential.body) &&
         Objects.equals(externalSubscriptionId, federatedCredential.externalSubscriptionId) &&
         Objects.equals(isValueRetrievable, federatedCredential.isValueRetrievable) &&
         Objects.equals(masked, federatedCredential.masked);
@@ -118,7 +138,7 @@ public class FederatedCredentialDTO   {
 
   @Override
   public int hashCode() {
-    return Objects.hash(body, externalSubscriptionId, isValueRetrievable, masked);
+    return Objects.hash(schemaName, body, externalSubscriptionId, isValueRetrievable, masked);
   }
 
   @Override
@@ -126,6 +146,7 @@ public class FederatedCredentialDTO   {
     StringBuilder sb = new StringBuilder();
     sb.append("class FederatedCredentialDTO {\n");
     
+    sb.append("    schemaName: ").append(toIndentedString(schemaName)).append("\n");
     sb.append("    body: ").append(toIndentedString(body)).append("\n");
     sb.append("    externalSubscriptionId: ").append(toIndentedString(externalSubscriptionId)).append("\n");
     sb.append("    isValueRetrievable: ").append(toIndentedString(isValueRetrievable)).append("\n");

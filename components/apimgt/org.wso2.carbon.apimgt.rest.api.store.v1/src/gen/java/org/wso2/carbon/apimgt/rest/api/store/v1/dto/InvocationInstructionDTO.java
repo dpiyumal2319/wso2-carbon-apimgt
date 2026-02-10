@@ -23,7 +23,26 @@ import javax.validation.Valid;
 
 public class InvocationInstructionDTO   {
   
+    private String schemaName = null;
     private String body = null;
+
+  /**
+   * Schema identifier for renderer selection (e.g., \&quot;header-based\&quot;, \&quot;header-with-query-fallback\&quot;)
+   **/
+  public InvocationInstructionDTO schemaName(String schemaName) {
+    this.schemaName = schemaName;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "header-based", value = "Schema identifier for renderer selection (e.g., \"header-based\", \"header-with-query-fallback\")")
+  @JsonProperty("schemaName")
+  public String getSchemaName() {
+    return schemaName;
+  }
+  public void setSchemaName(String schemaName) {
+    this.schemaName = schemaName;
+  }
 
   /**
    * Opaque JSON string containing invocation details. Structure is connector-specific (e.g., headerName, baseUrl, basePath, curlExample, notes). 
@@ -53,12 +72,13 @@ public class InvocationInstructionDTO   {
       return false;
     }
     InvocationInstructionDTO invocationInstruction = (InvocationInstructionDTO) o;
-    return Objects.equals(body, invocationInstruction.body);
+    return Objects.equals(schemaName, invocationInstruction.schemaName) &&
+        Objects.equals(body, invocationInstruction.body);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(body);
+    return Objects.hash(schemaName, body);
   }
 
   @Override
@@ -66,6 +86,7 @@ public class InvocationInstructionDTO   {
     StringBuilder sb = new StringBuilder();
     sb.append("class InvocationInstructionDTO {\n");
     
+    sb.append("    schemaName: ").append(toIndentedString(schemaName)).append("\n");
     sb.append("    body: ").append(toIndentedString(body)).append("\n");
     sb.append("}");
     return sb.toString();

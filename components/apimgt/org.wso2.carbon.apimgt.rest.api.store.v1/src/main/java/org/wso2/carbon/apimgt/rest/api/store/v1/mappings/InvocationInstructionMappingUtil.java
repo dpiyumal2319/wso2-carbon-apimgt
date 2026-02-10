@@ -38,7 +38,8 @@ public class InvocationInstructionMappingUtil {
         }
 
         InvocationInstructionDTO dto = new InvocationInstructionDTO();
-        dto.setBody(instruction.getBody());
+        dto.setSchemaName(instruction.getSchemaName());
+        dto.setBody(instruction.getBodyAsJson());
 
         return dto;
     }

@@ -18,28 +18,46 @@
 
 package org.wso2.carbon.apimgt.api.model;
 
+import org.wso2.carbon.apimgt.api.model.schema.SubscriptionOptionsBody;
+
 /**
  * Represents subscription options available from an external gateway.
- * Uses opaque body pattern - backend never parses the options, only frontend.
+ * <p>
+ * The {@code body} field is a typed {@link SubscriptionOptionsBody} whose schema name
+ * is derived from the implementation type, preventing mismatches.
+ * </p>
  */
 public class FederatedSubscriptionOptions {
-    
-    private String body;           // Opaque JSON containing gateway-specific option list
-    private String optionsSchema;  // Frontend renderer selector (e.g., "tier-selector")
 
-    public String getBody() {
+    /**
+     * Typed subscription options body. Schema name is derived from the body type.
+     */
+    private SubscriptionOptionsBody body;
+
+    /**
+     * Returns the schema name derived from the body type.
+     *
+     * @return schema name, or null if body is null
+     */
+    public String getSchemaName() {
+        return body != null ? body.getSchemaName() : null;
+    }
+
+    /**
+     * Returns the body serialized as a JSON string.
+     * Used by mapping utilities.
+     *
+     * @return JSON string, or null if body is null
+     */
+    public String getBodyAsJson() {
+        return body != null ? body.toJson() : null;
+    }
+
+    public SubscriptionOptionsBody getBody() {
         return body;
     }
 
-    public void setBody(String body) {
+    public void setBody(SubscriptionOptionsBody body) {
         this.body = body;
-    }
-
-    public String getOptionsSchema() {
-        return optionsSchema;
-    }
-
-    public void setOptionsSchema(String optionsSchema) {
-        this.optionsSchema = optionsSchema;
     }
 }
