@@ -53,9 +53,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionListDTO;
 import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.ApplicationExternalMapping;
-import org.wso2.carbon.apimgt.api.model.FederatedCredential;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionResult;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.FederatedSubscriptionMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.APIMappingUtil;
@@ -753,9 +751,9 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                 return null;
             }
 
-            // Single service call — returns complete result (or null if not found)
+            // Single service call — returns masked credential by default
             FederatedSubscriptionResult result = apiConsumer.getFederatedSubscription(
-                    subscriptionId, api, organization);
+                    subscriptionId, api, organization, false);
             if (result == null) {
                 RestApiUtil.handleResourceNotFoundError(
                         "Federated subscription", subscriptionId, log);
@@ -844,13 +842,16 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                 return null;
             }
 
-            // Single service call
-            FederatedCredential fullCredential = apiConsumer.retrieveFederatedCredential(
-                    subscriptionId, api, organization);
+            // Unified call with full credential flag
+            FederatedSubscriptionResult result = apiConsumer.getFederatedSubscription(
+                    subscriptionId, api, organization, true);
+            if (result == null) {
+                RestApiUtil.handleResourceNotFoundError(
+                        "Federated subscription", subscriptionId, log);
+                return null;
+            }
 
-            FederatedCredentialDTO dto = FederatedSubscriptionMappingUtil
-                    .fromFederatedCredentialToDTO(fullCredential);
-
+            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
             return Response.ok().entity(dto).build();
 
         } catch (APIManagementException e) {

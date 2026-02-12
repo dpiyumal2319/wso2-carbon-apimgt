@@ -50,25 +50,6 @@ public class FederatedSubscriptionMappingUtil {
     }
 
     /**
-     * Converts complete federated subscription info to DTO.
-     */
-    public static FederatedSubscriptionInfoDTO fromFederatedSubscriptionInfoToDTO(
-            FederatedCredential credential, String gatewayType, String gatewayEnvironmentId) {
-
-        if (credential == null) {
-            return null;
-        }
-
-        FederatedSubscriptionInfoDTO dto = new FederatedSubscriptionInfoDTO();
-        dto.setCredential(fromFederatedCredentialToDTO(credential));
-        dto.setGatewayType(FederatedSubscriptionInfoDTO.GatewayTypeEnum.fromValue(
-                gatewayType != null ? gatewayType.toLowerCase() : null));
-        dto.setGatewayEnvironmentId(gatewayEnvironmentId);
-
-        return dto;
-    }
-
-    /**
      * Converts a FederatedSubscriptionResult to DTO.
      * Single mapping call that assembles the complete response DTO.
      */

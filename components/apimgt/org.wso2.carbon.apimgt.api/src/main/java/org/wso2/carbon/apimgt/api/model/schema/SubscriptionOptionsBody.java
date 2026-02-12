@@ -21,7 +21,7 @@ package org.wso2.carbon.apimgt.api.model.schema;
 /**
  * Interface for subscription options body types used in federated subscriptions.
  * <p>
- * Each implementation represents a specific options schema (e.g., tier-selector).
+ * Each implementation represents a specific options schema (e.g., subscription-plans).
  * The schema name is derived from the type itself.
  * </p>
  */
@@ -31,7 +31,7 @@ public interface SubscriptionOptionsBody {
      * Returns the schema name for this options type.
      * Used by the frontend to select the appropriate renderer.
      *
-     * @return schema name (e.g., "tier-selector")
+     * @return schema name (e.g., "subscription-plans")
      */
     String getSchemaName();
 
