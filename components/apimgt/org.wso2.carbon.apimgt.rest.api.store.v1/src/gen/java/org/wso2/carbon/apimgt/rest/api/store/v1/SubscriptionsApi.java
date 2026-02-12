@@ -3,7 +3,6 @@ package org.wso2.carbon.apimgt.rest.api.store.v1;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.APIMonetizationUsageDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.AdditionalSubscriptionInfoListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionCreateRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
 import java.util.List;
@@ -139,14 +138,14 @@ SubscriptionsApiService delegate = new SubscriptionsApiServiceImpl();
     @Path("/{subscriptionId}/retrieve-credential")
     
     @Produces({ "application/json" })
-    @ApiOperation(value = "Retrieve full credential from external gateway", notes = "Retrieves the full credential value from the external gateway for gateways that support it (e.g., Azure). Only works if the gateway's isValueRetrievable flag is true. ", response = FederatedCredentialDTO.class, authorizations = {
+    @ApiOperation(value = "Retrieve full credential from external gateway", notes = "Retrieves the full credential value from the external gateway for gateways that support it (e.g., Azure). Only works if the gateway's isValueRetrievable flag is true. ", response = FederatedSubscriptionInfoDTO.class, authorizations = {
         @Authorization(value = "OAuth2Security", scopes = {
             @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
             @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
         })
     }, tags={ "Subscriptions",  })
     @ApiResponses(value = { 
-        @ApiResponse(code = 200, message = "OK. Full credential retrieved successfully. ", response = FederatedCredentialDTO.class),
+        @ApiResponse(code = 200, message = "OK. Full credential retrieved successfully. ", response = FederatedSubscriptionInfoDTO.class),
         @ApiResponse(code = 400, message = "Bad Request. Invalid request or validation error.", response = ErrorDTO.class),
         @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
         @ApiResponse(code = 412, message = "Precondition Failed. The request has not been performed because one of the preconditions is not met.", response = ErrorDTO.class) })

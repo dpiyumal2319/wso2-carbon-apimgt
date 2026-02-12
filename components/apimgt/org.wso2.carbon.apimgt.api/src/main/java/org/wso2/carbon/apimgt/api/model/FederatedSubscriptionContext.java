@@ -35,9 +35,6 @@ public class FederatedSubscriptionContext {
     // Both Reference Artifacts
     private String apiReferenceArtifact;        // From AM_API_EXTERNAL_API_MAPPING
     private String subscriptionReferenceArtifact; // From AM_SUBSCRIPTION_EXTERNAL_MAPPING
-    
-    // Subscription Options
-    private String selectedOption;  // Opaque JSON - developer's chosen subscription option
 
     // WSO2 Metadata (for display names, logging)
     private String apiName;
@@ -59,7 +56,6 @@ public class FederatedSubscriptionContext {
         this.externalSubscriptionId = builder.externalSubscriptionId;
         this.apiReferenceArtifact = builder.apiReferenceArtifact;
         this.subscriptionReferenceArtifact = builder.subscriptionReferenceArtifact;
-        this.selectedOption = builder.selectedOption;
         this.apiName = builder.apiName;
         this.apiVersion = builder.apiVersion;
         this.apiContext = builder.apiContext;
@@ -92,10 +88,6 @@ public class FederatedSubscriptionContext {
 
     public String getSubscriptionReferenceArtifact() {
         return subscriptionReferenceArtifact;
-    }
-
-    public String getSelectedOption() {
-        return selectedOption;
     }
 
     public String getApiName() {
@@ -146,12 +138,35 @@ public class FederatedSubscriptionContext {
         return properties.get(key);
     }
 
+    /**
+     * Creates a new Builder pre-populated with this context's values,
+     * allowing selective overrides for derived contexts.
+     */
+    public Builder toBuilder() {
+        Builder b = new Builder();
+        b.subscriptionUuid = this.subscriptionUuid;
+        b.externalSubscriptionId = this.externalSubscriptionId;
+        b.apiReferenceArtifact = this.apiReferenceArtifact;
+        b.subscriptionReferenceArtifact = this.subscriptionReferenceArtifact;
+        b.apiName = this.apiName;
+        b.apiVersion = this.apiVersion;
+        b.apiContext = this.apiContext;
+        b.apiUuid = this.apiUuid;
+        b.applicationName = this.applicationName;
+        b.applicationUuid = this.applicationUuid;
+        b.subscriberName = this.subscriberName;
+        b.organizationId = this.organizationId;
+        b.environmentId = this.environmentId;
+        b.throttlingPolicy = this.throttlingPolicy;
+        b.properties = this.properties != null ? new HashMap<>(this.properties) : null;
+        return b;
+    }
+
     public static class Builder {
         private String subscriptionUuid;
         private String externalSubscriptionId;
         private String apiReferenceArtifact;
         private String subscriptionReferenceArtifact;
-        private String selectedOption;
         private String apiName;
         private String apiVersion;
         private String apiContext;
@@ -181,11 +196,6 @@ public class FederatedSubscriptionContext {
 
         public Builder subscriptionReferenceArtifact(String subscriptionReferenceArtifact) {
             this.subscriptionReferenceArtifact = subscriptionReferenceArtifact;
-            return this;
-        }
-
-        public Builder selectedOption(String selectedOption) {
-            this.selectedOption = selectedOption;
             return this;
         }
 

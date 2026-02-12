@@ -45,7 +45,6 @@ import org.wso2.carbon.apimgt.api.model.SubscriptionResponse;
 import org.wso2.carbon.apimgt.api.model.Tag;
 import org.wso2.carbon.apimgt.api.model.Tier;
 import org.wso2.carbon.apimgt.api.model.TierPermission;
-import org.wso2.carbon.apimgt.api.model.FederatedCredential;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionResult;
 import org.wso2.carbon.apimgt.api.model.InvocationInstruction;
 import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
@@ -960,16 +959,20 @@ public interface APIConsumer extends APIManager {
             String organization, String selectedOption) throws APIManagementException;
 
     /**
-     * Get federated subscription info including masked credential and invocation instructions.
+     * Get federated subscription info including credential and invocation instructions.
+     * When {@code includeFullCredential} is false (default), returns masked credential extracted from
+     * the stored reference artifact. When true, retrieves the full credential from the external gateway.
      *
      * @param subscriptionUuid UUID of the WSO2 subscription
      * @param api The API
      * @param organization Organization name
-     * @return FederatedSubscriptionResult with masked credential and instruction, or null if not found
-     * @throws APIManagementException if retrieval fails
+     * @param includeFullCredential If true, retrieve full (unmasked) credential from gateway;
+     *                              if false, return masked credential from stored artifact
+     * @return FederatedSubscriptionResult with credential, instruction, and gateway info; or null if not found
+     * @throws APIManagementException if retrieval fails or gateway doesn't support full credential retrieval
      */
     FederatedSubscriptionResult getFederatedSubscription(String subscriptionUuid, API api,
-            String organization) throws APIManagementException;
+            String organization, boolean includeFullCredential) throws APIManagementException;
 
     /**
      * Delete a federated subscription from an external gateway.
@@ -981,17 +984,4 @@ public interface APIConsumer extends APIManager {
      */
     void deleteFederatedSubscription(String subscriptionUuid, API api, String organization)
             throws APIManagementException;
-
-    /**
-     * Retrieves the full credential value from the external gateway.
-     * Only works for gateways that support credential retrieval (Azure).
-     *
-     * @param subscriptionUuid UUID of the WSO2 subscription
-     * @param api The API
-     * @param organization Organization name
-     * @return FederatedCredential with full credential value
-     * @throws APIManagementException if retrieval fails or gateway doesn't support it
-     */
-    FederatedCredential retrieveFederatedCredential(String subscriptionUuid, API api,
-            String organization) throws APIManagementException;
 }
