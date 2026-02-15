@@ -26,12 +26,61 @@ import javax.validation.Valid;
 
 public class SubscriptionSupportInfoDTO   {
   
+
+    @XmlType(name="SubscriptionStatusEnum")
+    @XmlEnum(String.class)
+    public enum SubscriptionStatusEnum {
+        OPEN("OPEN"),
+        SECURED("SECURED");
+        private String value;
+
+        SubscriptionStatusEnum (String v) {
+            value = v;
+        }
+
+        public String value() {
+            return value;
+        }
+
+        @Override
+        public String toString() {
+            return String.valueOf(value);
+        }
+
+        @JsonCreator
+        public static SubscriptionStatusEnum fromValue(String v) {
+            for (SubscriptionStatusEnum b : SubscriptionStatusEnum.values()) {
+                if (String.valueOf(b.value).equals(v)) {
+                    return b;
+                }
+            }
+return null;
+        }
+    }
+    private SubscriptionStatusEnum subscriptionStatus = null;
     private List<String> supportedAuthTypes = new ArrayList<String>();
-    private Boolean requiresSubscription = null;
     private FederatedSubscriptionOptionsDTO subscriptionOptions = null;
 
   /**
-   * Array of supported authentication types, empty if no subscription security
+   * Subscription status of the API: * OPEN - No credentials needed, invoke directly * SECURED - Credentials required, subscription management available 
+   **/
+  public SubscriptionSupportInfoDTO subscriptionStatus(SubscriptionStatusEnum subscriptionStatus) {
+    this.subscriptionStatus = subscriptionStatus;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "SECURED", value = "Subscription status of the API: * OPEN - No credentials needed, invoke directly * SECURED - Credentials required, subscription management available ")
+  @JsonProperty("subscriptionStatus")
+  public SubscriptionStatusEnum getSubscriptionStatus() {
+    return subscriptionStatus;
+  }
+  public void setSubscriptionStatus(SubscriptionStatusEnum subscriptionStatus) {
+    this.subscriptionStatus = subscriptionStatus;
+  }
+
+  /**
+   * Array of supported authentication types (non-empty only for SECURED status)
    **/
   public SubscriptionSupportInfoDTO supportedAuthTypes(List<String> supportedAuthTypes) {
     this.supportedAuthTypes = supportedAuthTypes;
@@ -39,31 +88,13 @@ public class SubscriptionSupportInfoDTO   {
   }
 
   
-  @ApiModelProperty(example = "[\"opaque-api-key\"]", value = "Array of supported authentication types, empty if no subscription security")
+  @ApiModelProperty(example = "[\"opaque-api-key\"]", value = "Array of supported authentication types (non-empty only for SECURED status)")
   @JsonProperty("supportedAuthTypes")
   public List<String> getSupportedAuthTypes() {
     return supportedAuthTypes;
   }
   public void setSupportedAuthTypes(List<String> supportedAuthTypes) {
     this.supportedAuthTypes = supportedAuthTypes;
-  }
-
-  /**
-   * Whether the API requires subscription-level authentication
-   **/
-  public SubscriptionSupportInfoDTO requiresSubscription(Boolean requiresSubscription) {
-    this.requiresSubscription = requiresSubscription;
-    return this;
-  }
-
-  
-  @ApiModelProperty(example = "true", value = "Whether the API requires subscription-level authentication")
-  @JsonProperty("requiresSubscription")
-  public Boolean isRequiresSubscription() {
-    return requiresSubscription;
-  }
-  public void setRequiresSubscription(Boolean requiresSubscription) {
-    this.requiresSubscription = requiresSubscription;
   }
 
   /**
@@ -94,14 +125,14 @@ public class SubscriptionSupportInfoDTO   {
       return false;
     }
     SubscriptionSupportInfoDTO subscriptionSupportInfo = (SubscriptionSupportInfoDTO) o;
-    return Objects.equals(supportedAuthTypes, subscriptionSupportInfo.supportedAuthTypes) &&
-        Objects.equals(requiresSubscription, subscriptionSupportInfo.requiresSubscription) &&
+    return Objects.equals(subscriptionStatus, subscriptionSupportInfo.subscriptionStatus) &&
+        Objects.equals(supportedAuthTypes, subscriptionSupportInfo.supportedAuthTypes) &&
         Objects.equals(subscriptionOptions, subscriptionSupportInfo.subscriptionOptions);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(supportedAuthTypes, requiresSubscription, subscriptionOptions);
+    return Objects.hash(subscriptionStatus, supportedAuthTypes, subscriptionOptions);
   }
 
   @Override
@@ -109,8 +140,8 @@ public class SubscriptionSupportInfoDTO   {
     StringBuilder sb = new StringBuilder();
     sb.append("class SubscriptionSupportInfoDTO {\n");
     
+    sb.append("    subscriptionStatus: ").append(toIndentedString(subscriptionStatus)).append("\n");
     sb.append("    supportedAuthTypes: ").append(toIndentedString(supportedAuthTypes)).append("\n");
-    sb.append("    requiresSubscription: ").append(toIndentedString(requiresSubscription)).append("\n");
     sb.append("    subscriptionOptions: ").append(toIndentedString(subscriptionOptions)).append("\n");
     sb.append("}");
     return sb.toString();

@@ -1198,6 +1198,7 @@ public interface APIConsumer extends APIManager {
      */
     void deleteFederatedSubscription(String subscriptionUuid, API api, String organization)
             throws APIManagementException;
+
     /**
      * This method is used to validate the signed URL and retrieve the API information related to the URL.
      *
@@ -1207,5 +1208,15 @@ public interface APIConsumer extends APIManager {
      * @throws APIManagementException if an error occurs while validating the signed URL or retrieving API information
      */
     API getAPIWithoutPermissionCheck(String apiId, String organization)
+            throws APIManagementException;
+
+    /**
+     * Get subscription support information for an API on an external gateway.
+     * @param api The API
+     * @param organization Organization name
+     * @return SubscriptionSupportInfo containing status and metadata
+     * @throws APIManagementException if the check fails
+     */
+    org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo getSubscriptionSupportInfo(API api, String organization)
             throws APIManagementException;
 }
