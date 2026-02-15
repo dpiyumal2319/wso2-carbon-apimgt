@@ -984,4 +984,23 @@ public interface APIConsumer extends APIManager {
      */
     void deleteFederatedSubscription(String subscriptionUuid, API api, String organization)
             throws APIManagementException;
+
+    /**
+     * Get subscription support information for an API on an external gateway.
+     * <p>
+     * Returns a {@link org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo} object containing:
+     * <ul>
+     *   <li>status: OPEN (no credentials), SECURED (subscription required), or INVALID (incompatible config)</li>
+     *   <li>supportedAuthTypes: Non-empty array for SECURED status only</li>
+     *   <li>subscriptionOptions: Subscription options for SECURED status (null if no options)</li>
+     * </ul>
+     * </p>
+     *
+     * @param api The API
+     * @param organization Organization name
+     * @return SubscriptionSupportInfo containing status and metadata
+     * @throws APIManagementException if the check fails
+     */
+    org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo getSubscriptionSupportInfo(API api, String organization)
+            throws APIManagementException;
 }

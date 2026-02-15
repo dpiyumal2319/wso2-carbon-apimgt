@@ -47,6 +47,7 @@ import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionOptions;
 import org.wso2.carbon.apimgt.api.model.OrganizationInfo;
 import org.wso2.carbon.apimgt.api.model.ResourceFile;
+import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
 import org.wso2.carbon.apimgt.api.model.Tier;
 import org.wso2.carbon.apimgt.api.model.graphql.queryanalysis.GraphqlComplexityInfo;
 import org.wso2.carbon.apimgt.api.model.graphql.queryanalysis.GraphqlSchemaType;
@@ -82,6 +83,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.APIMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.CommentMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.DocumentationMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.GraphqlQueryAnalysisMappingUtil;
+import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.SubscriptionSupportMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.common.RestApiConstants;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.AsyncAPIMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.util.utils.RestAPIStoreUtils;
@@ -1274,61 +1276,11 @@ public class ApisApiServiceImpl implements ApisApiService {
                 return null;
             }
 
-            // Get gateway environment
-            String gatewayEnvironmentId = getGatewayEnvironmentIdForFederatedApi(api);
+            // Get subscription support info from service layer
+            SubscriptionSupportInfo info = apiConsumer.getSubscriptionSupportInfo(api, organization);
 
-            // Get API reference artifact
-            ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
-            String apiReferenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(
-                    api.getUuid(), gatewayEnvironmentId);
-
-            if (apiReferenceArtifact == null || apiReferenceArtifact.isEmpty()) {
-                RestApiUtil.handleResourceNotFoundError(
-                        "API reference artifact not found", apiId, log);
-                return null;
-            }
-
-            // Get subscription agent and check support
-            Environment environment = apiMgtDAO.getEnvironment(organization, gatewayEnvironmentId);
-            SubscriptionSupportInfoDTO dto = new SubscriptionSupportInfoDTO();
-            
-            try {
-                FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
-                        environment, organization);
-
-                // Build minimal context for checking supported auth types
-                FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
-                        .apiReferenceArtifact(apiReferenceArtifact)
-                        .apiName(api.getId().getApiName())
-                        .apiVersion(api.getId().getVersion())
-                        .apiUuid(api.getUuid())
-                        .environmentId(gatewayEnvironmentId)
-                        .organizationId(organization)
-                        .build();
-
-                String[] supportedAuthTypes = agent.getSupportedAuthTypes(context);
-
-                // Get subscription options from gateway
-                FederatedSubscriptionOptions subscriptionOptions = agent.getSubscriptionOptions(context);
-
-                // Build response DTO
-                dto.setSupportedAuthTypes(Arrays.asList(supportedAuthTypes));
-                dto.setRequiresSubscription(supportedAuthTypes.length > 0);
-                
-                // Add subscription options if available
-                if (subscriptionOptions != null) {
-                    FederatedSubscriptionOptionsDTO optionsDTO = new FederatedSubscriptionOptionsDTO();
-                    optionsDTO.setBody(subscriptionOptions.getBodyAsJson());
-                    optionsDTO.setSchemaName(subscriptionOptions.getSchemaName());
-                    dto.setSubscriptionOptions(optionsDTO);
-                }
-            } catch (APIManagementException e) {
-                // Graceful fallback for gateways without subscription agents (e.g., Kong, Envoy)
-                log.warn("Subscription agent not available for gateway type: " + environment.getGatewayType() 
-                        + ". Marking as no subscription required.", e);
-                dto.setSupportedAuthTypes(Collections.emptyList());
-                dto.setRequiresSubscription(false);
-            }
+            // Map to DTO
+            SubscriptionSupportInfoDTO dto = SubscriptionSupportMappingUtil.toDTO(info);
 
             return Response.ok().entity(dto).build();
 
@@ -1341,30 +1293,5 @@ public class ApisApiServiceImpl implements ApisApiService {
             }
         }
         return null;
-    }
-
-    /**
-     * Gets the gateway environment ID for a federated API.
-     * External gateway APIs should have exactly one environment.
-     *
-     * @param api The federated API
-     * @return The gateway environment ID
-     * @throws APIManagementException If no environment found
-     */
-    private String getGatewayEnvironmentIdForFederatedApi(API api) throws APIManagementException {
-        if (api == null || StringUtils.isEmpty(api.getGatewayVendor())
-                || !APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor())) {
-            throw new APIManagementException("API is not a federated API with external gateway vendor");
-        }
-
-        ApiMgtDAO apiMgtDAO = ApiMgtDAO.getInstance();
-        String gatewayEnvId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(api.getUuid());
-
-        if (gatewayEnvId == null) {
-            throw new APIManagementException(
-                    "No external gateway environment mapping found for federated API: " + api.getUuid());
-        }
-
-        return gatewayEnvId;
     }
 }

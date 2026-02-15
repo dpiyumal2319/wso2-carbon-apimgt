@@ -22,6 +22,7 @@ import org.wso2.carbon.apimgt.api.model.AgentOperationResult;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionOptions;
+import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
 
 /**
  * Interface for managing subscriptions in external gateways.
@@ -120,32 +121,29 @@ public interface FederatedSubscriptionAgent {
     String getGatewayType();
 
     /**
-     * Checks supported authentication types for the API on the external gateway.
+     * Gets subscription support information for the API on the external gateway.
      * <p>
-     * Default implementation assumes subscription required with opaque API key authentication.
+     * Returns a {@link SubscriptionSupportInfo} object containing:
+     * <ul>
+     *   <li>status: OPEN (no credentials needed) or SECURED (credentials required, subscription management available)</li>
+     *   <li>supportedAuthTypes: Non-empty array for SECURED status only</li>
+     *   <li>subscriptionOptions: Subscription options for SECURED status (null if no options)</li>
+     * </ul>
+     * </p>
+     * <p>
+     * Default implementation returns SECURED with opaque-api-key auth type (backward-compatible).
      * </p>
      *
      * @param context The subscription context containing API reference artifact
-     * @return Array of supported auth type strings (e.g., ["opaque-api-key"]), empty if no subscription security
+     * @return SubscriptionSupportInfo with status and related metadata
      * @throws APIManagementException if check fails
      */
-    default String[] getSupportedAuthTypes(FederatedSubscriptionContext context) throws APIManagementException {
-        // Default: assume subscription required with opaque API key
-        return new String[]{"opaque-api-key"};
-    }
-
-    /**
-     * Discovers subscription options available from the external gateway for an API.
-     * <p>
-     * Default implementation returns null, indicating no subscription options are available.
-     * </p>
-     *
-     * @param context The subscription context containing API reference artifact
-     * @return FederatedSubscriptionOptions with opaque body and schema, or null if no options
-     * @throws APIManagementException if discovery fails
-     */
-    default FederatedSubscriptionOptions getSubscriptionOptions(FederatedSubscriptionContext context) 
+    default SubscriptionSupportInfo getSubscriptionSupportInfo(FederatedSubscriptionContext context) 
             throws APIManagementException {
-        return null;  // Default: no subscription options
+        // Default: backward-compatible SECURED status with opaque API key
+        return new SubscriptionSupportInfo.Builder()
+                .status(SubscriptionSupportInfo.SubscriptionStatus.SECURED)
+                .supportedAuthTypes(new String[]{"opaque-api-key"})
+                .build();
     }
 }

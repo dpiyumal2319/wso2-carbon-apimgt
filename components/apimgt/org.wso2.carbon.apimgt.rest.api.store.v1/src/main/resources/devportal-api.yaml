@@ -6333,16 +6333,22 @@ components:
       type: object
       description: Information about subscription-level security support for an API
       properties:
+        subscriptionStatus:
+          type: string
+          enum:
+            - OPEN
+            - SECURED
+          description: |
+            Subscription status of the API:
+            * OPEN - No credentials needed, invoke directly
+            * SECURED - Credentials required, subscription management available
+          example: SECURED
         supportedAuthTypes:
           type: array
           items:
             type: string
-          description: Array of supported authentication types, empty if no subscription security
+          description: Array of supported authentication types (non-empty only for SECURED status)
           example: ["opaque-api-key"]
-        requiresSubscription:
-          type: boolean
-          description: Whether the API requires subscription-level authentication
-          example: true
         subscriptionOptions:
           $ref: '#/components/schemas/FederatedSubscriptionOptions'
     FederatedSubscriptionOptions:
