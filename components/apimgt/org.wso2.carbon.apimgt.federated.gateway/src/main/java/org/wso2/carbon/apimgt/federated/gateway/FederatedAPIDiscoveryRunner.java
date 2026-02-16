@@ -31,6 +31,7 @@ import org.wso2.carbon.apimgt.api.FederatedAPIDiscovery;
 import org.wso2.carbon.apimgt.api.FederatedAPIDiscoveryService;
 import org.wso2.carbon.apimgt.api.dto.ImportedAPIDTO;
 import org.wso2.carbon.apimgt.api.model.API;
+
 import org.wso2.carbon.apimgt.api.model.ApiResult;
 import org.wso2.carbon.apimgt.api.model.DiscoveredAPI;
 import org.wso2.carbon.apimgt.api.model.Environment;
@@ -64,7 +65,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.wso2.carbon.apimgt.impl.APIConstants.DEFAULT_SUB_POLICY_SUBSCRIPTIONLESS;
 import static org.wso2.carbon.apimgt.impl.APIConstants.DELEM_COLON;
 import static org.wso2.carbon.apimgt.rest.api.publisher.v1.common.mappings.APIMappingUtil.fromAPItoDTO;
 import static org.wso2.carbon.apimgt.federated.gateway.util.FederatedGatewayConstants.DISCOVERED_API_LIST;
@@ -213,7 +213,7 @@ public class FederatedAPIDiscoveryRunner implements FederatedAPIDiscoveryService
                 }
                 APIDTO apidto = fromAPItoDTO(discoveredAPI.getApi());
                 if (apidto.getPolicies() == null || apidto.getPolicies().isEmpty()) {
-                    apidto.setPolicies(Collections.singletonList(DEFAULT_SUB_POLICY_SUBSCRIPTIONLESS));
+                    apidto.setPolicies(Collections.singletonList(APIConstants.UNLIMITED_TIER));
                 }
                 API api = discoveredAPI.getApi();
                 try {
@@ -260,14 +260,33 @@ public class FederatedAPIDiscoveryRunner implements FederatedAPIDiscoveryService
                                 alreadyDiscoveredAPIMap.get(apiKey));
                     }
 
-                    if (isPublishedAPIFromCP || (update &&
-                            !discovery.isAPIUpdated(referenceArtifact, discoveredAPI.getReferenceArtifact()))) {
+                    // Published-from-control-plane: always skip (no change)
+                    if (isPublishedAPIFromCP) {
                         discoveredAPIsFromFederatedGW.add(alreadyExistsWithEnvScope ? envScopedKey : apiKey);
                         if (log.isDebugEnabled()) {
-                            log.debug("API: " + api.getId().getName() + " is already deployed in environment: "
-                                    + environment.getName() + " and new changes are not available. Skipping...");
+                            log.debug("API: " + api.getId().getName() + " is published from control plane. Skipping...");
                         }
                         continue;
+                    }
+
+                    // Discovered API with no gateway-side changes: check if tier migration needed
+                    if (update && !discovery.isAPIUpdated(referenceArtifact, discoveredAPI.getReferenceArtifact())) {
+                        boolean tierMigrationNeeded = needsSubscriptionlessTierMigration(
+                            alreadyExistsWithEnvScope ? envScopedKey : apiKey,
+                            adminUsername, organization);
+                        if (!tierMigrationNeeded) {
+                            discoveredAPIsFromFederatedGW.add(alreadyExistsWithEnvScope ? envScopedKey : apiKey);
+                            if (log.isDebugEnabled()) {
+                                log.debug("API: " + api.getId().getName() + " is already deployed in environment: "
+                                        + environment.getName() + " and new changes are not available. Skipping...");
+                            }
+                            continue;
+                        }
+                        // Fall through to re-import — tier needs fixing
+                        if (log.isDebugEnabled()) {
+                            log.debug("API: " + api.getId().getName() 
+                                    + " needs tier migration from DefaultSubscriptionless to Unlimited");
+                        }
                     }
                     // Adjust the name if needed
                     if (alreadyExistsWithEnvScope) {
@@ -500,5 +519,34 @@ public class FederatedAPIDiscoveryRunner implements FederatedAPIDiscoveryService
             log.debug("Retrieving reference object for API ID: " + apiResult.getId());
         }
         return APIUtil.getApiExternalApiMappingReferenceByApiId(apiResult.getId(), environment.getUuid());
+    }
+
+    /**
+     * Checks if an API needs tier migration from DefaultSubscriptionless to Unlimited.
+     *
+     * @param apiKey       The API key (name:version or name__env:version).
+     * @param adminUsername The admin username for the organization.
+     * @param organization The organization context.
+     * @return true if the API has only DefaultSubscriptionless tier and needs migration, false otherwise.
+     */
+    private boolean needsSubscriptionlessTierMigration(String apiKey, String adminUsername, String organization) {
+        try {
+            String apiUUID = FederatedGatewayUtil.getAPIUUID(apiKey, adminUsername, organization);
+            if (apiUUID == null) {
+                return false;
+            }
+
+            String subValidationStatus = ApiMgtDAO.getInstance().getSubscriptionValidationStatus(apiUUID);
+            if ("DISABLED".equals(subValidationStatus)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("API " + apiKey + " needs tier migration from DefaultSubscriptionless to Unlimited");
+                }
+                return true;
+            }
+            return false;
+        } catch (APIManagementException e) {
+            log.warn("Error checking tier migration need for API: " + apiKey, e);
+            return false;
+        }
     }
 }
