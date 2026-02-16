@@ -27,7 +27,7 @@ public class InvocationInstructionDTO   {
     private String body = null;
 
   /**
-   * Schema identifier for renderer selection (e.g., \&quot;header-based\&quot;, \&quot;header-with-query-fallback\&quot;)
+   * Schema identifier for renderer selection (e.g., \&quot;api-key-invocation\&quot;)
    **/
   public InvocationInstructionDTO schemaName(String schemaName) {
     this.schemaName = schemaName;
@@ -35,7 +35,7 @@ public class InvocationInstructionDTO   {
   }
 
   
-  @ApiModelProperty(example = "header-based", value = "Schema identifier for renderer selection (e.g., \"header-based\", \"header-with-query-fallback\")")
+  @ApiModelProperty(example = "api-key-invocation", value = "Schema identifier for renderer selection (e.g., \"api-key-invocation\")")
   @JsonProperty("schemaName")
   public String getSchemaName() {
     return schemaName;

@@ -5892,7 +5892,7 @@ components:
           items:
             type: string
           example:
-            - header-based
+            - api-key-invocation
     DiscoveredApplicationList:
       title: Discovered Application List
       type: object
@@ -7009,8 +7009,8 @@ components:
       properties:
         schemaName:
           type: string
-          description: Schema identifier for renderer selection (e.g., "header-based", "header-with-query-fallback")
-          example: header-based
+          description: Schema identifier for renderer selection (e.g., "api-key-invocation")
+          example: api-key-invocation
         body:
           type: string
           description: |
