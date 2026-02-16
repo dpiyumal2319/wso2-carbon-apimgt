@@ -131,7 +131,7 @@ public class FederatedSubscriptionSupportDTO   {
   }
 
   
-  @ApiModelProperty(example = "[\"header-based\"]", value = "Invocation methods supported by this gateway")
+  @ApiModelProperty(example = "[\"api-key-invocation\"]", value = "Invocation methods supported by this gateway")
   @JsonProperty("invocationSchemas")
   public List<String> getInvocationSchemas() {
     return invocationSchemas;

@@ -21,8 +21,8 @@ package org.wso2.carbon.apimgt.api.model.schema;
 /**
  * Interface for invocation instruction body types used in federated subscriptions.
  * <p>
- * Each implementation represents a specific invocation schema (e.g., header-based,
- * header-with-query-fallback). The schema name is derived from the type itself.
+ * Each implementation represents a specific invocation schema (e.g., api-key-invocation).
+ * The schema name is derived from the type itself.
  * </p>
  */
 public interface InvocationBody {
@@ -31,7 +31,7 @@ public interface InvocationBody {
      * Returns the schema name for this invocation type.
      * Used by the frontend to select the appropriate renderer.
      *
-     * @return schema name (e.g., "header-based", "header-with-query-fallback")
+     * @return schema name (e.g., "api-key-invocation")
      */
     String getSchemaName();
 
