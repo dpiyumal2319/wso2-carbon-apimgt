@@ -1415,6 +1415,67 @@ paths:
           "https://127.0.0.1:9443/api/am/publisher/v4/apis/2fd14eb8-b828-4013-b448-0739d2e76bf7/subscription-policies"'
       operationId: getAPISubscriptionPolicies
 
+  /apis/{apiId}/federation-config:
+    get:
+      tags:
+        - APIs
+      summary: Get Federation Configuration
+      description: |
+        Retrieve the federation configuration for an externally-discovered API.
+        Returns the gateway support snapshot, publisher curation, and staleness status.
+      parameters:
+        - $ref: '#/components/parameters/apiId'
+      responses:
+        200:
+          description: |
+            OK.
+            Federation configuration returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiFederationConfig'
+        404:
+          $ref: '#/components/responses/NotFound'
+      security:
+        - OAuth2Security:
+            - apim:api_view
+            - apim:api_manage
+      operationId: getApiFederationConfig
+    put:
+      tags:
+        - APIs
+      summary: Update Federation Configuration
+      description: |
+        Update the publisher curation for an externally-discovered API.
+        Allows enabling/disabling federation, overriding subscription options,
+        and acknowledging staleness.
+      parameters:
+        - $ref: '#/components/parameters/apiId'
+      requestBody:
+        description: Federation configuration update
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiFederationConfigUpdate'
+      responses:
+        200:
+          description: |
+            OK.
+            Federation configuration updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiFederationConfig'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        404:
+          $ref: '#/components/responses/NotFound'
+      security:
+        - OAuth2Security:
+            - apim:api_manage
+      operationId: updateApiFederationConfig
+
   /apis/copy-api:
     post:
       tags:
@@ -18779,6 +18840,88 @@ components:
             $ref: '#/components/schemas/Label'
         pagination:
           $ref: '#/components/schemas/Pagination'
+    ApiFederationConfig:
+      title: API Federation Configuration
+      type: object
+      description: |
+        Federation configuration for an externally-discovered API.
+        Contains the live gateway snapshot, publisher curation, and staleness status.
+      properties:
+        federationEnabled:
+          type: boolean
+          description: Whether federation is enabled for this API
+        gatewaySupportSnapshot:
+          $ref: '#/components/schemas/GatewaySupportSnapshot'
+        publisherCuratedOptions:
+          $ref: '#/components/schemas/FederatedSubscriptionOptions'
+        isStale:
+          type: boolean
+          description: Whether the live gateway snapshot differs from the last acknowledged snapshot
+        gatewaySnapshotHash:
+          type: string
+          description: SHA-256 hash of the last acknowledged gateway snapshot
+        liveSnapshotHash:
+          type: string
+          description: SHA-256 hash of the current live gateway snapshot
+        publisherReviewedTime:
+          type: string
+          description: Timestamp when the publisher last reviewed the configuration
+    ApiFederationConfigUpdate:
+      title: API Federation Configuration Update
+      type: object
+      description: |
+        Request body for updating publisher curation of federation configuration.
+      properties:
+        federationEnabled:
+          type: boolean
+          description: Whether federation should be enabled for this API
+        publisherCuratedOptions:
+          $ref: '#/components/schemas/FederatedSubscriptionOptions'
+        acknowledgeStale:
+          type: boolean
+          description: If true, clears the staleness flag and updates publisher reviewed time
+    GatewaySupportSnapshot:
+      title: Gateway Support Snapshot
+      type: object
+      description: |
+        Deserialized subscription support information captured from the gateway during discovery.
+      properties:
+        subscriptionStatus:
+          type: string
+          enum:
+            - REQUIRED
+            - OPTIONAL
+            - OPEN
+          description: Whether the gateway requires subscriptions for this API
+        supportedAuthTypes:
+          type: array
+          items:
+            type: string
+          description: Auth types supported by this API on the gateway
+        subscriptionOptions:
+          $ref: '#/components/schemas/FederatedSubscriptionOptions'
+        invocationTemplate:
+          $ref: '#/components/schemas/InvocationTemplate'
+    FederatedSubscriptionOptions:
+      title: Federated Subscription Options
+      type: object
+      properties:
+        body:
+          type: string
+          description: Opaque JSON containing gateway-specific subscription options
+        schemaName:
+          type: string
+          description: Schema identifier for frontend renderer selection
+    InvocationTemplate:
+      title: Invocation Template
+      type: object
+      properties:
+        body:
+          type: string
+          description: Opaque JSON containing gateway-specific invocation template
+        schemaName:
+          type: string
+          description: Schema identifier for frontend renderer selection
   responses:
     BadRequest:
       description: Bad Request. Invalid request or validation error.

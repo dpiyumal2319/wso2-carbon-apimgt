@@ -18,9 +18,14 @@
 
 package org.wso2.carbon.apimgt.api.model;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 /**
- * Represents subscription support information for an API.
- * Contains the subscription status and related metadata.
+ * Subscription support information for an API on an external gateway.
+ * Supports JSON serialization for live snapshot hashing; nested bodies are opaque {schemaName, body} pairs.
  */
 public class SubscriptionSupportInfo {
 
@@ -28,20 +33,14 @@ public class SubscriptionSupportInfo {
      * Enum representing the subscription status of an API.
      */
     public enum SubscriptionStatus {
-        /**
-         * No credentials needed, invoke directly.
-         */
         OPEN,
-        
-        /**
-         * Credentials required, subscription management available.
-         */
         SECURED
     }
 
     private SubscriptionStatus status;
     private String[] supportedAuthTypes;
     private FederatedSubscriptionOptions subscriptionOptions;
+    private InvocationInstruction invocationTemplate;
 
     public SubscriptionSupportInfo() {
     }
@@ -50,6 +49,7 @@ public class SubscriptionSupportInfo {
         this.status = builder.status;
         this.supportedAuthTypes = builder.supportedAuthTypes;
         this.subscriptionOptions = builder.subscriptionOptions;
+        this.invocationTemplate = builder.invocationTemplate;
     }
 
     public SubscriptionStatus getStatus() {
@@ -76,13 +76,88 @@ public class SubscriptionSupportInfo {
         this.subscriptionOptions = subscriptionOptions;
     }
 
-    /**
-     * Builder for SubscriptionSupportInfo.
-     */
+    public InvocationInstruction getInvocationTemplate() {
+        return invocationTemplate;
+    }
+
+    public void setInvocationTemplate(InvocationInstruction invocationTemplate) {
+        this.invocationTemplate = invocationTemplate;
+    }
+
+    /** Serializes to JSON; nested bodies flattened to {schemaName, body} pairs. */
+    public String toJson() {
+        JsonObject json = new JsonObject();
+        json.addProperty("status", status != null ? status.name() : null);
+
+        if (supportedAuthTypes != null) {
+            JsonArray authTypes = new JsonArray();
+            for (String type : supportedAuthTypes) {
+                authTypes.add(type);
+            }
+            json.add("supportedAuthTypes", authTypes);
+        }
+
+        if (subscriptionOptions != null) {
+            JsonObject opts = new JsonObject();
+            opts.addProperty("schemaName", subscriptionOptions.getSchemaName());
+            opts.addProperty("body", subscriptionOptions.getBodyAsJson());
+            json.add("subscriptionOptions", opts);
+        }
+
+        if (invocationTemplate != null) {
+            JsonObject tmpl = new JsonObject();
+            tmpl.addProperty("schemaName", invocationTemplate.getSchemaName());
+            tmpl.addProperty("body", invocationTemplate.getBodyAsJson());
+            json.add("invocationTemplate", tmpl);
+        }
+
+        return new Gson().toJson(json);
+    }
+
+    /** Deserializes from JSON; nested objects are restored as raw-string-backed instances. */
+    public static SubscriptionSupportInfo fromJson(String json) {
+        JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+
+        Builder builder = new Builder();
+
+        if (root.has("status") && !root.get("status").isJsonNull()) {
+            builder.status(SubscriptionStatus.valueOf(root.get("status").getAsString()));
+        }
+
+        if (root.has("supportedAuthTypes") && !root.get("supportedAuthTypes").isJsonNull()) {
+            JsonArray arr = root.getAsJsonArray("supportedAuthTypes");
+            String[] types = new String[arr.size()];
+            for (int i = 0; i < arr.size(); i++) {
+                types[i] = arr.get(i).getAsString();
+            }
+            builder.supportedAuthTypes(types);
+        }
+
+        if (root.has("subscriptionOptions") && !root.get("subscriptionOptions").isJsonNull()) {
+            JsonObject opts = root.getAsJsonObject("subscriptionOptions");
+            String schemaName = opts.has("schemaName") ? opts.get("schemaName").getAsString() : null;
+            String body = opts.has("body") && !opts.get("body").isJsonNull()
+                    ? opts.get("body").getAsString() : null;
+            builder.subscriptionOptions(
+                    FederatedSubscriptionOptions.fromRawJson(schemaName, body));
+        }
+
+        if (root.has("invocationTemplate") && !root.get("invocationTemplate").isJsonNull()) {
+            JsonObject tmpl = root.getAsJsonObject("invocationTemplate");
+            String schemaName = tmpl.has("schemaName") ? tmpl.get("schemaName").getAsString() : null;
+            String body = tmpl.has("body") && !tmpl.get("body").isJsonNull()
+                    ? tmpl.get("body").getAsString() : null;
+            builder.invocationTemplate(InvocationInstruction.fromRawJson(schemaName, body));
+        }
+
+        return builder.build();
+    }
+
     public static class Builder {
         private SubscriptionStatus status;
         private String[] supportedAuthTypes;
         private FederatedSubscriptionOptions subscriptionOptions;
+        private InvocationInstruction invocationTemplate;
 
         public Builder status(SubscriptionStatus status) {
             this.status = status;
@@ -96,6 +171,11 @@ public class SubscriptionSupportInfo {
 
         public Builder subscriptionOptions(FederatedSubscriptionOptions subscriptionOptions) {
             this.subscriptionOptions = subscriptionOptions;
+            return this;
+        }
+
+        public Builder invocationTemplate(InvocationInstruction invocationTemplate) {
+            this.invocationTemplate = invocationTemplate;
             return this;
         }
 

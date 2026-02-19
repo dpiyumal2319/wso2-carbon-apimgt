@@ -1,0 +1,128 @@
+package org.wso2.carbon.apimgt.rest.api.publisher.v1.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.FederatedSubscriptionOptionsDTO;
+import javax.validation.constraints.*;
+
+/**
+ * Request body for updating publisher curation of federation configuration. 
+ **/
+
+import io.swagger.annotations.*;
+import java.util.Objects;
+
+import javax.xml.bind.annotation.*;
+import org.wso2.carbon.apimgt.rest.api.common.annotations.Scope;
+import com.fasterxml.jackson.annotation.JsonCreator;
+
+import javax.validation.Valid;
+
+@ApiModel(description = "Request body for updating publisher curation of federation configuration. ")
+
+public class ApiFederationConfigUpdateDTO   {
+  
+    private Boolean federationEnabled = null;
+    private FederatedSubscriptionOptionsDTO publisherCuratedOptions = null;
+    private Boolean acknowledgeStale = null;
+
+  /**
+   * Whether federation should be enabled for this API
+   **/
+  public ApiFederationConfigUpdateDTO federationEnabled(Boolean federationEnabled) {
+    this.federationEnabled = federationEnabled;
+    return this;
+  }
+
+  
+  @ApiModelProperty(value = "Whether federation should be enabled for this API")
+  @JsonProperty("federationEnabled")
+  public Boolean isFederationEnabled() {
+    return federationEnabled;
+  }
+  public void setFederationEnabled(Boolean federationEnabled) {
+    this.federationEnabled = federationEnabled;
+  }
+
+  /**
+   **/
+  public ApiFederationConfigUpdateDTO publisherCuratedOptions(FederatedSubscriptionOptionsDTO publisherCuratedOptions) {
+    this.publisherCuratedOptions = publisherCuratedOptions;
+    return this;
+  }
+
+  
+  @ApiModelProperty(value = "")
+      @Valid
+  @JsonProperty("publisherCuratedOptions")
+  public FederatedSubscriptionOptionsDTO getPublisherCuratedOptions() {
+    return publisherCuratedOptions;
+  }
+  public void setPublisherCuratedOptions(FederatedSubscriptionOptionsDTO publisherCuratedOptions) {
+    this.publisherCuratedOptions = publisherCuratedOptions;
+  }
+
+  /**
+   * If true, clears the staleness flag and updates publisher reviewed time
+   **/
+  public ApiFederationConfigUpdateDTO acknowledgeStale(Boolean acknowledgeStale) {
+    this.acknowledgeStale = acknowledgeStale;
+    return this;
+  }
+
+  
+  @ApiModelProperty(value = "If true, clears the staleness flag and updates publisher reviewed time")
+  @JsonProperty("acknowledgeStale")
+  public Boolean isAcknowledgeStale() {
+    return acknowledgeStale;
+  }
+  public void setAcknowledgeStale(Boolean acknowledgeStale) {
+    this.acknowledgeStale = acknowledgeStale;
+  }
+
+
+  @Override
+  public boolean equals(java.lang.Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ApiFederationConfigUpdateDTO apiFederationConfigUpdate = (ApiFederationConfigUpdateDTO) o;
+    return Objects.equals(federationEnabled, apiFederationConfigUpdate.federationEnabled) &&
+        Objects.equals(publisherCuratedOptions, apiFederationConfigUpdate.publisherCuratedOptions) &&
+        Objects.equals(acknowledgeStale, apiFederationConfigUpdate.acknowledgeStale);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(federationEnabled, publisherCuratedOptions, acknowledgeStale);
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("class ApiFederationConfigUpdateDTO {\n");
+    
+    sb.append("    federationEnabled: ").append(toIndentedString(federationEnabled)).append("\n");
+    sb.append("    publisherCuratedOptions: ").append(toIndentedString(publisherCuratedOptions)).append("\n");
+    sb.append("    acknowledgeStale: ").append(toIndentedString(acknowledgeStale)).append("\n");
+    sb.append("}");
+    return sb.toString();
+  }
+
+  /**
+   * Convert the given object to string with each line indented by 4 spaces
+   * (except the first line).
+   */
+  private String toIndentedString(java.lang.Object o) {
+    if (o == null) {
+      return "null";
+    }
+    return o.toString().replace("\n", "\n    ");
+  }
+}
+

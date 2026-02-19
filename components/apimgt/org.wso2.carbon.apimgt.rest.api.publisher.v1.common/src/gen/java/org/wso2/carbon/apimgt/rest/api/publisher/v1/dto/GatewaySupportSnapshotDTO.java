@@ -1,4 +1,4 @@
-package org.wso2.carbon.apimgt.rest.api.store.v1.dto;
+package org.wso2.carbon.apimgt.rest.api.publisher.v1.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -6,12 +6,12 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionOptionsDTO;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.InvocationTemplateDTO;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.FederatedSubscriptionOptionsDTO;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.InvocationTemplateDTO;
 import javax.validation.constraints.*;
 
 /**
- * Information about subscription-level security support for an API
+ * Deserialized subscription support information captured from the gateway during discovery. 
  **/
 
 import io.swagger.annotations.*;
@@ -23,16 +23,17 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 
 import javax.validation.Valid;
 
-@ApiModel(description = "Information about subscription-level security support for an API")
+@ApiModel(description = "Deserialized subscription support information captured from the gateway during discovery. ")
 
-public class SubscriptionSupportInfoDTO   {
+public class GatewaySupportSnapshotDTO   {
   
 
     @XmlType(name="SubscriptionStatusEnum")
     @XmlEnum(String.class)
     public enum SubscriptionStatusEnum {
-        OPEN("OPEN"),
-        SECURED("SECURED");
+        REQUIRED("REQUIRED"),
+        OPTIONAL("OPTIONAL"),
+        OPEN("OPEN");
         private String value;
 
         SubscriptionStatusEnum (String v) {
@@ -64,15 +65,15 @@ return null;
     private InvocationTemplateDTO invocationTemplate = null;
 
   /**
-   * Subscription status of the API: * OPEN - No credentials needed, invoke directly * SECURED - Credentials required, subscription management available 
+   * Whether the gateway requires subscriptions for this API
    **/
-  public SubscriptionSupportInfoDTO subscriptionStatus(SubscriptionStatusEnum subscriptionStatus) {
+  public GatewaySupportSnapshotDTO subscriptionStatus(SubscriptionStatusEnum subscriptionStatus) {
     this.subscriptionStatus = subscriptionStatus;
     return this;
   }
 
   
-  @ApiModelProperty(example = "SECURED", value = "Subscription status of the API: * OPEN - No credentials needed, invoke directly * SECURED - Credentials required, subscription management available ")
+  @ApiModelProperty(value = "Whether the gateway requires subscriptions for this API")
   @JsonProperty("subscriptionStatus")
   public SubscriptionStatusEnum getSubscriptionStatus() {
     return subscriptionStatus;
@@ -82,15 +83,15 @@ return null;
   }
 
   /**
-   * Array of supported authentication types (non-empty only for SECURED status)
+   * Auth types supported by this API on the gateway
    **/
-  public SubscriptionSupportInfoDTO supportedAuthTypes(List<String> supportedAuthTypes) {
+  public GatewaySupportSnapshotDTO supportedAuthTypes(List<String> supportedAuthTypes) {
     this.supportedAuthTypes = supportedAuthTypes;
     return this;
   }
 
   
-  @ApiModelProperty(example = "[\"opaque-api-key\"]", value = "Array of supported authentication types (non-empty only for SECURED status)")
+  @ApiModelProperty(value = "Auth types supported by this API on the gateway")
   @JsonProperty("supportedAuthTypes")
   public List<String> getSupportedAuthTypes() {
     return supportedAuthTypes;
@@ -101,7 +102,7 @@ return null;
 
   /**
    **/
-  public SubscriptionSupportInfoDTO subscriptionOptions(FederatedSubscriptionOptionsDTO subscriptionOptions) {
+  public GatewaySupportSnapshotDTO subscriptionOptions(FederatedSubscriptionOptionsDTO subscriptionOptions) {
     this.subscriptionOptions = subscriptionOptions;
     return this;
   }
@@ -119,7 +120,7 @@ return null;
 
   /**
    **/
-  public SubscriptionSupportInfoDTO invocationTemplate(InvocationTemplateDTO invocationTemplate) {
+  public GatewaySupportSnapshotDTO invocationTemplate(InvocationTemplateDTO invocationTemplate) {
     this.invocationTemplate = invocationTemplate;
     return this;
   }
@@ -144,11 +145,11 @@ return null;
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    SubscriptionSupportInfoDTO subscriptionSupportInfo = (SubscriptionSupportInfoDTO) o;
-    return Objects.equals(subscriptionStatus, subscriptionSupportInfo.subscriptionStatus) &&
-        Objects.equals(supportedAuthTypes, subscriptionSupportInfo.supportedAuthTypes) &&
-        Objects.equals(subscriptionOptions, subscriptionSupportInfo.subscriptionOptions) &&
-        Objects.equals(invocationTemplate, subscriptionSupportInfo.invocationTemplate);
+    GatewaySupportSnapshotDTO gatewaySupportSnapshot = (GatewaySupportSnapshotDTO) o;
+    return Objects.equals(subscriptionStatus, gatewaySupportSnapshot.subscriptionStatus) &&
+        Objects.equals(supportedAuthTypes, gatewaySupportSnapshot.supportedAuthTypes) &&
+        Objects.equals(subscriptionOptions, gatewaySupportSnapshot.subscriptionOptions) &&
+        Objects.equals(invocationTemplate, gatewaySupportSnapshot.invocationTemplate);
   }
 
   @Override
@@ -159,7 +160,7 @@ return null;
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class SubscriptionSupportInfoDTO {\n");
+    sb.append("class GatewaySupportSnapshotDTO {\n");
     
     sb.append("    subscriptionStatus: ").append(toIndentedString(subscriptionStatus)).append("\n");
     sb.append("    supportedAuthTypes: ").append(toIndentedString(supportedAuthTypes)).append("\n");

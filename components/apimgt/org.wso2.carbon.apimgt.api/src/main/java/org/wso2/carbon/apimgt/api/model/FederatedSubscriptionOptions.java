@@ -34,23 +34,22 @@ public class FederatedSubscriptionOptions {
      */
     private SubscriptionOptionsBody body;
 
-    /**
-     * Returns the schema name derived from the body type.
-     *
-     * @return schema name, or null if body is null
-     */
+    // Used when deserialized without a typed body (e.g. from snapshot JSON)
+    private String rawSchemaName;
+    private String rawBodyJson;
+
     public String getSchemaName() {
-        return body != null ? body.getSchemaName() : null;
+        if (body != null) {
+            return body.getSchemaName();
+        }
+        return rawSchemaName;
     }
 
-    /**
-     * Returns the body serialized as a JSON string.
-     * Used by mapping utilities.
-     *
-     * @return JSON string, or null if body is null
-     */
     public String getBodyAsJson() {
-        return body != null ? body.toJson() : null;
+        if (body != null) {
+            return body.toJson();
+        }
+        return rawBodyJson;
     }
 
     public SubscriptionOptionsBody getBody() {
@@ -59,5 +58,13 @@ public class FederatedSubscriptionOptions {
 
     public void setBody(SubscriptionOptionsBody body) {
         this.body = body;
+    }
+
+    /** Constructs a raw-string-backed instance for use during snapshot deserialization. */
+    public static FederatedSubscriptionOptions fromRawJson(String schemaName, String bodyJson) {
+        FederatedSubscriptionOptions opts = new FederatedSubscriptionOptions();
+        opts.rawSchemaName = schemaName;
+        opts.rawBodyJson = bodyJson;
+        return opts;
     }
 }

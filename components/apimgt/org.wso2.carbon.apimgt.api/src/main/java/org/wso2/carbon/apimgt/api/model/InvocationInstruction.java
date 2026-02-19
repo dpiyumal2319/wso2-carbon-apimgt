@@ -34,26 +34,25 @@ public class InvocationInstruction {
      */
     private InvocationBody body;
 
+    // Used when deserialized without a typed body (e.g. from snapshot JSON)
+    private String rawSchemaName;
+    private String rawBodyJson;
+
     public InvocationInstruction() {
     }
 
-    /**
-     * Returns the schema name derived from the body type.
-     *
-     * @return schema name, or null if body is null
-     */
     public String getSchemaName() {
-        return body != null ? body.getSchemaName() : null;
+        if (body != null) {
+            return body.getSchemaName();
+        }
+        return rawSchemaName;
     }
 
-    /**
-     * Returns the body serialized as a JSON string.
-     * Used by mapping utilities and reference artifact builders.
-     *
-     * @return JSON string, or null if body is null
-     */
     public String getBodyAsJson() {
-        return body != null ? body.toJson() : null;
+        if (body != null) {
+            return body.toJson();
+        }
+        return rawBodyJson;
     }
 
     public InvocationBody getBody() {
@@ -62,5 +61,13 @@ public class InvocationInstruction {
 
     public void setBody(InvocationBody body) {
         this.body = body;
+    }
+
+    /** Constructs a raw-string-backed instance for use during snapshot deserialization. */
+    public static InvocationInstruction fromRawJson(String schemaName, String bodyJson) {
+        InvocationInstruction inst = new InvocationInstruction();
+        inst.rawSchemaName = schemaName;
+        inst.rawBodyJson = bodyJson;
+        return inst;
     }
 }

@@ -62,6 +62,7 @@ import org.wso2.carbon.apimgt.api.model.ApiResult;
 import org.wso2.carbon.apimgt.api.model.ApiTypeWrapper;
 import org.wso2.carbon.apimgt.api.model.Application;
 import org.wso2.carbon.apimgt.api.model.ApplicationExternalMapping;
+import org.wso2.carbon.apimgt.api.model.ApiFederationConfig;
 import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
 import org.wso2.carbon.apimgt.api.model.ApplicationInfo;
 import org.wso2.carbon.apimgt.api.model.ApplicationInfoKeyManager;
@@ -16748,12 +16749,22 @@ public class ApiMgtDAO {
             connection.setAutoCommit(false);
             ps.setString(1, mapping.getSubscriptionUuid());
             ps.setString(2, mapping.getGatewayEnvironmentId());
-            ps.setString(3, mapping.getExternalSubscriptionId());
+            if (mapping.getExternalSubscriptionId() != null) {
+                ps.setString(3, mapping.getExternalSubscriptionId());
+            } else {
+                ps.setNull(3, java.sql.Types.VARCHAR);
+            }
             if (mapping.getReferenceArtifact() != null) {
                 ps.setBytes(4, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
             } else {
                 ps.setNull(4, java.sql.Types.BLOB);
             }
+            if (mapping.getSelectedOption() != null) {
+                ps.setBytes(5, mapping.getSelectedOption().getBytes(StandardCharsets.UTF_8));
+            } else {
+                ps.setNull(5, java.sql.Types.BLOB);
+            }
+            ps.setString(6, mapping.getStatus() != null ? mapping.getStatus() : "ACTIVE");
             ps.executeUpdate();
             connection.commit();
 
@@ -16787,12 +16798,19 @@ public class ApiMgtDAO {
                     mapping.setSubscriptionUuid(subscriptionUuid);
                     mapping.setGatewayEnvironmentId(environmentId);
                     mapping.setExternalSubscriptionId(rs.getString("EXTERNAL_SUBSCRIPTION_ID"));
+                    mapping.setStatus(rs.getString("STATUS"));
                     mapping.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
                     mapping.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
 
                     try (InputStream inputStream = rs.getBinaryStream("REFERENCE_ARTIFACT")) {
                         if (inputStream != null) {
                             mapping.setReferenceArtifact(IOUtils.toString(inputStream, StandardCharsets.UTF_8));
+                        }
+                    }
+
+                    try (InputStream optionStream = rs.getBinaryStream("SELECTED_OPTION")) {
+                        if (optionStream != null) {
+                            mapping.setSelectedOption(IOUtils.toString(optionStream, StandardCharsets.UTF_8));
                         }
                     }
                 }
@@ -16817,15 +16835,20 @@ public class ApiMgtDAO {
              PreparedStatement ps = connection.prepareStatement(SQLConstants.UPDATE_SUBSCRIPTION_EXTERNAL_MAPPING_SQL)) {
 
             connection.setAutoCommit(false);
-            ps.setString(1, mapping.getExternalSubscriptionId());
+            if (mapping.getExternalSubscriptionId() != null) {
+                ps.setString(1, mapping.getExternalSubscriptionId());
+            } else {
+                ps.setNull(1, java.sql.Types.VARCHAR);
+            }
             if (mapping.getReferenceArtifact() != null) {
                 ps.setBytes(2, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
             } else {
                 ps.setNull(2, java.sql.Types.BLOB);
             }
-            ps.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
-            ps.setString(4, mapping.getSubscriptionUuid());
-            ps.setString(5, mapping.getGatewayEnvironmentId());
+            ps.setString(3, mapping.getStatus() != null ? mapping.getStatus() : "ACTIVE");
+            ps.setTimestamp(4, new Timestamp(System.currentTimeMillis()));
+            ps.setString(5, mapping.getSubscriptionUuid());
+            ps.setString(6, mapping.getGatewayEnvironmentId());
             ps.executeUpdate();
             connection.commit();
 
@@ -16903,12 +16926,19 @@ public class ApiMgtDAO {
                     String environmentId = rs.getString("GATEWAY_ENV_ID");
                     mapping.setGatewayEnvironmentId(environmentId);
                     mapping.setExternalSubscriptionId(rs.getString("EXTERNAL_SUBSCRIPTION_ID"));
+                    mapping.setStatus(rs.getString("STATUS"));
                     mapping.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
                     mapping.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
 
                     try (InputStream inputStream = rs.getBinaryStream("REFERENCE_ARTIFACT")) {
                         if (inputStream != null) {
                             mapping.setReferenceArtifact(IOUtils.toString(inputStream, StandardCharsets.UTF_8));
+                        }
+                    }
+
+                    try (InputStream optionStream = rs.getBinaryStream("SELECTED_OPTION")) {
+                        if (optionStream != null) {
+                            mapping.setSelectedOption(IOUtils.toString(optionStream, StandardCharsets.UTF_8));
                         }
                     }
 
@@ -16950,6 +16980,162 @@ public class ApiMgtDAO {
                     + subscriptionUuid, e);
         }
         return false;
+    }
+
+    // ---- API Federation Config ----
+
+    public void addApiFederationConfig(ApiFederationConfig config) throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.ADD_API_FEDERATION_CONFIG_SQL)) {
+
+            connection.setAutoCommit(false);
+            ps.setString(1, config.getApiUuid());
+            ps.setString(2, config.getGatewayEnvId());
+            ps.setInt(3, config.isFederationEnabled() ? 1 : 0);
+            if (config.getPublisherCuratedOptions() != null) {
+                ps.setBytes(4, config.getPublisherCuratedOptions().getBytes(StandardCharsets.UTF_8));
+            } else {
+                ps.setNull(4, java.sql.Types.BLOB);
+            }
+            ps.setString(5, config.getGatewaySnapshotHash());
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while adding API federation config for API: "
+                    + config.getApiUuid(), e);
+        }
+    }
+
+    public ApiFederationConfig getApiFederationConfig(String apiUuid, String envId)
+            throws APIManagementException {
+        ApiFederationConfig config = null;
+
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.GET_API_FEDERATION_CONFIG_SQL)) {
+
+            ps.setString(1, apiUuid);
+            ps.setString(2, envId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    config = new ApiFederationConfig(apiUuid, envId);
+                    config.setFederationEnabled(rs.getInt("FEDERATION_ENABLED") == 1);
+                    config.setGatewaySnapshotHash(rs.getString("GATEWAY_SNAPSHOT_HASH"));
+                    config.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
+                    config.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
+                    config.setPublisherReviewedTime(rs.getTimestamp("PUBLISHER_REVIEWED_TIME"));
+
+                    try (InputStream curatedStream = rs.getBinaryStream("PUBLISHER_CURATED_OPTIONS")) {
+                        if (curatedStream != null) {
+                            config.setPublisherCuratedOptions(
+                                    IOUtils.toString(curatedStream, StandardCharsets.UTF_8));
+                        }
+                    }
+                }
+            }
+
+        } catch (SQLException | IOException e) {
+            handleException("Error while retrieving API federation config for API: " + apiUuid, e);
+        }
+
+        return config;
+    }
+
+    /** Updates just the stored snapshot hash (e.g. after background re-discovery). */
+    public void updateApiFederationConfigHash(String apiUuid, String envId,
+            String hash) throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(
+                     SQLConstants.UPDATE_API_FEDERATION_CONFIG_HASH_SQL)) {
+
+            connection.setAutoCommit(false);
+            ps.setString(1, hash);
+            ps.setTimestamp(2, new Timestamp(System.currentTimeMillis()));
+            ps.setString(3, apiUuid);
+            ps.setString(4, envId);
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while updating API federation config hash for API: " + apiUuid, e);
+        }
+    }
+
+    /**
+     * Updates publisher curation columns. {@code snapshotHash} and {@code reviewedTime} are
+     * COALESCE'd — pass null to leave them unchanged.
+     */
+    public void updateApiFederationConfigPublisherData(String apiUuid, String envId,
+            boolean federationEnabled, String curatedOptions, String snapshotHash,
+            Timestamp reviewedTime) throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(
+                     SQLConstants.UPDATE_API_FEDERATION_CONFIG_PUBLISHER_SQL)) {
+
+            connection.setAutoCommit(false);
+            ps.setInt(1, federationEnabled ? 1 : 0);
+            if (curatedOptions != null) {
+                ps.setBytes(2, curatedOptions.getBytes(StandardCharsets.UTF_8));
+            } else {
+                ps.setNull(2, java.sql.Types.BLOB);
+            }
+            if (snapshotHash != null) {
+                ps.setString(3, snapshotHash);
+            } else {
+                ps.setNull(3, java.sql.Types.VARCHAR);
+            }
+            if (reviewedTime != null) {
+                ps.setTimestamp(4, reviewedTime);
+            } else {
+                ps.setNull(4, java.sql.Types.TIMESTAMP);
+            }
+            ps.setTimestamp(5, new Timestamp(System.currentTimeMillis()));
+            ps.setString(6, apiUuid);
+            ps.setString(7, envId);
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while updating API federation config publisher data for API: "
+                    + apiUuid, e);
+        }
+    }
+
+    public boolean apiFederationConfigExists(String apiUuid, String envId)
+            throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(
+                     SQLConstants.CHECK_API_FEDERATION_CONFIG_EXISTS_SQL)) {
+
+            ps.setString(1, apiUuid);
+            ps.setString(2, envId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+
+        } catch (SQLException e) {
+            handleException("Error while checking if API federation config exists for API: "
+                    + apiUuid, e);
+        }
+        return false;
+    }
+
+    public void deleteApiFederationConfig(String apiUuid, String envId)
+            throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.DELETE_API_FEDERATION_CONFIG_SQL)) {
+
+            connection.setAutoCommit(false);
+            ps.setString(1, apiUuid);
+            ps.setString(2, envId);
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while deleting API federation config for API: " + apiUuid, e);
+        }
     }
 
     private boolean isEmptyValuesInApplicationAttributesEnabled() {
