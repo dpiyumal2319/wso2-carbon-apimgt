@@ -96,6 +96,8 @@ import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
 import org.wso2.carbon.apimgt.api.model.Subscriber;
 import org.wso2.carbon.apimgt.api.model.SubscriptionResponse;
 import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
+import org.wso2.carbon.apimgt.api.model.ApiFederationConfig;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionOptions;
 import org.wso2.carbon.apimgt.api.model.Tag;
 import org.wso2.carbon.apimgt.api.model.Tier;
 import org.wso2.carbon.apimgt.api.model.TierPermission;
@@ -5205,6 +5207,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         mapping.setGatewayEnvironmentId(envId);
         mapping.setExternalSubscriptionId(result.getExternalSubscriptionId());
         mapping.setReferenceArtifact(result.getReferenceArtifact());
+        mapping.setSelectedOption(selectedOption);
         apiMgtDAO.addSubscriptionExternalMapping(mapping);
 
         return buildResult(result.getCredential(), result.getInstruction(), environment, envId);
@@ -5353,32 +5356,37 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             // Resolve gateway environment ID
             String envId = resolveGatewayEnvironmentId(api);
 
-            // Get API reference artifact
+            // Check federation config for publisher overrides
+            ApiFederationConfig federationConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
+            if (federationConfig != null && !federationConfig.isFederationEnabled()) {
+                // Publisher disabled federation — return OPEN
+                return new SubscriptionSupportInfo.Builder()
+                        .status(SubscriptionSupportInfo.SubscriptionStatus.OPEN)
+                        .build();
+            }
+
+            // Fetch live from gateway
             String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
             if (apiRefArtifact == null) {
                 throw new APIManagementException("No API reference artifact found for API: " + api.getUuid());
             }
 
-            // Get environment
             Environment environment = apiMgtDAO.getEnvironment(organization, envId);
             if (environment == null) {
                 throw new APIManagementException("Gateway environment not found: " + envId);
             }
 
-            // Get agent (graceful fallback if agent creation fails)
             FederatedSubscriptionAgent agent;
             try {
                 agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(environment, organization);
             } catch (Exception e) {
                 log.warn("Failed to create subscription agent for gateway " + environment.getGatewayType() +
                         ". Treating as OPEN (agent unavailable).", e);
-                // Agent unavailable - graceful fallback to OPEN
                 return new SubscriptionSupportInfo.Builder()
                         .status(SubscriptionSupportInfo.SubscriptionStatus.OPEN)
                         .build();
             }
 
-            // Build minimal context (no subscription-level fields needed for discovery)
             FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
                     .apiReferenceArtifact(apiRefArtifact)
                     .apiName(api.getId().getApiName())
@@ -5389,8 +5397,18 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                     .environmentId(envId)
                     .build();
 
-            // Call agent to get subscription support info
-            return agent.getSubscriptionSupportInfo(context);
+            SubscriptionSupportInfo info = agent.getSubscriptionSupportInfo(context);
+
+            // If publisher curated options are set, replace options in the live result
+            if (federationConfig != null && federationConfig.getPublisherCuratedOptions() != null) {
+                FederatedSubscriptionOptions curatedOpts = FederatedSubscriptionOptions.fromRawJson(
+                        info.getSubscriptionOptions() != null
+                                ? info.getSubscriptionOptions().getSchemaName() : null,
+                        federationConfig.getPublisherCuratedOptions());
+                info.setSubscriptionOptions(curatedOpts);
+            }
+
+            return info;
 
         } catch (APIManagementException e) {
             log.error("Error getting subscription support info for API: " + api.getUuid(), e);

@@ -22,6 +22,8 @@ import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIRevisionDeploymentDTO
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIRevisionDeploymentListDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIRevisionListDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.ApiEndpointValidationResponseDTO;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.ApiFederationConfigDTO;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.ApiFederationConfigUpdateDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.AsyncAPISpecificationValidationResponseDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.AuditReportDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.CertificateInfoDTO;
@@ -139,6 +141,7 @@ public interface ApisApiService {
       public Response getAmazonResourceNamesOfAPI(String apiId, MessageContext messageContext) throws APIManagementException;
       public Response getApiEndpoint(String apiId, String endpointId, MessageContext messageContext) throws APIManagementException;
       public Response getApiEndpoints(String apiId, Integer limit, Integer offset, MessageContext messageContext) throws APIManagementException;
+      public Response getApiFederationConfig(String apiId, MessageContext messageContext) throws APIManagementException;
       public Response getApiThemeContent(String apiId, String id, MessageContext messageContext) throws APIManagementException;
       public Response getApiThemes(String apiId, Boolean publish, MessageContext messageContext) throws APIManagementException;
       public Response getAuditReportOfAPI(String apiId, String accept, MessageContext messageContext) throws APIManagementException;
@@ -179,6 +182,7 @@ public interface ApisApiService {
       public Response updateAPISwagger(String apiId, String ifMatch, String apiDefinition, String url, InputStream fileInputStream, Attachment fileDetail, MessageContext messageContext) throws APIManagementException;
       public Response updateAPIThumbnail(String apiId, InputStream fileInputStream, Attachment fileDetail, String ifMatch, MessageContext messageContext) throws APIManagementException;
       public Response updateApiEndpoint(String apiId, String endpointId, APIEndpointDTO apIEndpointDTO, MessageContext messageContext) throws APIManagementException;
+      public Response updateApiFederationConfig(String apiId, ApiFederationConfigUpdateDTO apiFederationConfigUpdateDTO, MessageContext messageContext) throws APIManagementException;
       public Response updateApiThemeStatus(String apiId, String id, ContentPublishStatusDTO contentPublishStatusDTO, MessageContext messageContext) throws APIManagementException;
       public Response updateGraphQLPolicyComplexityOfAPI(String apiId, GraphQLQueryComplexityInfoDTO graphQLQueryComplexityInfoDTO, MessageContext messageContext) throws APIManagementException;
       public Response updateTopics(String apiId, TopicListDTO topicListDTO, String ifMatch, MessageContext messageContext) throws APIManagementException;

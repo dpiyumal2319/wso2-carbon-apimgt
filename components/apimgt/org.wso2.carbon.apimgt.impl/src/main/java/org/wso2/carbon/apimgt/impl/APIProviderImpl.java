@@ -47,6 +47,7 @@ import org.wso2.carbon.apimgt.api.FaultGatewaysException;
 import org.wso2.carbon.apimgt.api.FaultyGatewayDeploymentException;
 import org.wso2.carbon.apimgt.api.MonetizationException;
 import org.wso2.carbon.apimgt.api.UnsupportedPolicyTypeException;
+import org.wso2.carbon.apimgt.api.FederatedSubscriptionAgent;
 import org.wso2.carbon.apimgt.api.UsedByMigrationClient;
 import org.wso2.carbon.apimgt.api.WorkflowResponse;
 import org.wso2.carbon.apimgt.api.doc.model.APIResource;
@@ -73,6 +74,7 @@ import org.wso2.carbon.apimgt.api.model.APIRevisionDeployment;
 import org.wso2.carbon.apimgt.api.model.APISearchResult;
 import org.wso2.carbon.apimgt.api.model.APIStateChangeResponse;
 import org.wso2.carbon.apimgt.api.model.APIStore;
+import org.wso2.carbon.apimgt.api.model.ApiFederationConfig;
 import org.wso2.carbon.apimgt.api.model.ApiTypeWrapper;
 import org.wso2.carbon.apimgt.api.model.Backend;
 import org.wso2.carbon.apimgt.api.model.BackendOperationMapping;
@@ -90,6 +92,7 @@ import org.wso2.carbon.apimgt.api.model.DocumentationContent;
 import org.wso2.carbon.apimgt.api.model.DocumentationType;
 import org.wso2.carbon.apimgt.api.model.EndpointSecurity;
 import org.wso2.carbon.apimgt.api.model.Environment;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
 import org.wso2.carbon.apimgt.api.model.GatewayPolicyData;
 import org.wso2.carbon.apimgt.api.model.GatewayPolicyDeployment;
 import org.wso2.carbon.apimgt.api.model.Identifier;
@@ -109,6 +112,7 @@ import org.wso2.carbon.apimgt.api.model.SOAPToRestSequence;
 import org.wso2.carbon.apimgt.api.model.SharedScopeUsage;
 import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
 import org.wso2.carbon.apimgt.api.model.Subscriber;
+import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
 import org.wso2.carbon.apimgt.api.model.SwaggerData;
 import org.wso2.carbon.apimgt.api.model.Tier;
 import org.wso2.carbon.apimgt.api.model.TokenEndpointConnectionConfigType;
@@ -138,6 +142,7 @@ import org.wso2.carbon.apimgt.impl.dto.TierPermissionDTO;
 import org.wso2.carbon.apimgt.impl.dto.WorkflowDTO;
 import org.wso2.carbon.apimgt.impl.dto.WorkflowProperties;
 import org.wso2.carbon.apimgt.impl.factory.KeyManagerHolder;
+import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedSubscriptionAgentFactory;
 import org.wso2.carbon.apimgt.impl.gatewayartifactsynchronizer.ArtifactSaver;
 import org.wso2.carbon.apimgt.impl.gatewayartifactsynchronizer.exception.ArtifactSynchronizerException;
 import org.wso2.carbon.apimgt.impl.importexport.APIImportExportException;
@@ -9506,6 +9511,117 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
                     throw new APIManagementException(errorMessage);
                 }
             }
+        }
+    }
+
+    @Override
+    public ApiFederationConfig getApiFederationConfig(String apiUuid, String organization)
+            throws APIManagementException {
+
+        String envId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(apiUuid);
+        if (envId == null) {
+            throw new APIManagementException(
+                    "No external gateway environment mapping found for API: " + apiUuid,
+                    ExceptionCodes.from(ExceptionCodes.API_NOT_FOUND, apiUuid));
+        }
+        ApiFederationConfig config = apiMgtDAO.getApiFederationConfig(apiUuid, envId);
+        if (config == null) {
+            throw new APIManagementException(
+                    "Federation configuration not found for API: " + apiUuid,
+                    ExceptionCodes.from(ExceptionCodes.API_NOT_FOUND, apiUuid));
+        }
+
+        // Fetch live snapshot and populate transient staleness fields
+        try {
+            String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(apiUuid, envId);
+            Environment environment = apiMgtDAO.getEnvironment(organization, envId);
+            if (apiRefArtifact != null && environment != null) {
+                FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory
+                        .getSubscriptionAgent(environment, organization);
+                FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
+                        .apiReferenceArtifact(apiRefArtifact)
+                        .apiUuid(apiUuid)
+                        .organizationId(organization)
+                        .environmentId(envId)
+                        .build();
+                SubscriptionSupportInfo liveInfo = agent.getSubscriptionSupportInfo(context);
+                if (liveInfo != null) {
+                    String liveJson = liveInfo.toJson();
+                    String liveHash = computeSha256(liveJson);
+                    config.setLiveGatewaySnapshot(liveJson);
+                    config.setLiveSnapshotHash(liveHash);
+                    config.setStale(config.getGatewaySnapshotHash() != null
+                            && !liveHash.equals(config.getGatewaySnapshotHash()));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch live gateway snapshot for API: " + apiUuid
+                    + ". Returning config without staleness info.", e);
+        }
+
+        return config;
+    }
+
+    @Override
+    public ApiFederationConfig updateApiFederationConfig(String apiUuid, String organization,
+            boolean federationEnabled, String publisherCuratedOptions, boolean acknowledgeStale)
+            throws APIManagementException {
+
+        String envId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(apiUuid);
+        if (envId == null) {
+            throw new APIManagementException(
+                    "No external gateway environment mapping found for API: " + apiUuid,
+                    ExceptionCodes.from(ExceptionCodes.API_NOT_FOUND, apiUuid));
+        }
+        if (!apiMgtDAO.apiFederationConfigExists(apiUuid, envId)) {
+            throw new APIManagementException(
+                    "Federation configuration not found for API: " + apiUuid,
+                    ExceptionCodes.from(ExceptionCodes.API_NOT_FOUND, apiUuid));
+        }
+
+        String snapshotHash = null;
+        if (acknowledgeStale) {
+            try {
+                String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(apiUuid, envId);
+                Environment environment = apiMgtDAO.getEnvironment(organization, envId);
+                if (apiRefArtifact != null && environment != null) {
+                    FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory
+                            .getSubscriptionAgent(environment, organization);
+                    FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
+                            .apiReferenceArtifact(apiRefArtifact)
+                            .apiUuid(apiUuid)
+                            .organizationId(organization)
+                            .environmentId(envId)
+                            .build();
+                    SubscriptionSupportInfo liveInfo = agent.getSubscriptionSupportInfo(context);
+                    if (liveInfo != null) {
+                        snapshotHash = computeSha256(liveInfo.toJson());
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Failed to compute live snapshot hash during acknowledge for API: " + apiUuid, e);
+            }
+        }
+
+        apiMgtDAO.updateApiFederationConfigPublisherData(apiUuid, envId, federationEnabled,
+                publisherCuratedOptions, snapshotHash,
+                acknowledgeStale ? new java.sql.Timestamp(System.currentTimeMillis()) : null);
+        return getApiFederationConfig(apiUuid, organization);
+    }
+
+    private static String computeSha256(String input) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
         }
     }
 }
