@@ -19,8 +19,10 @@
 package org.wso2.carbon.apimgt.rest.api.store.v1.mappings;
 
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionOptions;
+import org.wso2.carbon.apimgt.api.model.InvocationInstruction;
 import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionOptionsDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.InvocationTemplateDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionSupportInfoDTO;
 
 import java.util.Arrays;
@@ -33,7 +35,8 @@ public class SubscriptionSupportMappingUtil {
 
     /**
      * Converts SubscriptionSupportInfo model to DTO.
-     * Maps the POJO status enum to DTO enum and passes through auth types and options.
+     * Maps the POJO status enum to DTO enum and passes through auth types, options,
+     * and invocation template.
      */
     public static SubscriptionSupportInfoDTO toDTO(SubscriptionSupportInfo info) {
         if (info == null) {
@@ -56,6 +59,15 @@ public class SubscriptionSupportMappingUtil {
         // Map subscription options if present
         if (info.getSubscriptionOptions() != null) {
             dto.setSubscriptionOptions(fromFederatedSubscriptionOptionsToDTO(info.getSubscriptionOptions()));
+        }
+
+        // Map invocation template if present
+        if (info.getInvocationTemplate() != null) {
+            InvocationInstruction template = info.getInvocationTemplate();
+            InvocationTemplateDTO templateDTO = new InvocationTemplateDTO();
+            templateDTO.setSchemaName(template.getSchemaName());
+            templateDTO.setBody(template.getBodyAsJson());
+            dto.setInvocationTemplate(templateDTO);
         }
 
         return dto;

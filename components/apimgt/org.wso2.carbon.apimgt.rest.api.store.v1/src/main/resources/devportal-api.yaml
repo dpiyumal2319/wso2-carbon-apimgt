@@ -6351,6 +6351,8 @@ components:
           example: ["opaque-api-key"]
         subscriptionOptions:
           $ref: '#/components/schemas/FederatedSubscriptionOptions'
+        invocationTemplate:
+          $ref: '#/components/schemas/InvocationTemplate'
     FederatedSubscriptionOptions:
       title: Federated Subscription Options
       type: object
@@ -6364,6 +6366,21 @@ components:
           type: string
           description: Schema identifier for frontend renderer selection (e.g., "tier-selector")
           example: tier-selector
+    InvocationTemplate:
+      title: Invocation Template
+      type: object
+      description: |
+        Template invocation instruction for an API (pattern only, no credential).
+        Contains header name, base URL, and curl template for API testing.
+      properties:
+        body:
+          type: string
+          description: Opaque JSON containing gateway-specific invocation template
+          example: '{"headerName":"x-api-key","baseUrl":"https://api.example.com"}'
+        schemaName:
+          type: string
+          description: Schema identifier for frontend renderer selection
+          example: api-key-invocation
     FederatedSubscriptionCreateRequest:
       title: Federated Subscription Create Request
       type: object

@@ -2437,4 +2437,14 @@ public interface APIProvider extends APIManager {
      * @throws APIManagementException if an error occurs while checking the API initiation
      */
     boolean isAPIInitiatedFromGateway(String apiUUID) throws APIManagementException;
+
+    /** Returns the federation configuration for an externally-discovered API. */
+    ApiFederationConfig getApiFederationConfig(String apiUuid, String organization) throws APIManagementException;
+
+    /**
+     * Updates publisher curation of a federation configuration.
+     * When {@code acknowledgeStale} is true, fetches live snapshot hash and stores it as the new acknowledged hash.
+     */
+    ApiFederationConfig updateApiFederationConfig(String apiUuid, String organization, boolean federationEnabled,
+            String publisherCuratedOptions, boolean acknowledgeStale) throws APIManagementException;
 }

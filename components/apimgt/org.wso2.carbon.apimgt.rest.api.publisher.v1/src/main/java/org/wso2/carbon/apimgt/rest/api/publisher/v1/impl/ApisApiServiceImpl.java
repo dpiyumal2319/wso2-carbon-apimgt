@@ -5185,4 +5185,94 @@ public class ApisApiServiceImpl implements ApisApiService {
         apiProvider.getEnvironment(organization, envId);
     }
 
+    @Override
+    public Response getApiFederationConfig(String apiId, MessageContext messageContext)
+            throws APIManagementException {
+
+        APIProvider apiProvider = RestApiCommonUtil.getLoggedInUserProvider();
+        String organization = RestApiUtil.getValidatedOrganization(messageContext);
+        ApiFederationConfig config = apiProvider.getApiFederationConfig(apiId, organization);
+        ApiFederationConfigDTO dto = mapFederationConfigToDTO(config);
+        return Response.ok().entity(dto).build();
+    }
+
+    @Override
+    public Response updateApiFederationConfig(String apiId,
+            ApiFederationConfigUpdateDTO updateDTO, MessageContext messageContext) throws APIManagementException {
+
+        APIProvider apiProvider = RestApiCommonUtil.getLoggedInUserProvider();
+        String organization = RestApiUtil.getValidatedOrganization(messageContext);
+
+        boolean federationEnabled = updateDTO.isFederationEnabled() != null
+                ? updateDTO.isFederationEnabled() : true;
+        boolean acknowledgeStale = updateDTO.isAcknowledgeStale() != null
+                ? updateDTO.isAcknowledgeStale() : false;
+        String curatedOptions = null;
+        if (updateDTO.getPublisherCuratedOptions() != null) {
+            FederatedSubscriptionOptionsDTO optionsDTO = updateDTO.getPublisherCuratedOptions();
+            com.google.gson.JsonObject json = new com.google.gson.JsonObject();
+            json.addProperty("schemaName", optionsDTO.getSchemaName());
+            json.addProperty("body", optionsDTO.getBody());
+            curatedOptions = json.toString();
+        }
+
+        ApiFederationConfig config = apiProvider.updateApiFederationConfig(apiId, organization,
+                federationEnabled, curatedOptions, acknowledgeStale);
+        ApiFederationConfigDTO dto = mapFederationConfigToDTO(config);
+        return Response.ok().entity(dto).build();
+    }
+
+    private ApiFederationConfigDTO mapFederationConfigToDTO(ApiFederationConfig config) {
+        ApiFederationConfigDTO dto = new ApiFederationConfigDTO();
+        dto.setFederationEnabled(config.isFederationEnabled());
+        dto.setIsStale(config.isStale());
+        dto.setGatewaySnapshotHash(config.getGatewaySnapshotHash());
+        dto.setLiveSnapshotHash(config.getLiveSnapshotHash());
+        dto.setPublisherReviewedTime(config.getPublisherReviewedTime() != null
+                ? config.getPublisherReviewedTime().toString() : null);
+
+        if (config.getLiveGatewaySnapshot() != null) {
+            SubscriptionSupportInfo snapshot = SubscriptionSupportInfo.fromJson(
+                    config.getLiveGatewaySnapshot());
+            GatewaySupportSnapshotDTO snapshotDTO = new GatewaySupportSnapshotDTO();
+            if (snapshot.getStatus() != null) {
+                snapshotDTO.setSubscriptionStatus(
+                        GatewaySupportSnapshotDTO.SubscriptionStatusEnum.fromValue(
+                                snapshot.getStatus().name()));
+            }
+            if (snapshot.getSupportedAuthTypes() != null) {
+                snapshotDTO.setSupportedAuthTypes(
+                        java.util.Arrays.asList(snapshot.getSupportedAuthTypes()));
+            }
+            if (snapshot.getSubscriptionOptions() != null) {
+                FederatedSubscriptionOptionsDTO optionsDTO = new FederatedSubscriptionOptionsDTO();
+                optionsDTO.setSchemaName(snapshot.getSubscriptionOptions().getSchemaName());
+                optionsDTO.setBody(snapshot.getSubscriptionOptions().getBodyAsJson());
+                snapshotDTO.setSubscriptionOptions(optionsDTO);
+            }
+            if (snapshot.getInvocationTemplate() != null) {
+                InvocationTemplateDTO templateDTO = new InvocationTemplateDTO();
+                templateDTO.setSchemaName(snapshot.getInvocationTemplate().getSchemaName());
+                templateDTO.setBody(snapshot.getInvocationTemplate().getBodyAsJson());
+                snapshotDTO.setInvocationTemplate(templateDTO);
+            }
+            dto.setGatewaySupportSnapshot(snapshotDTO);
+        }
+
+        if (config.getPublisherCuratedOptions() != null) {
+            com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(
+                    config.getPublisherCuratedOptions()).getAsJsonObject();
+            FederatedSubscriptionOptionsDTO curatedDTO = new FederatedSubscriptionOptionsDTO();
+            if (json.has("schemaName")) {
+                curatedDTO.setSchemaName(json.get("schemaName").getAsString());
+            }
+            if (json.has("body")) {
+                curatedDTO.setBody(json.get("body").getAsString());
+            }
+            dto.setPublisherCuratedOptions(curatedDTO);
+        }
+
+        return dto;
+    }
+
 }

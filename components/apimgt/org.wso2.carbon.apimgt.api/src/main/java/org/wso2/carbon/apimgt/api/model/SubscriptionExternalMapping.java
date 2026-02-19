@@ -35,6 +35,8 @@ public class SubscriptionExternalMapping {
     private String gatewayEnvironmentId;
     private String externalSubscriptionId;
     private String referenceArtifact;
+    private String selectedOption;
+    private String status;
     private Timestamp createdTime;
     private Timestamp lastUpdatedTime;
 
@@ -92,6 +94,22 @@ public class SubscriptionExternalMapping {
 
     public void setLastUpdatedTime(Timestamp lastUpdatedTime) {
         this.lastUpdatedTime = lastUpdatedTime;
+    }
+
+    public String getSelectedOption() {
+        return selectedOption;
+    }
+
+    public void setSelectedOption(String selectedOption) {
+        this.selectedOption = selectedOption;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     @Override

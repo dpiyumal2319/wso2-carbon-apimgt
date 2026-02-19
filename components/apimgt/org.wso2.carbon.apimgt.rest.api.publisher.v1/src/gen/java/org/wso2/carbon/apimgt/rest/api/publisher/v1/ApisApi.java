@@ -13,6 +13,8 @@ import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIRevisionDeploymentDTO
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIRevisionDeploymentListDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.APIRevisionListDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.ApiEndpointValidationResponseDTO;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.ApiFederationConfigDTO;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.ApiFederationConfigUpdateDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.AsyncAPISpecificationValidationResponseDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.AuditReportDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.CertificateInfoDTO;
@@ -1403,6 +1405,23 @@ ApisApiService delegate = new ApisApiServiceImpl();
     }
 
     @GET
+    @Path("/{apiId}/federation-config")
+    
+    @Produces({ "application/json" })
+    @ApiOperation(value = "Get Federation Configuration", notes = "Retrieve the federation configuration for an externally-discovered API. Returns the gateway support snapshot, publisher curation, and staleness status. ", response = ApiFederationConfigDTO.class, authorizations = {
+        @Authorization(value = "OAuth2Security", scopes = {
+            @AuthorizationScope(scope = "apim:api_view", description = "View API"),
+            @AuthorizationScope(scope = "apim:api_manage", description = "Manage all API related operations")
+        })
+    }, tags={ "APIs",  })
+    @ApiResponses(value = { 
+        @ApiResponse(code = 200, message = "OK. Federation configuration returned successfully. ", response = ApiFederationConfigDTO.class),
+        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class) })
+    public Response getApiFederationConfig(@ApiParam(value = "**API ID** consisting of the **UUID** of the API. ",required=true) @PathParam("apiId") String apiId) throws APIManagementException{
+        return delegate.getApiFederationConfig(apiId, securityContext);
+    }
+
+    @GET
     @Path("/{apiId}/api-themes/{id}/content")
     
     @Produces({ "application/zip", "application/json" })
@@ -2177,6 +2196,23 @@ ApisApiService delegate = new ApisApiServiceImpl();
         @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
     public Response updateApiEndpoint(@ApiParam(value = "**API ID** consisting of the **UUID** of the API. ",required=true) @PathParam("apiId") String apiId, @ApiParam(value = "**Endpoint ID** consisting of the **UUID** of the Endpoint** ",required=true) @PathParam("endpointId") String endpointId, @ApiParam(value = "API Endpoint object with updated details" ) APIEndpointDTO apIEndpointDTO) throws APIManagementException{
         return delegate.updateApiEndpoint(apiId, endpointId, apIEndpointDTO, securityContext);
+    }
+
+    @PUT
+    @Path("/{apiId}/federation-config")
+    @Consumes({ "application/json" })
+    @Produces({ "application/json" })
+    @ApiOperation(value = "Update Federation Configuration", notes = "Update the publisher curation for an externally-discovered API. Allows enabling/disabling federation, overriding subscription options, and acknowledging staleness. ", response = ApiFederationConfigDTO.class, authorizations = {
+        @Authorization(value = "OAuth2Security", scopes = {
+            @AuthorizationScope(scope = "apim:api_manage", description = "Manage all API related operations")
+        })
+    }, tags={ "APIs",  })
+    @ApiResponses(value = { 
+        @ApiResponse(code = 200, message = "OK. Federation configuration updated successfully. ", response = ApiFederationConfigDTO.class),
+        @ApiResponse(code = 400, message = "Bad Request. Invalid request or validation error.", response = ErrorDTO.class),
+        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class) })
+    public Response updateApiFederationConfig(@ApiParam(value = "**API ID** consisting of the **UUID** of the API. ",required=true) @PathParam("apiId") String apiId, @ApiParam(value = "Federation configuration update" ,required=true) ApiFederationConfigUpdateDTO apiFederationConfigUpdateDTO) throws APIManagementException{
+        return delegate.updateApiFederationConfig(apiId, apiFederationConfigUpdateDTO, securityContext);
     }
 
     @POST
