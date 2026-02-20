@@ -49,63 +49,17 @@ import org.wso2.carbon.apimgt.api.ExceptionCodes;
 import org.wso2.carbon.apimgt.api.WorkflowResponse;
 import org.wso2.carbon.apimgt.api.dto.KeyManagerConfigurationDTO;
 import org.wso2.carbon.apimgt.api.dto.KeyManagerPermissionConfigurationDTO;
-import org.wso2.carbon.apimgt.api.model.API;
-import org.wso2.carbon.apimgt.api.model.APIDefinitionContentSearchResult;
-import org.wso2.carbon.apimgt.api.model.APIIdentifier;
-import org.wso2.carbon.apimgt.api.model.APIInfo;
-import org.wso2.carbon.apimgt.api.model.APIKey;
-import org.wso2.carbon.apimgt.api.model.APIProduct;
-import org.wso2.carbon.apimgt.api.model.APIProductIdentifier;
-import org.wso2.carbon.apimgt.api.model.APIRating;
-import org.wso2.carbon.apimgt.api.model.APIRevisionDeployment;
-import org.wso2.carbon.apimgt.api.model.AccessTokenInfo;
-import org.wso2.carbon.apimgt.api.model.AccessTokenRequest;
-import org.wso2.carbon.apimgt.api.model.ApiTypeWrapper;
-import org.wso2.carbon.apimgt.api.model.Application;
-import org.wso2.carbon.apimgt.api.model.ApplicationConstants;
-import org.wso2.carbon.apimgt.api.model.ApplicationKeysDTO;
-import org.wso2.carbon.apimgt.api.model.Comment;
-import org.wso2.carbon.apimgt.api.model.CommentList;
-import org.wso2.carbon.apimgt.api.model.Documentation;
+import org.wso2.carbon.apimgt.api.model.*;
 import org.wso2.carbon.apimgt.api.model.Documentation.DocumentSourceType;
 import org.wso2.carbon.apimgt.api.model.Documentation.DocumentVisibility;
-import org.wso2.carbon.apimgt.api.model.DocumentationContent;
-import org.wso2.carbon.apimgt.api.model.DocumentationType;
-import org.wso2.carbon.apimgt.api.model.Environment;
-import org.wso2.carbon.apimgt.api.model.FederatedCredential;
-import org.wso2.carbon.apimgt.api.model.AgentOperationResult;
-import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
-import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionResult;
-import org.wso2.carbon.apimgt.api.model.InvocationInstruction;
-import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
 import org.wso2.carbon.apimgt.api.FederatedSubscriptionAgent;
-import org.wso2.carbon.apimgt.api.model.GatewayAgentConfiguration;
-import org.wso2.carbon.apimgt.api.model.GatewayDeployer;
-import org.wso2.carbon.apimgt.api.model.Identifier;
-import org.wso2.carbon.apimgt.api.model.KeyManager;
-import org.wso2.carbon.apimgt.api.model.KeyManagerApplicationInfo;
-import org.wso2.carbon.apimgt.api.model.KeyManagerConfiguration;
-import org.wso2.carbon.apimgt.api.model.Monetization;
-import org.wso2.carbon.apimgt.api.model.OAuthAppRequest;
-import org.wso2.carbon.apimgt.api.model.OAuthApplicationInfo;
-import org.wso2.carbon.apimgt.api.model.OrganizationInfo;
-import org.wso2.carbon.apimgt.api.model.OrganizationTiers;
-import org.wso2.carbon.apimgt.api.model.ResourceFile;
-import org.wso2.carbon.apimgt.api.model.Scope;
-import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
-import org.wso2.carbon.apimgt.api.model.Subscriber;
-import org.wso2.carbon.apimgt.api.model.SubscriptionResponse;
-import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
+import org.wso2.carbon.apimgt.api.model.AgentOperationResult;
 import org.wso2.carbon.apimgt.api.model.ApiFederationConfig;
-import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionOptions;
-import org.wso2.carbon.apimgt.api.model.Tag;
-import org.wso2.carbon.apimgt.api.model.Tier;
-import org.wso2.carbon.apimgt.api.model.TierPermission;
-import org.wso2.carbon.apimgt.api.model.VHost;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
+import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
 import org.wso2.carbon.apimgt.api.model.policy.PolicyConstants;
 import org.wso2.carbon.apimgt.api.model.webhooks.Subscription;
 import org.wso2.carbon.apimgt.api.model.webhooks.Topic;
-import org.wso2.carbon.apimgt.api.model.ApplicationResponse;
 import org.wso2.carbon.apimgt.impl.dto.ai.ApiChatConfigurationDTO;
 import org.wso2.carbon.apimgt.impl.caching.CacheProvider;
 import org.wso2.carbon.apimgt.impl.dao.ApiMgtDAO;
@@ -5150,6 +5104,13 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                     envId, apiRefArtifact, mapping.getExternalSubscriptionId(),
                     mapping.getReferenceArtifact());
 
+            // Enrich context with stored federation config snapshot for agent use
+            ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
+            SubscriptionSupportInfo configSnapshot = (fedConfig != null) ? fedConfig.getPublisherCuratedConfig() : null;
+            if (configSnapshot != null) {
+                context = context.toBuilder().federationConfigSnapshot(configSnapshot).build();
+            }
+
             // Agent handles everything: extract metadata, delete, create, build new artifact
             AgentOperationResult result = agent.regenerateCredential(context);
 
@@ -5198,6 +5159,13 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         FederatedSubscriptionContext context = buildFederatedContext(subscribedAPI, api, organization,
                 envId, apiRefArtifact, null, null);
 
+        // Enrich context with stored federation config snapshot for agent use
+        ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
+        SubscriptionSupportInfo configSnapshot = (fedConfig != null) ? fedConfig.getPublisherCuratedConfig() : null;
+        if (configSnapshot != null) {
+            context = context.toBuilder().federationConfigSnapshot(configSnapshot).build();
+        }
+
         // Agent creates subscription, builds artifact, and bundles everything
         AgentOperationResult result = agent.createSubscription(context, selectedOption);
 
@@ -5235,6 +5203,8 @@ APIConstants.AuditLogConstants.DELETED, this.username);
 
         // Build context with all available artifacts
         String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
+        ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
+        SubscriptionSupportInfo configSnapshot = (fedConfig != null) ? fedConfig.getPublisherCuratedConfig() : null;
         FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
                 .subscriptionUuid(subscriptionUuid)
                 .externalSubscriptionId(mapping.getExternalSubscriptionId())
@@ -5242,6 +5212,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                 .apiReferenceArtifact(apiRefArtifact)
                 .environmentId(envId)
                 .organizationId(organization)
+                .federationConfigSnapshot(configSnapshot)
                 .build();
 
         // Single agent call — agent owns credential extraction, retrieval, and instruction
@@ -5365,7 +5336,6 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                         .build();
             }
 
-            // Fetch live from gateway
             String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
             if (apiRefArtifact == null) {
                 throw new APIManagementException("No API reference artifact found for API: " + api.getUuid());
@@ -5387,6 +5357,10 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                         .build();
             }
 
+            // Pass publisher-curated config as snapshot so the agent can serve it without a gateway call
+            SubscriptionSupportInfo configSnapshot = (federationConfig != null)
+                    ? federationConfig.getPublisherCuratedConfig() : null;
+
             FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
                     .apiReferenceArtifact(apiRefArtifact)
                     .apiName(api.getId().getApiName())
@@ -5395,20 +5369,13 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                     .apiUuid(api.getUuid())
                     .organizationId(organization)
                     .environmentId(envId)
+                    .federationConfigSnapshot(configSnapshot)
                     .build();
 
-            SubscriptionSupportInfo info = agent.getSubscriptionSupportInfo(context);
-
-            // If publisher curated options are set, replace options in the live result
-            if (federationConfig != null && federationConfig.getPublisherCuratedOptions() != null) {
-                FederatedSubscriptionOptions curatedOpts = FederatedSubscriptionOptions.fromRawJson(
-                        info.getSubscriptionOptions() != null
-                                ? info.getSubscriptionOptions().getSchemaName() : null,
-                        federationConfig.getPublisherCuratedOptions());
-                info.setSubscriptionOptions(curatedOpts);
-            }
-
-            return info;
+            SubscriptionSupportInfo result = agent.getFederationConfigConsumer(context);
+            return result != null ? result : new SubscriptionSupportInfo.Builder()
+                    .status(SubscriptionSupportInfo.SubscriptionStatus.OPEN)
+                    .build();
 
         } catch (APIManagementException e) {
             log.error("Error getting subscription support info for API: " + api.getUuid(), e);

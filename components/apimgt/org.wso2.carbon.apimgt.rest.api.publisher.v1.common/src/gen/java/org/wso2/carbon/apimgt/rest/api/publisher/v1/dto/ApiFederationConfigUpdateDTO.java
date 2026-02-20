@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.FederatedSubscriptionOptionsDTO;
+import java.util.ArrayList;
+import java.util.List;
+import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.ApiFederationConfigUpdateCuratedPlanSelectionsDTO;
 import javax.validation.constraints.*;
 
 /**
@@ -25,7 +27,7 @@ import javax.validation.Valid;
 public class ApiFederationConfigUpdateDTO   {
   
     private Boolean federationEnabled = null;
-    private FederatedSubscriptionOptionsDTO publisherCuratedOptions = null;
+    private List<ApiFederationConfigUpdateCuratedPlanSelectionsDTO> curatedPlanSelections = new ArrayList<ApiFederationConfigUpdateCuratedPlanSelectionsDTO>();
     private Boolean acknowledgeStale = null;
 
   /**
@@ -47,21 +49,22 @@ public class ApiFederationConfigUpdateDTO   {
   }
 
   /**
+   * List of plan enable/disable selections
    **/
-  public ApiFederationConfigUpdateDTO publisherCuratedOptions(FederatedSubscriptionOptionsDTO publisherCuratedOptions) {
-    this.publisherCuratedOptions = publisherCuratedOptions;
+  public ApiFederationConfigUpdateDTO curatedPlanSelections(List<ApiFederationConfigUpdateCuratedPlanSelectionsDTO> curatedPlanSelections) {
+    this.curatedPlanSelections = curatedPlanSelections;
     return this;
   }
 
   
-  @ApiModelProperty(value = "")
+  @ApiModelProperty(value = "List of plan enable/disable selections")
       @Valid
-  @JsonProperty("publisherCuratedOptions")
-  public FederatedSubscriptionOptionsDTO getPublisherCuratedOptions() {
-    return publisherCuratedOptions;
+  @JsonProperty("curatedPlanSelections")
+  public List<ApiFederationConfigUpdateCuratedPlanSelectionsDTO> getCuratedPlanSelections() {
+    return curatedPlanSelections;
   }
-  public void setPublisherCuratedOptions(FederatedSubscriptionOptionsDTO publisherCuratedOptions) {
-    this.publisherCuratedOptions = publisherCuratedOptions;
+  public void setCuratedPlanSelections(List<ApiFederationConfigUpdateCuratedPlanSelectionsDTO> curatedPlanSelections) {
+    this.curatedPlanSelections = curatedPlanSelections;
   }
 
   /**
@@ -93,13 +96,13 @@ public class ApiFederationConfigUpdateDTO   {
     }
     ApiFederationConfigUpdateDTO apiFederationConfigUpdate = (ApiFederationConfigUpdateDTO) o;
     return Objects.equals(federationEnabled, apiFederationConfigUpdate.federationEnabled) &&
-        Objects.equals(publisherCuratedOptions, apiFederationConfigUpdate.publisherCuratedOptions) &&
+        Objects.equals(curatedPlanSelections, apiFederationConfigUpdate.curatedPlanSelections) &&
         Objects.equals(acknowledgeStale, apiFederationConfigUpdate.acknowledgeStale);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(federationEnabled, publisherCuratedOptions, acknowledgeStale);
+    return Objects.hash(federationEnabled, curatedPlanSelections, acknowledgeStale);
   }
 
   @Override
@@ -108,7 +111,7 @@ public class ApiFederationConfigUpdateDTO   {
     sb.append("class ApiFederationConfigUpdateDTO {\n");
     
     sb.append("    federationEnabled: ").append(toIndentedString(federationEnabled)).append("\n");
-    sb.append("    publisherCuratedOptions: ").append(toIndentedString(publisherCuratedOptions)).append("\n");
+    sb.append("    curatedPlanSelections: ").append(toIndentedString(curatedPlanSelections)).append("\n");
     sb.append("    acknowledgeStale: ").append(toIndentedString(acknowledgeStale)).append("\n");
     sb.append("}");
     return sb.toString();

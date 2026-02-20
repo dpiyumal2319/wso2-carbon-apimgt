@@ -19,11 +19,17 @@
 package org.wso2.carbon.apimgt.api.model.schema.options;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
 import org.wso2.carbon.apimgt.api.model.schema.SubscriptionOptionsBody;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Subscription options body for tier/plan selection.
@@ -84,5 +90,26 @@ public class SubscriptionPlans implements SubscriptionOptionsBody {
 
     public void addPlan(SubscriptionPlan plan) {
         this.plans.add(plan);
+    }
+
+    @Override
+    public void filterDisabled() {
+        plans.removeIf(p -> !p.isEnabled());
+    }
+
+    @Override
+    public void applyCuration(String selectionsJson) {
+        if (selectionsJson == null) return;
+        JsonArray selections = JsonParser.parseString(selectionsJson).getAsJsonArray();
+        Map<String, Boolean> enabledMap = new HashMap<>();
+        for (JsonElement el : selections) {
+            JsonObject obj = el.getAsJsonObject();
+            enabledMap.put(obj.get("planId").getAsString(), obj.get("enabled").getAsBoolean());
+        }
+        for (SubscriptionPlan plan : plans) {
+            if (enabledMap.containsKey(plan.getId())) {
+                plan.setEnabled(enabledMap.get(plan.getId()));
+            }
+        }
     }
 }

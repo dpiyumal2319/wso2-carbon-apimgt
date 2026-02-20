@@ -18844,8 +18844,8 @@ components:
           description: Whether federation is enabled for this API
         gatewaySupportSnapshot:
           $ref: '#/components/schemas/GatewaySupportSnapshot'
-        publisherCuratedOptions:
-          $ref: '#/components/schemas/FederatedSubscriptionOptions'
+        publisherCuratedConfig:
+          $ref: '#/components/schemas/GatewaySupportSnapshot'
         isStale:
           type: boolean
           description: Whether the live gateway snapshot differs from the last acknowledged snapshot
@@ -18867,8 +18867,18 @@ components:
         federationEnabled:
           type: boolean
           description: Whether federation should be enabled for this API
-        publisherCuratedOptions:
-          $ref: '#/components/schemas/FederatedSubscriptionOptions'
+        curatedPlanSelections:
+          type: array
+          description: List of plan enable/disable selections
+          items:
+            type: object
+            properties:
+              planId:
+                type: string
+                description: Gateway-specific plan identifier
+              enabled:
+                type: boolean
+                description: Whether the plan is enabled for developers
         acknowledgeStale:
           type: boolean
           description: If true, clears the staleness flag and updates publisher reviewed time

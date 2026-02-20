@@ -22,7 +22,7 @@ import java.sql.Timestamp;
 
 /**
  * Federation configuration for an API on an external gateway (AM_API_FEDERATION_CONFIG).
- * Persisted: federationEnabled, publisherCuratedOptions, gatewaySnapshotHash (last-acknowledged).
+ * Persisted: federationEnabled, publisherCuratedConfig, gatewaySnapshotHash (last-acknowledged).
  * Transient: liveGatewaySnapshot, liveSnapshotHash, stale — populated on GET via live gateway fetch.
  */
 public class ApiFederationConfig {
@@ -30,14 +30,14 @@ public class ApiFederationConfig {
     private String apiUuid;
     private String gatewayEnvId;
     private boolean federationEnabled;
-    private String publisherCuratedOptions;
+    private SubscriptionSupportInfo publisherCuratedConfig;
     private String gatewaySnapshotHash;
     private Timestamp createdTime;
     private Timestamp lastUpdatedTime;
     private Timestamp publisherReviewedTime;
 
     // Transient — not stored in DB
-    private String liveGatewaySnapshot;
+    private SubscriptionSupportInfo liveGatewaySnapshot;
     private String liveSnapshotHash;
     private boolean stale;
 
@@ -73,11 +73,11 @@ public class ApiFederationConfig {
         this.federationEnabled = federationEnabled;
     }
 
-    public String getLiveGatewaySnapshot() {
+    public SubscriptionSupportInfo getLiveGatewaySnapshot() {
         return liveGatewaySnapshot;
     }
 
-    public void setLiveGatewaySnapshot(String liveGatewaySnapshot) {
+    public void setLiveGatewaySnapshot(SubscriptionSupportInfo liveGatewaySnapshot) {
         this.liveGatewaySnapshot = liveGatewaySnapshot;
     }
 
@@ -89,12 +89,12 @@ public class ApiFederationConfig {
         this.liveSnapshotHash = liveSnapshotHash;
     }
 
-    public String getPublisherCuratedOptions() {
-        return publisherCuratedOptions;
+    public SubscriptionSupportInfo getPublisherCuratedConfig() {
+        return publisherCuratedConfig;
     }
 
-    public void setPublisherCuratedOptions(String publisherCuratedOptions) {
-        this.publisherCuratedOptions = publisherCuratedOptions;
+    public void setPublisherCuratedConfig(SubscriptionSupportInfo publisherCuratedConfig) {
+        this.publisherCuratedConfig = publisherCuratedConfig;
     }
 
     public String getGatewaySnapshotHash() {

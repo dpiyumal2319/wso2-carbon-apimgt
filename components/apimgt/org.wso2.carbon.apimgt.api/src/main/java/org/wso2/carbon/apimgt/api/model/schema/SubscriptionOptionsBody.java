@@ -41,4 +41,16 @@ public interface SubscriptionOptionsBody {
      * @return JSON representation of the options body
      */
     String toJson();
+
+    /**
+     * Removes items marked as disabled. Default: no-op.
+     */
+    default void filterDisabled() { }
+
+    /**
+     * Applies publisher curation selections. Default: no-op.
+     *
+     * @param selectionsJson JSON array of curation selections (schema-specific format)
+     */
+    default void applyCuration(String selectionsJson) { }
 }

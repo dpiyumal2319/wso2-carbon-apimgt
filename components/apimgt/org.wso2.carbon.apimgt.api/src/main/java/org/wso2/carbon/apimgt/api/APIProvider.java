@@ -2444,7 +2444,8 @@ public interface APIProvider extends APIManager {
     /**
      * Updates publisher curation of a federation configuration.
      * When {@code acknowledgeStale} is true, fetches live snapshot hash and stores it as the new acknowledged hash.
+     * @param curatedPlanSelectionsJson JSON array of {@code {planId, enabled}} selections, or null to clear curation
      */
     ApiFederationConfig updateApiFederationConfig(String apiUuid, String organization, boolean federationEnabled,
-            String publisherCuratedOptions, boolean acknowledgeStale) throws APIManagementException;
+            String curatedPlanSelectionsJson, boolean acknowledgeStale) throws APIManagementException;
 }
