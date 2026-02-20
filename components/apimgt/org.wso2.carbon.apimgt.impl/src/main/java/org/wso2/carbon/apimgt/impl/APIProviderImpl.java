@@ -9526,9 +9526,8 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
         }
         ApiFederationConfig config = apiMgtDAO.getApiFederationConfig(apiUuid, envId);
         if (config == null) {
-            throw new APIManagementException(
-                    "Federation configuration not found for API: " + apiUuid,
-                    ExceptionCodes.from(ExceptionCodes.API_NOT_FOUND, apiUuid));
+            config = new ApiFederationConfig(apiUuid, envId);
+            config.setFederationEnabled(false);
         }
 
         // Fetch live snapshot and populate transient staleness fields
@@ -9544,11 +9543,10 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
                         .organizationId(organization)
                         .environmentId(envId)
                         .build();
-                SubscriptionSupportInfo liveInfo = agent.getSubscriptionSupportInfo(context);
+                SubscriptionSupportInfo liveInfo = agent.getFederationConfigProvider(context);
                 if (liveInfo != null) {
-                    String liveJson = liveInfo.toJson();
-                    String liveHash = computeSha256(liveJson);
-                    config.setLiveGatewaySnapshot(liveJson);
+                    String liveHash = computeSha256(liveInfo.toJson());
+                    config.setLiveGatewaySnapshot(liveInfo);
                     config.setLiveSnapshotHash(liveHash);
                     config.setStale(config.getGatewaySnapshotHash() != null
                             && !liveHash.equals(config.getGatewaySnapshotHash()));
@@ -9564,7 +9562,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
 
     @Override
     public ApiFederationConfig updateApiFederationConfig(String apiUuid, String organization,
-            boolean federationEnabled, String publisherCuratedOptions, boolean acknowledgeStale)
+            boolean federationEnabled, String curatedPlanSelectionsJson, boolean acknowledgeStale)
             throws APIManagementException {
 
         String envId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(apiUuid);
@@ -9574,37 +9572,40 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
                     ExceptionCodes.from(ExceptionCodes.API_NOT_FOUND, apiUuid));
         }
         if (!apiMgtDAO.apiFederationConfigExists(apiUuid, envId)) {
-            throw new APIManagementException(
-                    "Federation configuration not found for API: " + apiUuid,
-                    ExceptionCodes.from(ExceptionCodes.API_NOT_FOUND, apiUuid));
+            ApiFederationConfig config = new ApiFederationConfig(apiUuid, envId);
+            config.setFederationEnabled(federationEnabled);
+            apiMgtDAO.addApiFederationConfig(config);
         }
 
+        SubscriptionSupportInfo newCuratedConfig = null;
         String snapshotHash = null;
-        if (acknowledgeStale) {
-            try {
-                String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(apiUuid, envId);
-                Environment environment = apiMgtDAO.getEnvironment(organization, envId);
-                if (apiRefArtifact != null && environment != null) {
-                    FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory
-                            .getSubscriptionAgent(environment, organization);
-                    FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
-                            .apiReferenceArtifact(apiRefArtifact)
-                            .apiUuid(apiUuid)
-                            .organizationId(organization)
-                            .environmentId(envId)
-                            .build();
-                    SubscriptionSupportInfo liveInfo = agent.getSubscriptionSupportInfo(context);
-                    if (liveInfo != null) {
+        try {
+            String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(apiUuid, envId);
+            Environment environment = apiMgtDAO.getEnvironment(organization, envId);
+            if (apiRefArtifact != null && environment != null) {
+                FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory
+                        .getSubscriptionAgent(environment, organization);
+                FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
+                        .apiReferenceArtifact(apiRefArtifact)
+                        .apiUuid(apiUuid)
+                        .organizationId(organization)
+                        .environmentId(envId)
+                        .build();
+                SubscriptionSupportInfo liveInfo = agent.getFederationConfigProvider(context);
+                if (liveInfo != null) {
+                    if (acknowledgeStale) {
                         snapshotHash = computeSha256(liveInfo.toJson());
                     }
+                    liveInfo.applyCuration(curatedPlanSelectionsJson);
+                    newCuratedConfig = liveInfo;
                 }
-            } catch (Exception e) {
-                log.warn("Failed to compute live snapshot hash during acknowledge for API: " + apiUuid, e);
             }
+        } catch (Exception e) {
+            log.warn("Failed to fetch live gateway config during update for API: " + apiUuid, e);
         }
 
         apiMgtDAO.updateApiFederationConfigPublisherData(apiUuid, envId, federationEnabled,
-                publisherCuratedOptions, snapshotHash,
+                newCuratedConfig, snapshotHash,
                 acknowledgeStale ? new java.sql.Timestamp(System.currentTimeMillis()) : null);
         return getApiFederationConfig(apiUuid, organization);
     }

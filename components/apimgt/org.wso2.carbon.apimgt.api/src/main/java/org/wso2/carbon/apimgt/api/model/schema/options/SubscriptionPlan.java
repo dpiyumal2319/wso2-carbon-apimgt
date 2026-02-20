@@ -32,6 +32,7 @@ public class SubscriptionPlan {
     private String name;
     private String description;
     private Map<String, String> limits;
+    private boolean enabled = true;
 
     public SubscriptionPlan() {
         this.limits = new HashMap<>();
@@ -85,5 +86,13 @@ public class SubscriptionPlan {
 
     public void addLimit(String key, String value) {
         this.limits.put(key, value);
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 }

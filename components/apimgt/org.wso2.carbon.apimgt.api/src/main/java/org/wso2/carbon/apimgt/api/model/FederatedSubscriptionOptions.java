@@ -19,6 +19,7 @@
 package org.wso2.carbon.apimgt.api.model;
 
 import org.wso2.carbon.apimgt.api.model.schema.SubscriptionOptionsBody;
+import org.wso2.carbon.apimgt.api.model.schema.SubscriptionOptionsBodyRegistry;
 
 /**
  * Represents subscription options available from an external gateway.
@@ -66,5 +67,19 @@ public class FederatedSubscriptionOptions {
         opts.rawSchemaName = schemaName;
         opts.rawBodyJson = bodyJson;
         return opts;
+    }
+
+    /**
+     * Resolves a raw-string-backed instance into a typed body using {@link SubscriptionOptionsBodyRegistry}.
+     * No-op if the body is already typed or if no parser is registered for the schema name.
+     */
+    public void materializeBody() {
+        if (body == null && rawSchemaName != null && rawBodyJson != null) {
+            body = SubscriptionOptionsBodyRegistry.parse(rawSchemaName, rawBodyJson);
+            if (body != null) {
+                rawSchemaName = null;
+                rawBodyJson = null;
+            }
+        }
     }
 }

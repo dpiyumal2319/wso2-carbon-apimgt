@@ -18,6 +18,8 @@
 
 package org.wso2.carbon.apimgt.api;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.apimgt.api.model.AgentOperationResult;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
@@ -35,6 +37,8 @@ import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
  * </p>
  */
 public interface FederatedSubscriptionAgent {
+
+    Log log = LogFactory.getLog(FederatedSubscriptionAgent.class);
 
     /**
      * Initializes the subscription agent.
@@ -121,29 +125,43 @@ public interface FederatedSubscriptionAgent {
     String getGatewayType();
 
     /**
-     * Gets subscription support information for the API on the external gateway.
+     * Fetches the full federation config live from the gateway, including the invocation template.
+     * Used by the Publisher to populate and refresh {@code AM_API_FEDERATION_CONFIG}.
      * <p>
-     * Returns a {@link SubscriptionSupportInfo} object containing:
-     * <ul>
-     *   <li>status: OPEN (no credentials needed) or SECURED (credentials required, subscription management available)</li>
-     *   <li>supportedAuthTypes: Non-empty array for SECURED status only</li>
-     *   <li>subscriptionOptions: Subscription options for SECURED status (null if no options)</li>
-     * </ul>
-     * </p>
-     * <p>
-     * Default implementation returns SECURED with opaque-api-key auth type (backward-compatible).
+     * Default implementation returns a backward-compatible SECURED result with opaque-api-key.
+     * Override to perform the actual live gateway call and include the invocation template.
      * </p>
      *
-     * @param context The subscription context containing API reference artifact
-     * @return SubscriptionSupportInfo with status and related metadata
-     * @throws APIManagementException if check fails
+     * @param context The subscription context containing the API reference artifact
+     * @return live SubscriptionSupportInfo
+     * @throws APIManagementException if the gateway call fails
      */
-    default SubscriptionSupportInfo getSubscriptionSupportInfo(FederatedSubscriptionContext context) 
+    default SubscriptionSupportInfo getFederationConfigProvider(FederatedSubscriptionContext context)
             throws APIManagementException {
-        // Default: backward-compatible SECURED status with opaque API key
         return new SubscriptionSupportInfo.Builder()
                 .status(SubscriptionSupportInfo.SubscriptionStatus.SECURED)
                 .supportedAuthTypes(new String[]{"opaque-api-key"})
                 .build();
+    }
+
+    /**
+     * Returns the federation config for the DevPortal consumer view.
+     * Reads the publisher-curated config from {@code context.getFederationConfigSnapshot()} and
+     * filters out plans that the publisher has disabled (plans with {@code enabled=false}).
+     * Falls back to a live gateway call via {@link #getFederationConfigProvider} when no snapshot
+     * is available (e.g. APIs not yet re-discovered after the feature was introduced).
+     *
+     * @param context The subscription context, enriched with the stored federation config snapshot
+     * @return SubscriptionSupportInfo with disabled plans removed
+     * @throws APIManagementException if the fallback gateway call fails
+     */
+    default SubscriptionSupportInfo getFederationConfigConsumer(FederatedSubscriptionContext context)
+            throws APIManagementException {
+        SubscriptionSupportInfo snapshot = context.getFederationConfigSnapshot();
+        if (snapshot == null) {
+            return getFederationConfigProvider(context);
+        }
+        snapshot.filterDisabledPlans();
+        return snapshot;
     }
 }

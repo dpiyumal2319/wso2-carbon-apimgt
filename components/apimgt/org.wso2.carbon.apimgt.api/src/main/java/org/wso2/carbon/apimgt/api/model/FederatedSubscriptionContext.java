@@ -51,6 +51,9 @@ public class FederatedSubscriptionContext {
     // Extensibility
     private Map<String, Object> properties;
 
+    // Publisher-curated federation config snapshot (typed SubscriptionSupportInfo)
+    private SubscriptionSupportInfo federationConfigSnapshot;
+
     private FederatedSubscriptionContext(Builder builder) {
         this.subscriptionUuid = builder.subscriptionUuid;
         this.externalSubscriptionId = builder.externalSubscriptionId;
@@ -67,6 +70,7 @@ public class FederatedSubscriptionContext {
         this.environmentId = builder.environmentId;
         this.throttlingPolicy = builder.throttlingPolicy;
         this.properties = builder.properties != null ? new HashMap<>(builder.properties) : new HashMap<>();
+        this.federationConfigSnapshot = builder.federationConfigSnapshot;
     }
 
     public static Builder builder() {
@@ -138,6 +142,10 @@ public class FederatedSubscriptionContext {
         return properties.get(key);
     }
 
+    public SubscriptionSupportInfo getFederationConfigSnapshot() {
+        return federationConfigSnapshot;
+    }
+
     /**
      * Creates a new Builder pre-populated with this context's values,
      * allowing selective overrides for derived contexts.
@@ -159,6 +167,7 @@ public class FederatedSubscriptionContext {
         b.environmentId = this.environmentId;
         b.throttlingPolicy = this.throttlingPolicy;
         b.properties = this.properties != null ? new HashMap<>(this.properties) : null;
+        b.federationConfigSnapshot = this.federationConfigSnapshot;
         return b;
     }
 
@@ -178,6 +187,7 @@ public class FederatedSubscriptionContext {
         private String environmentId;
         private String throttlingPolicy;
         private Map<String, Object> properties;
+        private SubscriptionSupportInfo federationConfigSnapshot;
 
         public Builder subscriptionUuid(String subscriptionUuid) {
             this.subscriptionUuid = subscriptionUuid;
@@ -259,6 +269,11 @@ public class FederatedSubscriptionContext {
                 this.properties = new HashMap<>();
             }
             this.properties.put(key, value);
+            return this;
+        }
+
+        public Builder federationConfigSnapshot(SubscriptionSupportInfo federationConfigSnapshot) {
+            this.federationConfigSnapshot = federationConfigSnapshot;
             return this;
         }
 
