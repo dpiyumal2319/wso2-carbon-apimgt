@@ -84,6 +84,32 @@ public class SubscriptionSupportInfo {
         this.invocationTemplate = invocationTemplate;
     }
 
+    /**
+     * Filters out disabled subscription plans by delegating to the polymorphic body.
+     * No-op if there are no subscription options.
+     */
+    public void filterDisabledPlans() {
+        if (subscriptionOptions == null) return;
+        subscriptionOptions.materializeBody();
+        if (subscriptionOptions.getBody() != null) {
+            subscriptionOptions.getBody().filterDisabled();
+        }
+    }
+
+    /**
+     * Applies publisher curation selections by delegating to the polymorphic body.
+     * No-op if there are no subscription options or no selections provided.
+     *
+     * @param selectionsJson JSON array of curation selections (schema-specific format)
+     */
+    public void applyCuration(String selectionsJson) {
+        if (subscriptionOptions == null || selectionsJson == null) return;
+        subscriptionOptions.materializeBody();
+        if (subscriptionOptions.getBody() != null) {
+            subscriptionOptions.getBody().applyCuration(selectionsJson);
+        }
+    }
+
     /** Serializes to JSON; nested bodies flattened to {schemaName, body} pairs. */
     public String toJson() {
         JsonObject json = new JsonObject();

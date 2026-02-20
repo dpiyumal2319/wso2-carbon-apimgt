@@ -63,6 +63,7 @@ import org.wso2.carbon.apimgt.api.model.ApiTypeWrapper;
 import org.wso2.carbon.apimgt.api.model.Application;
 import org.wso2.carbon.apimgt.api.model.ApplicationExternalMapping;
 import org.wso2.carbon.apimgt.api.model.ApiFederationConfig;
+import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
 import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
 import org.wso2.carbon.apimgt.api.model.ApplicationInfo;
 import org.wso2.carbon.apimgt.api.model.ApplicationInfoKeyManager;
@@ -16992,8 +16993,8 @@ public class ApiMgtDAO {
             ps.setString(1, config.getApiUuid());
             ps.setString(2, config.getGatewayEnvId());
             ps.setInt(3, config.isFederationEnabled() ? 1 : 0);
-            if (config.getPublisherCuratedOptions() != null) {
-                ps.setBytes(4, config.getPublisherCuratedOptions().getBytes(StandardCharsets.UTF_8));
+            if (config.getPublisherCuratedConfig() != null) {
+                ps.setBytes(4, config.getPublisherCuratedConfig().toJson().getBytes(StandardCharsets.UTF_8));
             } else {
                 ps.setNull(4, java.sql.Types.BLOB);
             }
@@ -17026,10 +17027,10 @@ public class ApiMgtDAO {
                     config.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
                     config.setPublisherReviewedTime(rs.getTimestamp("PUBLISHER_REVIEWED_TIME"));
 
-                    try (InputStream curatedStream = rs.getBinaryStream("PUBLISHER_CURATED_OPTIONS")) {
+                    try (InputStream curatedStream = rs.getBinaryStream("PUBLISHER_CURATED_CONFIG")) {
                         if (curatedStream != null) {
-                            config.setPublisherCuratedOptions(
-                                    IOUtils.toString(curatedStream, StandardCharsets.UTF_8));
+                            String curatedJson = IOUtils.toString(curatedStream, StandardCharsets.UTF_8);
+                            config.setPublisherCuratedConfig(SubscriptionSupportInfo.fromJson(curatedJson));
                         }
                     }
                 }
@@ -17067,7 +17068,7 @@ public class ApiMgtDAO {
      * COALESCE'd — pass null to leave them unchanged.
      */
     public void updateApiFederationConfigPublisherData(String apiUuid, String envId,
-            boolean federationEnabled, String curatedOptions, String snapshotHash,
+            boolean federationEnabled, SubscriptionSupportInfo curatedConfig, String snapshotHash,
             Timestamp reviewedTime) throws APIManagementException {
         try (Connection connection = APIMgtDBUtil.getConnection();
              PreparedStatement ps = connection.prepareStatement(
@@ -17075,8 +17076,8 @@ public class ApiMgtDAO {
 
             connection.setAutoCommit(false);
             ps.setInt(1, federationEnabled ? 1 : 0);
-            if (curatedOptions != null) {
-                ps.setBytes(2, curatedOptions.getBytes(StandardCharsets.UTF_8));
+            if (curatedConfig != null) {
+                ps.setBytes(2, curatedConfig.toJson().getBytes(StandardCharsets.UTF_8));
             } else {
                 ps.setNull(2, java.sql.Types.BLOB);
             }

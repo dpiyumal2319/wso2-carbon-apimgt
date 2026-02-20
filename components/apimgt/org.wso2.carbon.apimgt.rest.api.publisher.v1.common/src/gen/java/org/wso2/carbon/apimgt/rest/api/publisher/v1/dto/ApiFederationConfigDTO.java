@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.FederatedSubscriptionOptionsDTO;
 import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.GatewaySupportSnapshotDTO;
 import javax.validation.constraints.*;
 
@@ -27,7 +26,7 @@ public class ApiFederationConfigDTO   {
   
     private Boolean federationEnabled = null;
     private GatewaySupportSnapshotDTO gatewaySupportSnapshot = null;
-    private FederatedSubscriptionOptionsDTO publisherCuratedOptions = null;
+    private GatewaySupportSnapshotDTO publisherCuratedConfig = null;
     private Boolean isStale = null;
     private String gatewaySnapshotHash = null;
     private String liveSnapshotHash = null;
@@ -71,20 +70,20 @@ public class ApiFederationConfigDTO   {
 
   /**
    **/
-  public ApiFederationConfigDTO publisherCuratedOptions(FederatedSubscriptionOptionsDTO publisherCuratedOptions) {
-    this.publisherCuratedOptions = publisherCuratedOptions;
+  public ApiFederationConfigDTO publisherCuratedConfig(GatewaySupportSnapshotDTO publisherCuratedConfig) {
+    this.publisherCuratedConfig = publisherCuratedConfig;
     return this;
   }
 
   
   @ApiModelProperty(value = "")
       @Valid
-  @JsonProperty("publisherCuratedOptions")
-  public FederatedSubscriptionOptionsDTO getPublisherCuratedOptions() {
-    return publisherCuratedOptions;
+  @JsonProperty("publisherCuratedConfig")
+  public GatewaySupportSnapshotDTO getPublisherCuratedConfig() {
+    return publisherCuratedConfig;
   }
-  public void setPublisherCuratedOptions(FederatedSubscriptionOptionsDTO publisherCuratedOptions) {
-    this.publisherCuratedOptions = publisherCuratedOptions;
+  public void setPublisherCuratedConfig(GatewaySupportSnapshotDTO publisherCuratedConfig) {
+    this.publisherCuratedConfig = publisherCuratedConfig;
   }
 
   /**
@@ -171,7 +170,7 @@ public class ApiFederationConfigDTO   {
     ApiFederationConfigDTO apiFederationConfig = (ApiFederationConfigDTO) o;
     return Objects.equals(federationEnabled, apiFederationConfig.federationEnabled) &&
         Objects.equals(gatewaySupportSnapshot, apiFederationConfig.gatewaySupportSnapshot) &&
-        Objects.equals(publisherCuratedOptions, apiFederationConfig.publisherCuratedOptions) &&
+        Objects.equals(publisherCuratedConfig, apiFederationConfig.publisherCuratedConfig) &&
         Objects.equals(isStale, apiFederationConfig.isStale) &&
         Objects.equals(gatewaySnapshotHash, apiFederationConfig.gatewaySnapshotHash) &&
         Objects.equals(liveSnapshotHash, apiFederationConfig.liveSnapshotHash) &&
@@ -180,7 +179,7 @@ public class ApiFederationConfigDTO   {
 
   @Override
   public int hashCode() {
-    return Objects.hash(federationEnabled, gatewaySupportSnapshot, publisherCuratedOptions, isStale, gatewaySnapshotHash, liveSnapshotHash, publisherReviewedTime);
+    return Objects.hash(federationEnabled, gatewaySupportSnapshot, publisherCuratedConfig, isStale, gatewaySnapshotHash, liveSnapshotHash, publisherReviewedTime);
   }
 
   @Override
@@ -190,7 +189,7 @@ public class ApiFederationConfigDTO   {
     
     sb.append("    federationEnabled: ").append(toIndentedString(federationEnabled)).append("\n");
     sb.append("    gatewaySupportSnapshot: ").append(toIndentedString(gatewaySupportSnapshot)).append("\n");
-    sb.append("    publisherCuratedOptions: ").append(toIndentedString(publisherCuratedOptions)).append("\n");
+    sb.append("    publisherCuratedConfig: ").append(toIndentedString(publisherCuratedConfig)).append("\n");
     sb.append("    isStale: ").append(toIndentedString(isStale)).append("\n");
     sb.append("    gatewaySnapshotHash: ").append(toIndentedString(gatewaySnapshotHash)).append("\n");
     sb.append("    liveSnapshotHash: ").append(toIndentedString(liveSnapshotHash)).append("\n");
