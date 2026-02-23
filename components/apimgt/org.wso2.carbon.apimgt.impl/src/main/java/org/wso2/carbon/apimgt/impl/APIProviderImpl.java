@@ -9545,7 +9545,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
                         .build();
                 SubscriptionSupportInfo liveInfo = agent.getFederationConfigProvider(context);
                 if (liveInfo != null) {
-                    String liveHash = computeSha256(liveInfo.toJson());
+                    String liveHash = liveInfo.computeGatewayHash();
                     config.setLiveGatewaySnapshot(liveInfo);
                     config.setLiveSnapshotHash(liveHash);
                     config.setStale(config.getGatewaySnapshotHash() != null
@@ -9562,7 +9562,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
 
     @Override
     public ApiFederationConfig updateApiFederationConfig(String apiUuid, String organization,
-            boolean federationEnabled, String curatedPlanSelectionsJson, boolean acknowledgeStale)
+            boolean federationEnabled, String curatedPlanSelectionsJson)
             throws APIManagementException {
 
         String envId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(apiUuid);
@@ -9593,9 +9593,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
                         .build();
                 SubscriptionSupportInfo liveInfo = agent.getFederationConfigProvider(context);
                 if (liveInfo != null) {
-                    if (acknowledgeStale) {
-                        snapshotHash = computeSha256(liveInfo.toJson());
-                    }
+                    snapshotHash = liveInfo.computeGatewayHash();
                     liveInfo.applyCuration(curatedPlanSelectionsJson);
                     newCuratedConfig = liveInfo;
                 }
@@ -9606,23 +9604,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
 
         apiMgtDAO.updateApiFederationConfigPublisherData(apiUuid, envId, federationEnabled,
                 newCuratedConfig, snapshotHash,
-                acknowledgeStale ? new java.sql.Timestamp(System.currentTimeMillis()) : null);
+                new java.sql.Timestamp(System.currentTimeMillis()));
         return getApiFederationConfig(apiUuid, organization);
-    }
-
-    private static String computeSha256(String input) {
-        try {
-            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(input.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
-                hexString.append(hex);
-            }
-            return hexString.toString();
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 not available", e);
-        }
     }
 }

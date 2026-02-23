@@ -23,6 +23,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
 /**
  * Subscription support information for an API on an external gateway.
  * Supports JSON serialization for live snapshot hashing; nested bodies are opaque {schemaName, body} pairs.
@@ -107,6 +111,53 @@ public class SubscriptionSupportInfo {
         subscriptionOptions.materializeBody();
         if (subscriptionOptions.getBody() != null) {
             subscriptionOptions.getBody().applyCuration(selectionsJson);
+        }
+    }
+
+    /**
+     * Computes a SHA-256 hash of gateway-native fields only (excludes publisher curation like 'enabled').
+     * Used for staleness detection — comparing stored hash vs live hash.
+     */
+    public String computeGatewayHash() {
+        JsonObject json = new JsonObject();
+        json.addProperty("status", status != null ? status.name() : null);
+
+        if (supportedAuthTypes != null) {
+            JsonArray authTypes = new JsonArray();
+            for (String type : supportedAuthTypes) authTypes.add(type);
+            json.add("supportedAuthTypes", authTypes);
+        }
+
+        if (subscriptionOptions != null) {
+            JsonObject opts = new JsonObject();
+            opts.addProperty("schemaName", subscriptionOptions.getSchemaName());
+            opts.addProperty("body", subscriptionOptions.getGatewayNativeBodyJson());
+            json.add("subscriptionOptions", opts);
+        }
+
+        if (invocationTemplate != null) {
+            JsonObject tmpl = new JsonObject();
+            tmpl.addProperty("schemaName", invocationTemplate.getSchemaName());
+            tmpl.addProperty("body", invocationTemplate.getGatewayNativeBodyJson());
+            json.add("invocationTemplate", tmpl);
+        }
+
+        return computeSha256(new Gson().toJson(json));
+    }
+
+    private static String computeSha256(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
         }
     }
 

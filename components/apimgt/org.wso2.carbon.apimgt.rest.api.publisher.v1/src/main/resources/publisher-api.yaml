@@ -18879,9 +18879,6 @@ components:
               enabled:
                 type: boolean
                 description: Whether the plan is enabled for developers
-        acknowledgeStale:
-          type: boolean
-          description: If true, clears the staleness flag and updates publisher reviewed time
     GatewaySupportSnapshot:
       title: Gateway Support Snapshot
       type: object
@@ -18891,9 +18888,8 @@ components:
         subscriptionStatus:
           type: string
           enum:
-            - REQUIRED
-            - OPTIONAL
             - OPEN
+            - SECURED
           description: Whether the gateway requires subscriptions for this API
         supportedAuthTypes:
           type: array

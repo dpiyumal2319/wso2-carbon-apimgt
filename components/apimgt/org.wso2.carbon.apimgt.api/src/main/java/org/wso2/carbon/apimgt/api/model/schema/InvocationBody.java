@@ -41,4 +41,12 @@ public interface InvocationBody {
      * @return JSON representation of the invocation body
      */
     String toJson();
+
+    /**
+     * Serializes only gateway-native fields (excluding any publisher curation fields).
+     * Used for staleness hash computation. Default delegates to {@link #toJson()}.
+     *
+     * @return JSON representation of gateway-native fields only
+     */
+    default String toGatewayNativeJson() { return toJson(); }
 }
