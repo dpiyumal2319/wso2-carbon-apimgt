@@ -53,4 +53,12 @@ public interface SubscriptionOptionsBody {
      * @param selectionsJson JSON array of curation selections (schema-specific format)
      */
     default void applyCuration(String selectionsJson) { }
+
+    /**
+     * Serializes only gateway-native fields (excluding publisher curation fields like 'enabled').
+     * Used for staleness hash computation. Default delegates to {@link #toJson()}.
+     *
+     * @return JSON representation of gateway-native fields only
+     */
+    default String toGatewayNativeJson() { return toJson(); }
 }

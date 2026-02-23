@@ -63,6 +63,15 @@ public class InvocationInstruction {
         this.body = body;
     }
 
+    /**
+     * Returns gateway-native JSON of the body (excluding any publisher curation fields).
+     * Falls back to raw body JSON for raw-string-backed instances.
+     */
+    public String getGatewayNativeBodyJson() {
+        if (body != null) return body.toGatewayNativeJson();
+        return getBodyAsJson();
+    }
+
     /** Constructs a raw-string-backed instance for use during snapshot deserialization. */
     public static InvocationInstruction fromRawJson(String schemaName, String bodyJson) {
         InvocationInstruction inst = new InvocationInstruction();

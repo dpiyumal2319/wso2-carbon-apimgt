@@ -5205,15 +5205,13 @@ public class ApisApiServiceImpl implements ApisApiService {
 
         boolean federationEnabled = updateDTO.isFederationEnabled() != null
                 ? updateDTO.isFederationEnabled() : true;
-        boolean acknowledgeStale = updateDTO.isAcknowledgeStale() != null
-                ? updateDTO.isAcknowledgeStale() : false;
         String curatedPlanSelections = null;
         if (updateDTO.getCuratedPlanSelections() != null && !updateDTO.getCuratedPlanSelections().isEmpty()) {
             curatedPlanSelections = new com.google.gson.Gson().toJson(updateDTO.getCuratedPlanSelections());
         }
 
         ApiFederationConfig config = apiProvider.updateApiFederationConfig(apiId, organization,
-                federationEnabled, curatedPlanSelections, acknowledgeStale);
+                federationEnabled, curatedPlanSelections);
         ApiFederationConfigDTO dto = mapFederationConfigToDTO(config);
         return Response.ok().entity(dto).build();
     }

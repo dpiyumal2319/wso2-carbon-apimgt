@@ -98,6 +98,26 @@ public class SubscriptionPlans implements SubscriptionOptionsBody {
     }
 
     @Override
+    public String toGatewayNativeJson() {
+        JsonObject json = new JsonObject();
+        json.addProperty("optionName", optionName);
+        JsonArray plansArray = new JsonArray();
+        for (SubscriptionPlan plan : plans) {
+            JsonObject p = new JsonObject();
+            p.addProperty("id", plan.getId());
+            p.addProperty("name", plan.getName());
+            p.addProperty("description", plan.getDescription());
+            if (plan.getLimits() != null) {
+                p.add("limits", gson.toJsonTree(plan.getLimits()));
+            }
+            // 'enabled' intentionally excluded — it's publisher curation, not gateway data
+            plansArray.add(p);
+        }
+        json.add("plans", plansArray);
+        return gson.toJson(json);
+    }
+
+    @Override
     public void applyCuration(String selectionsJson) {
         if (selectionsJson == null) return;
         JsonArray selections = JsonParser.parseString(selectionsJson).getAsJsonArray();
