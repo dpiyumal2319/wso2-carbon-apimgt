@@ -28,7 +28,6 @@ public class ApiFederationConfigUpdateDTO   {
   
     private Boolean federationEnabled = null;
     private List<ApiFederationConfigUpdateCuratedPlanSelectionsDTO> curatedPlanSelections = new ArrayList<ApiFederationConfigUpdateCuratedPlanSelectionsDTO>();
-    private Boolean acknowledgeStale = null;
 
   /**
    * Whether federation should be enabled for this API
@@ -67,24 +66,6 @@ public class ApiFederationConfigUpdateDTO   {
     this.curatedPlanSelections = curatedPlanSelections;
   }
 
-  /**
-   * If true, clears the staleness flag and updates publisher reviewed time
-   **/
-  public ApiFederationConfigUpdateDTO acknowledgeStale(Boolean acknowledgeStale) {
-    this.acknowledgeStale = acknowledgeStale;
-    return this;
-  }
-
-  
-  @ApiModelProperty(value = "If true, clears the staleness flag and updates publisher reviewed time")
-  @JsonProperty("acknowledgeStale")
-  public Boolean isAcknowledgeStale() {
-    return acknowledgeStale;
-  }
-  public void setAcknowledgeStale(Boolean acknowledgeStale) {
-    this.acknowledgeStale = acknowledgeStale;
-  }
-
 
   @Override
   public boolean equals(java.lang.Object o) {
@@ -96,13 +77,12 @@ public class ApiFederationConfigUpdateDTO   {
     }
     ApiFederationConfigUpdateDTO apiFederationConfigUpdate = (ApiFederationConfigUpdateDTO) o;
     return Objects.equals(federationEnabled, apiFederationConfigUpdate.federationEnabled) &&
-        Objects.equals(curatedPlanSelections, apiFederationConfigUpdate.curatedPlanSelections) &&
-        Objects.equals(acknowledgeStale, apiFederationConfigUpdate.acknowledgeStale);
+        Objects.equals(curatedPlanSelections, apiFederationConfigUpdate.curatedPlanSelections);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(federationEnabled, curatedPlanSelections, acknowledgeStale);
+    return Objects.hash(federationEnabled, curatedPlanSelections);
   }
 
   @Override
@@ -112,7 +92,6 @@ public class ApiFederationConfigUpdateDTO   {
     
     sb.append("    federationEnabled: ").append(toIndentedString(federationEnabled)).append("\n");
     sb.append("    curatedPlanSelections: ").append(toIndentedString(curatedPlanSelections)).append("\n");
-    sb.append("    acknowledgeStale: ").append(toIndentedString(acknowledgeStale)).append("\n");
     sb.append("}");
     return sb.toString();
   }

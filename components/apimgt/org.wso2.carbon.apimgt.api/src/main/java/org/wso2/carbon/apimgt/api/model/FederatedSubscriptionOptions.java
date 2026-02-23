@@ -70,6 +70,16 @@ public class FederatedSubscriptionOptions {
     }
 
     /**
+     * Returns gateway-native JSON of the body (excluding publisher curation fields).
+     * Materializes the body if needed to access the typed toGatewayNativeJson().
+     */
+    public String getGatewayNativeBodyJson() {
+        if (body != null) return body.toGatewayNativeJson();
+        materializeBody();
+        return body != null ? body.toGatewayNativeJson() : rawBodyJson;
+    }
+
+    /**
      * Resolves a raw-string-backed instance into a typed body using {@link SubscriptionOptionsBodyRegistry}.
      * No-op if the body is already typed or if no parser is registered for the schema name.
      */

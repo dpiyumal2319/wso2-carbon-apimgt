@@ -31,9 +31,8 @@ public class GatewaySupportSnapshotDTO   {
     @XmlType(name="SubscriptionStatusEnum")
     @XmlEnum(String.class)
     public enum SubscriptionStatusEnum {
-        REQUIRED("REQUIRED"),
-        OPTIONAL("OPTIONAL"),
-        OPEN("OPEN");
+        OPEN("OPEN"),
+        SECURED("SECURED");
         private String value;
 
         SubscriptionStatusEnum (String v) {
