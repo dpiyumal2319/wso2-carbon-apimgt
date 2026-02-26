@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.apimgt.api.model.schema;
 
+import org.wso2.carbon.apimgt.api.model.schema.options.OptionGroups;
 import org.wso2.carbon.apimgt.api.model.schema.options.SubscriptionPlans;
 
 import java.util.Map;
@@ -39,6 +40,7 @@ public final class SubscriptionOptionsBodyRegistry {
 
     static {
         parsers.put(SubscriptionPlans.SCHEMA_NAME, SubscriptionPlans::fromJson);
+        parsers.put(OptionGroups.SCHEMA_NAME, OptionGroups::fromJson);
     }
 
     private SubscriptionOptionsBodyRegistry() {

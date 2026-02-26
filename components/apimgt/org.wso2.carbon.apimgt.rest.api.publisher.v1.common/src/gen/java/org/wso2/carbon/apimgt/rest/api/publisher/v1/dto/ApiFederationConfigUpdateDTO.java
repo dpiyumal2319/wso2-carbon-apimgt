@@ -4,9 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import java.util.ArrayList;
-import java.util.List;
-import org.wso2.carbon.apimgt.rest.api.publisher.v1.dto.ApiFederationConfigUpdateCuratedPlanSelectionsDTO;
 import javax.validation.constraints.*;
 
 /**
@@ -27,7 +24,7 @@ import javax.validation.Valid;
 public class ApiFederationConfigUpdateDTO   {
   
     private Boolean federationEnabled = null;
-    private List<ApiFederationConfigUpdateCuratedPlanSelectionsDTO> curatedPlanSelections = new ArrayList<ApiFederationConfigUpdateCuratedPlanSelectionsDTO>();
+    private String curatedPlanSelections = null;
 
   /**
    * Whether federation should be enabled for this API
@@ -48,21 +45,20 @@ public class ApiFederationConfigUpdateDTO   {
   }
 
   /**
-   * List of plan enable/disable selections
+   * Opaque JSON string containing schema-specific curation selections. The format depends on the subscription options schema (subscription-plans, option-groups, etc.) and is parsed by the schema&#39;s applyCuration() method. Passed through to the schema body without parsing at the controller layer. 
    **/
-  public ApiFederationConfigUpdateDTO curatedPlanSelections(List<ApiFederationConfigUpdateCuratedPlanSelectionsDTO> curatedPlanSelections) {
+  public ApiFederationConfigUpdateDTO curatedPlanSelections(String curatedPlanSelections) {
     this.curatedPlanSelections = curatedPlanSelections;
     return this;
   }
 
   
-  @ApiModelProperty(value = "List of plan enable/disable selections")
-      @Valid
+  @ApiModelProperty(value = "Opaque JSON string containing schema-specific curation selections. The format depends on the subscription options schema (subscription-plans, option-groups, etc.) and is parsed by the schema's applyCuration() method. Passed through to the schema body without parsing at the controller layer. ")
   @JsonProperty("curatedPlanSelections")
-  public List<ApiFederationConfigUpdateCuratedPlanSelectionsDTO> getCuratedPlanSelections() {
+  public String getCuratedPlanSelections() {
     return curatedPlanSelections;
   }
-  public void setCuratedPlanSelections(List<ApiFederationConfigUpdateCuratedPlanSelectionsDTO> curatedPlanSelections) {
+  public void setCuratedPlanSelections(String curatedPlanSelections) {
     this.curatedPlanSelections = curatedPlanSelections;
   }
 

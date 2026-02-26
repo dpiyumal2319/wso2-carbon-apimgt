@@ -264,6 +264,96 @@ paths:
           source: 'curl -k -H "Authorization: Bearer TOKEN"
           "https://localhost:9443/api/am/devportal/v3/apis/API_ID/subscription-support"'
 
+  /apis/{apiId}/federated-credentials:
+    post:
+      tags:
+        - Federated Subscriptions
+      summary: |
+        Subscribe and Create Federated Credential
+      description: |
+        This operation creates a subscription for the given API and application, then provisions
+        a federated credential on the external gateway in a single atomic operation.
+        Returns the subscription ID, provisioning status, and credential if immediately active.
+      operationId: subscribeAndCreateFederatedCredential
+      parameters:
+        - $ref: '#/components/parameters/apiId'
+      requestBody:
+        required: true
+        description: |
+          Federated credential creation request parameters
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FederatedCredentialCreateRequest'
+      responses:
+        201:
+          description: |
+            Created.
+            Subscription and federated credential created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FederatedCredentialCreateResponse'
+        400:
+          description: |
+            Bad Request.
+            Invalid request or API is not a federated API.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        409:
+          description: |
+            Conflict.
+            Subscription already exists for this API and application.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+            - apim:sub_manage
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
+          -H "Content-Type: application/json" -d "{\"applicationId\":\"APP_UUID\"}"
+          -X POST "https://localhost:9443/api/am/devportal/v3/apis/API_ID/federated-credentials"'
+    get:
+      tags:
+        - Federated Subscriptions
+      summary: |
+        Get API Credential Summaries
+      description: |
+        Retrieves a list of federated credential summaries for all subscriptions to this API.
+        Returns lightweight summary data suitable for rendering in a credentials table.
+      operationId: getApiCredentialSummaries
+      parameters:
+        - $ref: '#/components/parameters/apiId'
+      responses:
+        200:
+          description: |
+            OK.
+            Credential summaries retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FederatedCredentialSummaryList'
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+            - apim:sub_manage
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
+          "https://localhost:9443/api/am/devportal/v3/apis/API_ID/federated-credentials"'
+
   /apis/{apiId}/swagger:
     get:
       tags:
@@ -4117,14 +4207,6 @@ paths:
       operationId: createFederatedSubscription
       parameters:
         - $ref: '#/components/parameters/subscriptionId'
-      requestBody:
-        required: false
-        description: |
-          Optional subscription request parameters
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FederatedSubscriptionCreateRequest'
       responses:
         201:
           description: |
@@ -6381,15 +6463,118 @@ components:
           type: string
           description: Schema identifier for frontend renderer selection
           example: api-key-invocation
-    FederatedSubscriptionCreateRequest:
-      title: Federated Subscription Create Request
+    FederatedCredentialCreateRequest:
+      title: Federated Credential Create Request
+      required:
+        - applicationId
+        - name
       type: object
-      description: Optional parameters for creating a federated subscription
+      description: Request parameters for the combined subscribe-and-create-credential operation
       properties:
+        applicationId:
+          type: string
+          description: UUID of the application to subscribe with
+          example: 3a4b5c6d-7e8f-9a0b-1c2d-3e4f5a6b7c8d
+        name:
+          type: string
+          description: Name for the credential
+          minLength: 1
+          maxLength: 255
+          example: My Production Key
         selectedOption:
           type: string
-          description: Opaque JSON containing the developer's selected subscription option
-          example: '{"id":"plan1","name":"Basic"}'
+          description: |
+            JSON wrapper containing schemaName and body for the developer's selected subscription option.
+            Format: {"schemaName":"tier-selector","body":"{\"id\":\"plan1\",\"name\":\"Basic\"}"}
+          example: '{"schemaName":"tier-selector","body":"{\"id\":\"plan1\",\"name\":\"Basic\"}"}'
+    FederatedCredentialCreateResponse:
+      title: Federated Credential Create Response
+      type: object
+      description: Result of the combined subscribe-and-create-credential operation
+      properties:
+        subscriptionId:
+          type: string
+          description: UUID of the created WSO2 subscription
+          example: faae5fcc-cbae-40c4-bf43-89931571d250
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - PENDING_APPROVAL
+          description: |
+            Provisioning status:
+            * ACTIVE - Credential was created immediately, included in response
+            * PENDING_APPROVAL - Subscription requires approval before credential can be provisioned
+          example: ACTIVE
+        credential:
+          $ref: '#/components/schemas/FederatedCredential'
+        invocationInstruction:
+          $ref: '#/components/schemas/InvocationInstruction'
+        gatewayType:
+          type: string
+          description: Type of the external gateway
+          example: aws
+        gatewayEnvironmentId:
+          type: string
+          description: UUID of the gateway environment
+          example: 3a4b5c6d-7e8f-9a0b-1c2d-3e4f5a6b7c8d
+    FederatedCredentialSummary:
+      title: Federated Credential Summary
+      type: object
+      description: Lightweight summary of a federated credential for table display
+      properties:
+        subscriptionId:
+          type: string
+          description: UUID of the WSO2 subscription
+          example: faae5fcc-cbae-40c4-bf43-89931571d250
+        applicationId:
+          type: string
+          description: UUID of the application
+          example: 3a4b5c6d-7e8f-9a0b-1c2d-3e4f5a6b7c8d
+        applicationName:
+          type: string
+          description: Name of the application
+          example: MyApp
+        name:
+          type: string
+          description: Name for the credential
+          example: My Production Key
+        selectedOption:
+          type: string
+          description: |
+            JSON wrapper containing schemaName and body of the selected subscription option.
+            Format: {"schemaName":"tier-selector","body":"{\"id\":\"plan1\",\"name\":\"Basic\"}"}
+          example: '{"schemaName":"tier-selector","body":"{\"id\":\"plan1\",\"name\":\"Basic\"}"}'
+        isProvisioned:
+          type: boolean
+          description: Whether the credential has been provisioned on the gateway
+          example: true
+        subscriptionStatus:
+          type: string
+          enum:
+            - UNBLOCKED
+            - ON_HOLD
+            - DELETE_PENDING
+          description: Status of the WSO2 subscription
+          example: UNBLOCKED
+        lastUpdatedTime:
+          type: string
+          format: date-time
+          description: Last time the mapping was updated
+          example: '2025-01-30T10:00:00Z'
+    FederatedCredentialSummaryList:
+      title: Federated Credential Summary List
+      type: object
+      description: List of federated credential summaries for an API
+      properties:
+        count:
+          type: integer
+          description: Number of credential summaries returned
+          example: 2
+        list:
+          type: array
+          items:
+            $ref: '#/components/schemas/FederatedCredentialSummary'
     Tag:
       title: Tag
       type: object

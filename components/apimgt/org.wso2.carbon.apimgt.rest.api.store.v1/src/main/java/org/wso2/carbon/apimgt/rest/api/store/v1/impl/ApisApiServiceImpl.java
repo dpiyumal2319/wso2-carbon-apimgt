@@ -43,6 +43,8 @@ import org.wso2.carbon.apimgt.api.model.CommentList;
 import org.wso2.carbon.apimgt.api.model.Documentation;
 import org.wso2.carbon.apimgt.api.model.DocumentationContent;
 import org.wso2.carbon.apimgt.api.model.Environment;
+import org.wso2.carbon.apimgt.api.model.FederatedCredentialCreateResult;
+import org.wso2.carbon.apimgt.api.model.FederatedCredentialSummary;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionOptions;
 import org.wso2.carbon.apimgt.api.model.OrganizationInfo;
@@ -83,6 +85,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.APIMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.CommentMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.DocumentationMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.GraphqlQueryAnalysisMappingUtil;
+import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.FederatedSubscriptionMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.SubscriptionSupportMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.common.RestApiConstants;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.AsyncAPIMappingUtil;
@@ -1290,6 +1293,69 @@ public class ApisApiServiceImpl implements ApisApiService {
             } else {
                 RestApiUtil.handleInternalServerError(
                         "Error checking subscription support for API: " + apiId, e, log);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Response subscribeAndCreateFederatedCredential(String apiId,
+            FederatedCredentialCreateRequestDTO body, MessageContext messageContext)
+            throws APIManagementException {
+        try {
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            String username = RestApiCommonUtil.getLoggedInUsername();
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+
+            FederatedCredentialCreateResult result = apiConsumer.subscribeAndCreateFederatedCredential(
+                    apiId,
+                    body.getApplicationId(),
+                    organization,
+                    username,
+                    body.getName(),
+                    body.getSelectedOption());
+
+            FederatedCredentialCreateResponseDTO responseDTO =
+                    FederatedSubscriptionMappingUtil.fromCreateResultToDTO(result);
+
+            return Response.status(Response.Status.CREATED).entity(responseDTO).build();
+
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_API, apiId, e, log);
+            } else if (RestApiUtil.isDueToResourceAlreadyExists(e)) {
+                RestApiUtil.handleResourceAlreadyExistsError(
+                        "Subscription already exists for this API and application", e, log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error creating federated credential for API: " + apiId, e, log);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Response getApiCredentialSummaries(String apiId, MessageContext messageContext)
+            throws APIManagementException {
+        try {
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            String username = RestApiCommonUtil.getLoggedInUsername();
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+
+            List<FederatedCredentialSummary> summaries =
+                    apiConsumer.getApiCredentialSummaries(apiId, organization);
+
+            FederatedCredentialSummaryListDTO listDTO =
+                    FederatedSubscriptionMappingUtil.fromSummaryListToDTO(summaries);
+
+            return Response.ok().entity(listDTO).build();
+
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_API, apiId, e, log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error retrieving credential summaries for API: " + apiId, e, log);
             }
         }
         return null;

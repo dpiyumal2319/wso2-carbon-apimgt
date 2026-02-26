@@ -45,6 +45,8 @@ import org.wso2.carbon.apimgt.api.model.SubscriptionResponse;
 import org.wso2.carbon.apimgt.api.model.Tag;
 import org.wso2.carbon.apimgt.api.model.Tier;
 import org.wso2.carbon.apimgt.api.model.TierPermission;
+import org.wso2.carbon.apimgt.api.model.FederatedCredentialCreateResult;
+import org.wso2.carbon.apimgt.api.model.FederatedCredentialSummary;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionResult;
 import org.wso2.carbon.apimgt.api.model.InvocationInstruction;
 import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
@@ -951,12 +953,11 @@ public interface APIConsumer extends APIManager {
      * @param subscribedAPI The subscription
      * @param api The API
      * @param organization Organization name
-     * @param selectedOption Developer's selected subscription option (may be null)
      * @return FederatedSubscriptionResult with full credential (one-time display), instruction, and gateway info
      * @throws APIManagementException if creation fails
      */
     FederatedSubscriptionResult createFederatedSubscription(SubscribedAPI subscribedAPI, API api,
-            String organization, String selectedOption) throws APIManagementException;
+            String organization) throws APIManagementException;
 
     /**
      * Get federated subscription info including credential and invocation instructions.
@@ -1003,4 +1004,33 @@ public interface APIConsumer extends APIManager {
      */
     org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo getSubscriptionSupportInfo(API api, String organization)
             throws APIManagementException;
+
+    /**
+     * Combined subscribe and create federated credential in one operation.
+     * Creates a WSO2 subscription with "Unlimited" policy, inserts the external mapping,
+     * and if the subscription is auto-approved (UNBLOCKED), provisions credentials on the gateway.
+     *
+     * @param apiId          UUID of the API
+     * @param applicationId  UUID of the application
+     * @param organization   Organization name
+     * @param userId         User performing the operation
+     * @param name           Name for the credential (required)
+     * @param selectedOption Selected subscription option in {schemaName, body} format (may be null)
+     * @return FederatedCredentialCreateResult with subscription ID, status, and credential if provisioned
+     * @throws APIManagementException if creation fails
+     */
+    FederatedCredentialCreateResult subscribeAndCreateFederatedCredential(String apiId, String applicationId,
+            String organization, String userId, String name, String selectedOption)
+            throws APIManagementException;
+
+    /**
+     * Get credential summaries for all federated subscriptions of an API.
+     *
+     * @param apiUuid      UUID of the API
+     * @param organization Organization name
+     * @return List of FederatedCredentialSummary objects
+     * @throws APIManagementException if retrieval fails
+     */
+    java.util.List<org.wso2.carbon.apimgt.api.model.FederatedCredentialSummary> getApiCredentialSummaries(
+            String apiUuid, String organization) throws APIManagementException;
 }
