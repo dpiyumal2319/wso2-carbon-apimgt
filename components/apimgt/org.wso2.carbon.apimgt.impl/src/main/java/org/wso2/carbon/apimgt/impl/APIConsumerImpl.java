@@ -78,6 +78,8 @@ import org.wso2.carbon.apimgt.api.model.Documentation.DocumentVisibility;
 import org.wso2.carbon.apimgt.api.FederatedSubscriptionAgent;
 import org.wso2.carbon.apimgt.api.model.AgentOperationResult;
 import org.wso2.carbon.apimgt.api.model.ApiFederationConfig;
+import org.wso2.carbon.apimgt.api.model.FederatedCredentialCreateResult;
+import org.wso2.carbon.apimgt.api.model.FederatedCredentialSummary;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
 import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
 import org.wso2.carbon.apimgt.api.model.policy.PolicyConstants;
@@ -5882,15 +5884,19 @@ APIConstants.AuditLogConstants.DELETED, this.username);
 
     @Override
     public FederatedSubscriptionResult createFederatedSubscription(SubscribedAPI subscribedAPI, API api,
-            String organization, String selectedOption) throws APIManagementException {
+            String organization) throws APIManagementException {
 
         String subscriptionUuid = subscribedAPI.getUUID();
         String envId = resolveGatewayEnvironmentId(api);
 
-        // Check if mapping already exists
+        // Resolve the pending mapping — lazy provisioning requires an existing placeholder
+        SubscriptionExternalMapping existingMapping = null;
         if (apiMgtDAO.subscriptionExternalMappingExists(subscriptionUuid, envId)) {
-            throw new APIManagementException("Federated subscription mapping already exists for subscription: "
-                    + subscriptionUuid + " in environment: " + envId);
+            existingMapping = apiMgtDAO.getSubscriptionExternalMapping(subscriptionUuid, envId);
+            if (existingMapping != null && existingMapping.getReferenceArtifact() != null) {
+                throw new APIManagementException("Federated subscription mapping already exists for subscription: "
+                        + subscriptionUuid + " in environment: " + envId);
+            }
         }
 
         // Get gateway environment
@@ -5906,7 +5912,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         // Get API reference artifact
         String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
 
-        // Build lean context (no selectedOption — it's a create-time parameter)
+        // Build lean context
         FederatedSubscriptionContext context = buildFederatedContext(subscribedAPI, api, organization,
                 envId, apiRefArtifact, null, null);
 
@@ -5917,19 +5923,160 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             context = context.toBuilder().federationConfigSnapshot(configSnapshot).build();
         }
 
-        // Agent creates subscription, builds artifact, and bundles everything
-        AgentOperationResult result = agent.createSubscription(context, selectedOption);
+        // Read selectedOption from the stored mapping (set at subscription time, not re-submitted here)
+        String storedSelectedOption = (existingMapping != null) ? existingMapping.getSelectedOption() : null;
+        String agentSelectedOption = extractSelectedOptionBody(storedSelectedOption);
 
-        // Store mapping in database
-        SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
-        mapping.setSubscriptionUuid(subscriptionUuid);
-        mapping.setGatewayEnvironmentId(envId);
-        mapping.setExternalSubscriptionId(result.getExternalSubscriptionId());
-        mapping.setReferenceArtifact(result.getReferenceArtifact());
-        mapping.setSelectedOption(selectedOption);
-        apiMgtDAO.addSubscriptionExternalMapping(mapping);
+        // Agent creates subscription, builds artifact, and bundles everything
+        AgentOperationResult result = agent.createSubscription(context, agentSelectedOption);
+
+        if (existingMapping != null) {
+            // Update existing pending mapping with credential from gateway
+            existingMapping.setExternalSubscriptionId(result.getExternalSubscriptionId());
+            existingMapping.setReferenceArtifact(result.getReferenceArtifact());
+            existingMapping.setLastUpdatedTime(new java.sql.Timestamp(System.currentTimeMillis()));
+            apiMgtDAO.updateSubscriptionExternalMapping(existingMapping);
+        } else {
+            // Store new mapping (no selectedOption since it was not predetermined)
+            SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
+            mapping.setSubscriptionUuid(subscriptionUuid);
+            mapping.setGatewayEnvironmentId(envId);
+            mapping.setExternalSubscriptionId(result.getExternalSubscriptionId());
+            mapping.setReferenceArtifact(result.getReferenceArtifact());
+            apiMgtDAO.addSubscriptionExternalMapping(mapping);
+        }
 
         return buildResult(result.getCredential(), result.getInstruction(), environment, envId);
+    }
+
+    @Override
+    public FederatedCredentialCreateResult subscribeAndCreateFederatedCredential(String apiId,
+            String applicationId, String organization, String userId, String name,
+            String selectedOption) throws APIManagementException {
+
+        if (name == null || name.trim().isEmpty()) {
+            throw new APIManagementException("Credential name is required");
+        }
+
+        // 1. Get API and Application
+        API api = getLightweightAPIByUUID(apiId, organization);
+        if (!APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor())) {
+            throw new APIManagementException("API is not a federated API: " + apiId);
+        }
+
+        Application application = getApplicationByUUID(applicationId);
+        if (application == null) {
+            throw new APIManagementException("Application not found: " + applicationId);
+        }
+
+        // 2. Create WSO2 subscription with hardcoded "Unlimited" policy
+        ApiTypeWrapper apiTypeWrapper = new ApiTypeWrapper(api);
+        apiTypeWrapper.setTier(APIConstants.UNLIMITED_TIER);
+
+        SubscriptionResponse subResponse = addSubscription(apiTypeWrapper, userId, application);
+        String subscriptionUuid = subResponse.getSubscriptionUUID();
+        String subscriptionStatus = subResponse.getSubscriptionStatus();
+
+        // 3. Resolve gateway environment
+        String envId = resolveGatewayEnvironmentId(api);
+        Environment environment = apiMgtDAO.getEnvironment(organization, envId);
+
+        // 4. Branch on subscription status
+        if (APIConstants.SubscriptionStatus.UNBLOCKED.equals(subscriptionStatus)) {
+            // Auto-approved: provision on gateway immediately
+            try {
+                SubscribedAPI subscribedAPI = getSubscriptionByUUID(subscriptionUuid);
+                String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
+
+                FederatedSubscriptionContext context = buildFederatedContext(subscribedAPI, api, organization,
+                        envId, apiRefArtifact, null, null);
+
+                // Enrich with federation config snapshot
+                ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
+                SubscriptionSupportInfo configSnapshot = (fedConfig != null) ?
+                        fedConfig.getPublisherCuratedConfig() : null;
+                if (configSnapshot != null) {
+                    context = context.toBuilder().federationConfigSnapshot(configSnapshot).build();
+                }
+
+                // Extract raw body from {schemaName, body} wrapper for the agent
+                String agentSelectedOption = extractSelectedOptionBody(selectedOption);
+
+                FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
+                        environment, organization);
+                AgentOperationResult result = agent.createSubscription(context, agentSelectedOption);
+
+                // Store mapping with full data
+                SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
+                mapping.setSubscriptionUuid(subscriptionUuid);
+                mapping.setGatewayEnvironmentId(envId);
+                mapping.setExternalSubscriptionId(result.getExternalSubscriptionId());
+                mapping.setName(name);
+                mapping.setReferenceArtifact(result.getReferenceArtifact());
+                mapping.setSelectedOption(selectedOption);
+                apiMgtDAO.addSubscriptionExternalMapping(mapping);
+
+                FederatedSubscriptionResult fedResult = buildResult(
+                        result.getCredential(), result.getInstruction(), environment, envId);
+
+                return FederatedCredentialCreateResult.builder()
+                        .subscriptionId(subscriptionUuid)
+                        .status(FederatedCredentialCreateResult.Status.ACTIVE)
+                        .federatedSubscriptionResult(fedResult)
+                        .build();
+
+            } catch (APIManagementException e) {
+                // Rollback: delete the WSO2 subscription if gateway provisioning fails
+                log.error("Gateway provisioning failed. Rolling back WSO2 subscription: " + subscriptionUuid, e);
+                try {
+                    removeSubscription(getSubscriptionByUUID(subscriptionUuid), organization);
+                } catch (APIManagementException rollbackEx) {
+                    log.error("Failed to rollback WSO2 subscription: " + subscriptionUuid, rollbackEx);
+                }
+                throw e;
+            }
+
+        } else {
+            // Approval needed (ON_HOLD): store mapping placeholder, no gateway call
+            SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
+            mapping.setSubscriptionUuid(subscriptionUuid);
+            mapping.setGatewayEnvironmentId(envId);
+            mapping.setName(name);
+            mapping.setSelectedOption(selectedOption);
+            apiMgtDAO.addSubscriptionExternalMapping(mapping);
+
+            return FederatedCredentialCreateResult.builder()
+                    .subscriptionId(subscriptionUuid)
+                    .status(FederatedCredentialCreateResult.Status.PENDING_APPROVAL)
+                    .build();
+        }
+    }
+
+    @Override
+    public List<FederatedCredentialSummary> getApiCredentialSummaries(String apiUuid, String organization)
+            throws APIManagementException {
+        String envId = resolveGatewayEnvironmentId(getLightweightAPIByUUID(apiUuid, organization));
+        return apiMgtDAO.getApiCredentialSummaries(apiUuid, envId);
+    }
+
+    /**
+     * Extracts the raw body from a {schemaName, body} wrapper.
+     * If selectedOption is null or not in wrapper format, returns it as-is.
+     */
+    private String extractSelectedOptionBody(String selectedOption) {
+        if (selectedOption == null) {
+            return null;
+        }
+        try {
+            com.google.gson.JsonObject wrapper = com.google.gson.JsonParser.parseString(selectedOption)
+                    .getAsJsonObject();
+            if (wrapper.has("schemaName") && wrapper.has("body")) {
+                return wrapper.get("body").getAsString();
+            }
+        } catch (Exception e) {
+            // Not a wrapper format, return as-is
+        }
+        return selectedOption;
     }
 
     @Override
@@ -5985,7 +6132,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         if (mapping == null) {
             if (log.isDebugEnabled()) {
                 log.debug("No federated subscription mapping found for subscription: " + subscriptionUuid
-                        + " in environment: " + envId + ". Skipping external deletion.");
+                        + " in environment: " + envId + ". Nothing to revoke.");
             }
             return;
         }
@@ -5994,12 +6141,12 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         Environment environment = apiMgtDAO.getEnvironment(organization, envId);
         if (environment == null) {
             log.warn("Gateway environment not found: " + envId
-                    + ". Deleting local mapping only.");
-            apiMgtDAO.deleteSubscriptionExternalMapping(subscriptionUuid, envId);
+                    + ". Clearing local credential data only.");
+            clearLocalCredential(subscriptionUuid, envId, mapping);
             return;
         }
 
-        // Best-effort delete from external gateway
+        // Best-effort delete credential from external gateway
         try {
             FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
                     environment, organization);
@@ -6014,12 +6161,25 @@ APIConstants.AuditLogConstants.DELETED, this.username);
 
             agent.deleteSubscription(deleteContext);
         } catch (APIManagementException e) {
-            log.error("Failed to delete subscription from external gateway. External subscription ID: "
-                    + mapping.getExternalSubscriptionId() + ". Proceeding to delete local mapping.", e);
+            log.error("Failed to revoke credential from external gateway. External subscription ID: "
+                    + mapping.getExternalSubscriptionId() + ". Proceeding to clear local credential data.", e);
         }
 
-        // Delete local mapping regardless of external deletion result
-        apiMgtDAO.deleteSubscriptionExternalMapping(subscriptionUuid, envId);
+        // Clear the credential fields from the mapping row — the row itself is kept so the
+        // subscription can have a new credential provisioned later (re-provision path).
+        clearLocalCredential(subscriptionUuid, envId, mapping);
+    }
+
+    /**
+     * Clears the credential fields (EXTERNAL_SUBSCRIPTION_ID, REFERENCE_ARTIFACT) from an
+     * existing external mapping row without deleting it. The subscription association is
+     * preserved so credentials can be re-provisioned later.
+     */
+    private void clearLocalCredential(String subscriptionUuid, String envId,
+            SubscriptionExternalMapping mapping) throws APIManagementException {
+        mapping.setExternalSubscriptionId(null);
+        mapping.setReferenceArtifact(null);
+        apiMgtDAO.updateSubscriptionExternalMapping(mapping);
     }
 
     // --- Private helpers for federated subscription operations ---

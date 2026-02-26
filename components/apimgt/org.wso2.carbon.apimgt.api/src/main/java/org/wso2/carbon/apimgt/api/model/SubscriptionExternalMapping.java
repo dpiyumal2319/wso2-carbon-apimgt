@@ -34,9 +34,9 @@ public class SubscriptionExternalMapping {
     private String subscriptionUuid;
     private String gatewayEnvironmentId;
     private String externalSubscriptionId;
+    private String name;
     private String referenceArtifact;
     private String selectedOption;
-    private String status;
     private Timestamp createdTime;
     private Timestamp lastUpdatedTime;
 
@@ -96,20 +96,20 @@ public class SubscriptionExternalMapping {
         this.lastUpdatedTime = lastUpdatedTime;
     }
 
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public String getSelectedOption() {
         return selectedOption;
     }
 
     public void setSelectedOption(String selectedOption) {
         this.selectedOption = selectedOption;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
     }
 
     @Override

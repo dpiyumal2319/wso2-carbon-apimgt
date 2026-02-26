@@ -48,7 +48,6 @@ import org.wso2.carbon.apimgt.rest.api.common.RestApiConstants;
 import org.wso2.carbon.apimgt.rest.api.store.v1.SubscriptionsApiService;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.AdditionalSubscriptionInfoListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.APIMonetizationUsageDTO;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionCreateRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionListDTO;
 import org.wso2.carbon.apimgt.api.model.API;
@@ -675,8 +674,7 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
     }
 
     @Override
-    public Response createFederatedSubscription(String subscriptionId, 
-            FederatedSubscriptionCreateRequestDTO federatedSubscriptionCreateRequestDTO,
+    public Response createFederatedSubscription(String subscriptionId,
             MessageContext messageContext)
             throws APIManagementException {
         String username = RestApiCommonUtil.getLoggedInUsername();
@@ -698,15 +696,9 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                 return null;
             }
 
-            // Extract selectedOption from request body (if provided)
-            String selectedOption = null;
-            if (federatedSubscriptionCreateRequestDTO != null) {
-                selectedOption = federatedSubscriptionCreateRequestDTO.getSelectedOption();
-            }
-
-            // Single service call — returns complete result
+            // selectedOption is resolved from the stored subscription record (set at subscription time)
             FederatedSubscriptionResult result = apiConsumer.createFederatedSubscription(
-                    subscribedAPI, api, organization, selectedOption);
+                    subscribedAPI, api, organization);
 
             FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
             return Response.status(Response.Status.CREATED).entity(dto).build();

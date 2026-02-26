@@ -64,6 +64,7 @@ import org.wso2.carbon.apimgt.api.model.Application;
 import org.wso2.carbon.apimgt.api.model.ApplicationExternalMapping;
 import org.wso2.carbon.apimgt.api.model.ApiFederationConfig;
 import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
+import org.wso2.carbon.apimgt.api.model.FederatedCredentialSummary;
 import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
 import org.wso2.carbon.apimgt.api.model.ApplicationInfo;
 import org.wso2.carbon.apimgt.api.model.ApplicationInfoKeyManager;
@@ -740,6 +741,32 @@ public class ApiMgtDAO {
             APIMgtDBUtil.closeAllConnections(preparedStForUpdate, null, null);
         }
         return subscriptionId;
+    }
+
+    /**
+     * Returns the subscription UUID for the given API integer ID and application integer ID.
+     *
+     * @param apiId         integer API ID
+     * @param applicationId integer application ID
+     * @return subscription UUID, or null if not found
+     * @throws APIManagementException
+     */
+    public String getSubscriptionUuid(int apiId, int applicationId) throws APIManagementException {
+
+        try (Connection conn = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(SQLConstants.GET_SUBSCRIPTION_UUID_SQL)) {
+            ps.setInt(1, apiId);
+            ps.setInt(2, applicationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("UUID");
+                }
+            }
+        } catch (SQLException e) {
+            handleException("Error while retrieving subscription UUID for apiId: " + apiId
+                    + " and applicationId: " + applicationId, e);
+        }
+        return null;
     }
 
     /**
@@ -16755,17 +16782,21 @@ public class ApiMgtDAO {
             } else {
                 ps.setNull(3, java.sql.Types.VARCHAR);
             }
-            if (mapping.getReferenceArtifact() != null) {
-                ps.setBytes(4, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
+            if (mapping.getName() != null) {
+                ps.setString(4, mapping.getName());
             } else {
-                ps.setNull(4, java.sql.Types.BLOB);
+                ps.setNull(4, java.sql.Types.VARCHAR);
             }
-            if (mapping.getSelectedOption() != null) {
-                ps.setBytes(5, mapping.getSelectedOption().getBytes(StandardCharsets.UTF_8));
+            if (mapping.getReferenceArtifact() != null) {
+                ps.setBytes(5, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
             } else {
                 ps.setNull(5, java.sql.Types.BLOB);
             }
-            ps.setString(6, mapping.getStatus() != null ? mapping.getStatus() : "ACTIVE");
+            if (mapping.getSelectedOption() != null) {
+                ps.setBytes(6, mapping.getSelectedOption().getBytes(StandardCharsets.UTF_8));
+            } else {
+                ps.setNull(6, java.sql.Types.BLOB);
+            }
             ps.executeUpdate();
             connection.commit();
 
@@ -16799,7 +16830,7 @@ public class ApiMgtDAO {
                     mapping.setSubscriptionUuid(subscriptionUuid);
                     mapping.setGatewayEnvironmentId(environmentId);
                     mapping.setExternalSubscriptionId(rs.getString("EXTERNAL_SUBSCRIPTION_ID"));
-                    mapping.setStatus(rs.getString("STATUS"));
+                    mapping.setName(rs.getString("NAME"));
                     mapping.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
                     mapping.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
 
@@ -16846,10 +16877,9 @@ public class ApiMgtDAO {
             } else {
                 ps.setNull(2, java.sql.Types.BLOB);
             }
-            ps.setString(3, mapping.getStatus() != null ? mapping.getStatus() : "ACTIVE");
-            ps.setTimestamp(4, new Timestamp(System.currentTimeMillis()));
-            ps.setString(5, mapping.getSubscriptionUuid());
-            ps.setString(6, mapping.getGatewayEnvironmentId());
+            ps.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
+            ps.setString(4, mapping.getSubscriptionUuid());
+            ps.setString(5, mapping.getGatewayEnvironmentId());
             ps.executeUpdate();
             connection.commit();
 
@@ -16927,7 +16957,7 @@ public class ApiMgtDAO {
                     String environmentId = rs.getString("GATEWAY_ENV_ID");
                     mapping.setGatewayEnvironmentId(environmentId);
                     mapping.setExternalSubscriptionId(rs.getString("EXTERNAL_SUBSCRIPTION_ID"));
-                    mapping.setStatus(rs.getString("STATUS"));
+                    mapping.setName(rs.getString("NAME"));
                     mapping.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
                     mapping.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
 
@@ -16981,6 +17011,53 @@ public class ApiMgtDAO {
                     + subscriptionUuid, e);
         }
         return false;
+    }
+
+    /**
+     * Get credential summaries for all federated subscriptions of an API.
+     * Returns lightweight data for the API Credentials page table.
+     *
+     * @param apiUuid       UUID of the API
+     * @param environmentId Gateway environment ID
+     * @return List of FederatedCredentialSummary objects
+     * @throws APIManagementException if an error occurs
+     */
+    public List<FederatedCredentialSummary> getApiCredentialSummaries(String apiUuid, String environmentId)
+            throws APIManagementException {
+        List<FederatedCredentialSummary> summaries = new ArrayList<>();
+
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.GET_API_CREDENTIAL_SUMMARIES_SQL)) {
+
+            ps.setString(1, apiUuid);
+            ps.setString(2, environmentId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    FederatedCredentialSummary summary = new FederatedCredentialSummary();
+                    summary.setSubscriptionUuid(rs.getString("SUBSCRIPTION_UUID"));
+                    summary.setName(rs.getString("NAME"));
+                    summary.setProvisioned(rs.getInt("IS_PROVISIONED") == 1);
+                    summary.setSubscriptionStatus(rs.getString("SUB_STATUS"));
+                    summary.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
+                    summary.setApplicationId(rs.getString("APPLICATION_ID"));
+                    summary.setApplicationName(rs.getString("APP_NAME"));
+
+                    try (InputStream optionStream = rs.getBinaryStream("SELECTED_OPTION")) {
+                        if (optionStream != null) {
+                            summary.setSelectedOption(IOUtils.toString(optionStream, StandardCharsets.UTF_8));
+                        }
+                    }
+
+                    summaries.add(summary);
+                }
+            }
+
+        } catch (SQLException | IOException e) {
+            handleException("Error while retrieving credential summaries for API: " + apiUuid, e);
+        }
+
+        return summaries;
     }
 
     // ---- API Federation Config ----

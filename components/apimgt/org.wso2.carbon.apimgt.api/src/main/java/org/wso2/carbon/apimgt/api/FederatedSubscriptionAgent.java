@@ -164,4 +164,16 @@ public interface FederatedSubscriptionAgent {
         snapshot.filterDisabledPlans();
         return snapshot;
     }
+
+    /**
+     * Returns whether a federated subscription has been provisioned on the gateway.
+     * A subscription is considered provisioned when a reference artifact exists,
+     * meaning the gateway call was made and credentials were stored.
+     *
+     * @param context The federated subscription context
+     * @return true if the subscription has been provisioned (reference artifact is present)
+     */
+    default boolean isProvisioned(FederatedSubscriptionContext context) {
+        return context.getSubscriptionReferenceArtifact() != null;
+    }
 }
