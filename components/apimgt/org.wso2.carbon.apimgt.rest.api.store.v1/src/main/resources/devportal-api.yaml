@@ -7241,8 +7241,12 @@ components:
         subscriptionStatus:
           type: string
           enum:
+            - BLOCKED
+            - PROD_ONLY_BLOCKED
             - UNBLOCKED
             - ON_HOLD
+            - REJECTED
+            - TIER_UPDATE_PENDING
             - DELETE_PENDING
           description: Status of the WSO2 subscription
           example: UNBLOCKED
