@@ -33,8 +33,12 @@ public class FederatedCredentialSummaryDTO   {
     @XmlType(name="SubscriptionStatusEnum")
     @XmlEnum(String.class)
     public enum SubscriptionStatusEnum {
+        BLOCKED("BLOCKED"),
+        PROD_ONLY_BLOCKED("PROD_ONLY_BLOCKED"),
         UNBLOCKED("UNBLOCKED"),
         ON_HOLD("ON_HOLD"),
+        REJECTED("REJECTED"),
+        TIER_UPDATE_PENDING("TIER_UPDATE_PENDING"),
         DELETE_PENDING("DELETE_PENDING");
         private String value;
 
