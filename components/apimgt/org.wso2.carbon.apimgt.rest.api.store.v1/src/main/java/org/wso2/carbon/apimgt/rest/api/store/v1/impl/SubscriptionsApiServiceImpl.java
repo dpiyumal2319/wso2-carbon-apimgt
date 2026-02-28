@@ -41,7 +41,6 @@ import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
 import org.wso2.carbon.apimgt.api.model.Subscriber;
 import org.wso2.carbon.apimgt.api.model.SubscriptionResponse;
 import org.wso2.carbon.apimgt.impl.APIConstants;
-import org.wso2.carbon.apimgt.impl.utils.APIUtil;
 import org.wso2.carbon.apimgt.impl.workflow.HttpWorkflowResponse;
 import org.wso2.carbon.apimgt.rest.api.common.RestApiCommonUtil;
 import org.wso2.carbon.apimgt.rest.api.common.RestApiConstants;
@@ -51,8 +50,9 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.APIMonetizationUsageDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionListDTO;
 import org.wso2.carbon.apimgt.api.model.API;
-import org.wso2.carbon.apimgt.api.model.ApplicationExternalMapping;
-import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionResult;
+import org.wso2.carbon.apimgt.api.model.FederatedCredentialsResult;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialListDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.FederatedSubscriptionMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.APIMappingUtil;
@@ -674,8 +674,41 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
     }
 
     @Override
-    public Response createFederatedSubscription(String subscriptionId,
-            MessageContext messageContext)
+    public Response deleteFederatedSubscription(String subscriptionId, MessageContext messageContext)
+            throws APIManagementException {
+        String username = RestApiCommonUtil.getLoggedInUsername();
+        try {
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+            SubscribedAPI subscribedAPI = validateAndGetSubscription(subscriptionId, apiConsumer);
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            // Full unsubscribe: gateway cleanup + delete AM_SUBSCRIPTION row via workflow
+            apiConsumer.removeSubscription(subscribedAPI, organization);
+            if (subscribedAPI != null &&
+                    APIConstants.SubscriptionStatus.DELETE_PENDING.equals(subscribedAPI.getSubStatus())) {
+                if (subscribedAPI.getSubscriptionId() == -1) {
+                    return Response.status(Response.Status.BAD_REQUEST).build();
+                }
+                return Response.status(Response.Status.ACCEPTED).build();
+            }
+            return Response.ok().build();
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError(
+                        RestApiConstants.RESOURCE_SUBSCRIPTION, subscriptionId, e, log);
+            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
+                RestApiUtil.handleAuthorizationFailure(
+                        "Authorization failure while unsubscribing: " + subscriptionId, e, log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error unsubscribing from federated API for: " + subscriptionId, e, log);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Response createFederatedCredential(String subscriptionId,
+            FederatedCredentialRequestDTO body, MessageContext messageContext)
             throws APIManagementException {
         String username = RestApiCommonUtil.getLoggedInUsername();
         try {
@@ -692,13 +725,13 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
             API api = validateFederatedApi(subscribedAPI, apiConsumer, organization);
             if (api == null) {
                 RestApiUtil.handleBadRequest(
-                        "Federated subscription is only supported for external gateway APIs (not API Products)", log);
+                        "Credential creation is only supported for external gateway APIs (not API Products)", log);
                 return null;
             }
 
-            // selectedOption is resolved from the stored subscription record (set at subscription time)
-            FederatedSubscriptionResult result = apiConsumer.createFederatedSubscription(
-                    subscribedAPI, api, organization);
+            String name = body != null ? body.getName() : null;
+            FederatedCredentialsResult result = apiConsumer.createFederatedCredential(
+                    subscribedAPI, api, organization, name, username);
 
             FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
             return Response.status(Response.Status.CREATED).entity(dto).build();
@@ -709,20 +742,17 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                         RestApiConstants.RESOURCE_SUBSCRIPTION, subscriptionId, e, log);
             } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
                 RestApiUtil.handleAuthorizationFailure(
-                        "Authorization failure while creating federated subscription: " + subscriptionId, e, log);
-            } else if (RestApiUtil.isDueToResourceAlreadyExists(e)) {
-                RestApiUtil.handleResourceAlreadyExistsError(
-                        "Federated subscription already exists for subscription: " + subscriptionId, e, log);
+                        "Authorization failure while creating federated credential: " + subscriptionId, e, log);
             } else {
                 RestApiUtil.handleInternalServerError(
-                        "Error creating federated subscription for: " + subscriptionId, e, log);
+                        "Error creating federated credential for: " + subscriptionId, e, log);
             }
         }
         return null;
     }
 
     @Override
-    public Response getFederatedSubscription(String subscriptionId, MessageContext messageContext)
+    public Response listFederatedCredentials(String subscriptionId, MessageContext messageContext)
             throws APIManagementException {
         String username = RestApiCommonUtil.getLoggedInUsername();
         try {
@@ -738,21 +768,14 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
 
             API api = validateFederatedApi(subscribedAPI, apiConsumer, organization);
             if (api == null) {
-                RestApiUtil.handleResourceNotFoundError(
-                        "Federated subscription", subscriptionId, log);
+                RestApiUtil.handleResourceNotFoundError("Federated subscription", subscriptionId, log);
                 return null;
             }
 
-            // Single service call — returns masked credential by default
-            FederatedSubscriptionResult result = apiConsumer.getFederatedSubscription(
-                    subscriptionId, api, organization, false);
-            if (result == null) {
-                RestApiUtil.handleResourceNotFoundError(
-                        "Federated subscription", subscriptionId, log);
-                return null;
-            }
+            List<FederatedCredentialsResult> results = apiConsumer.listFederatedCredentials(
+                    subscriptionId, api, organization);
 
-            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
+            FederatedCredentialListDTO dto = FederatedSubscriptionMappingUtil.fromCredentialResultsListToDTO(results);
             return Response.ok().entity(dto).build();
 
         } catch (APIManagementException e) {
@@ -761,18 +784,18 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                         RestApiConstants.RESOURCE_SUBSCRIPTION, subscriptionId, e, log);
             } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
                 RestApiUtil.handleAuthorizationFailure(
-                        "Authorization failure while getting federated subscription: " + subscriptionId, e, log);
+                        "Authorization failure while listing credentials: " + subscriptionId, e, log);
             } else {
                 RestApiUtil.handleInternalServerError(
-                        "Error getting federated subscription for: " + subscriptionId, e, log);
+                        "Error listing credentials for: " + subscriptionId, e, log);
             }
         }
         return null;
     }
 
     @Override
-    public Response deleteFederatedSubscription(String subscriptionId, MessageContext messageContext)
-            throws APIManagementException {
+    public Response getFederatedCredential(String subscriptionId, String credentialId,
+            MessageContext messageContext) throws APIManagementException {
         String username = RestApiCommonUtil.getLoggedInUsername();
         try {
             String organization = RestApiUtil.getValidatedOrganization(messageContext);
@@ -787,86 +810,71 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
 
             API api = validateFederatedApi(subscribedAPI, apiConsumer, organization);
             if (api == null) {
-                RestApiUtil.handleResourceNotFoundError(
-                        "Federated subscription", subscriptionId, log);
+                RestApiUtil.handleResourceNotFoundError("Federated credential", credentialId, log);
                 return null;
             }
 
-            // Single service call
-            apiConsumer.deleteFederatedSubscription(subscriptionId, api, organization);
+            FederatedCredentialsResult result = apiConsumer.getFederatedCredential(
+                    subscriptionId, credentialId, api, organization, false);
 
+            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
+            return Response.ok().entity(dto).build();
+
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError("Federated credential", credentialId, e, log);
+            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
+                RestApiUtil.handleAuthorizationFailure(
+                        "Authorization failure while getting credential: " + credentialId, e, log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error getting credential: " + credentialId, e, log);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Response deleteFederatedCredential(String subscriptionId, String credentialId,
+            MessageContext messageContext) throws APIManagementException {
+        String username = RestApiCommonUtil.getLoggedInUsername();
+        try {
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+
+            SubscribedAPI subscribedAPI = validateAndGetSubscription(subscriptionId, apiConsumer);
+            if (!RestAPIStoreUtils.isUserAccessAllowedForApplication(subscribedAPI.getApplication())) {
+                RestApiUtil.handleAuthorizationFailure(RestApiConstants.RESOURCE_APPLICATION,
+                        subscribedAPI.getApplication().getUUID(), log);
+                return null;
+            }
+
+            API api = validateFederatedApi(subscribedAPI, apiConsumer, organization);
+            if (api == null) {
+                RestApiUtil.handleResourceNotFoundError("Federated credential", credentialId, log);
+                return null;
+            }
+
+            apiConsumer.deleteFederatedCredentialByUuid(subscriptionId, credentialId, api, organization);
             return Response.ok().build();
 
         } catch (APIManagementException e) {
             if (RestApiUtil.isDueToResourceNotFound(e)) {
-                RestApiUtil.handleResourceNotFoundError(
-                        RestApiConstants.RESOURCE_SUBSCRIPTION, subscriptionId, e, log);
+                RestApiUtil.handleResourceNotFoundError("Federated credential", credentialId, e, log);
             } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
                 RestApiUtil.handleAuthorizationFailure(
-                        "Authorization failure while deleting federated subscription: " + subscriptionId, e, log);
+                        "Authorization failure while deleting credential: " + credentialId, e, log);
             } else {
                 RestApiUtil.handleInternalServerError(
-                        "Error deleting federated subscription for: " + subscriptionId, e, log);
+                        "Error deleting credential: " + credentialId, e, log);
             }
         }
         return null;
     }
 
     @Override
-    public Response retrieveFederatedCredential(String subscriptionId, MessageContext messageContext)
-            throws APIManagementException {
-        String username = RestApiCommonUtil.getLoggedInUsername();
-        try {
-            String organization = RestApiUtil.getValidatedOrganization(messageContext);
-            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
-
-            SubscribedAPI subscribedAPI = validateAndGetSubscription(subscriptionId, apiConsumer);
-            if (!RestAPIStoreUtils.isUserAccessAllowedForApplication(subscribedAPI.getApplication())) {
-                RestApiUtil.handleAuthorizationFailure(RestApiConstants.RESOURCE_APPLICATION,
-                        subscribedAPI.getApplication().getUUID(), log);
-                return null;
-            }
-
-            API api = validateFederatedApi(subscribedAPI, apiConsumer, organization);
-            if (api == null) {
-                RestApiUtil.handleBadRequest(
-                        "Credential retrieval is only supported for external gateway APIs", log);
-                return null;
-            }
-
-            // Unified call with full credential flag
-            FederatedSubscriptionResult result = apiConsumer.getFederatedSubscription(
-                    subscriptionId, api, organization, true);
-            if (result == null) {
-                RestApiUtil.handleResourceNotFoundError(
-                        "Federated subscription", subscriptionId, log);
-                return null;
-            }
-
-            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
-            return Response.ok().entity(dto).build();
-
-        } catch (APIManagementException e) {
-            if (RestApiUtil.isDueToResourceNotFound(e)) {
-                RestApiUtil.handleResourceNotFoundError(
-                        RestApiConstants.RESOURCE_SUBSCRIPTION, subscriptionId, e, log);
-            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
-                RestApiUtil.handleAuthorizationFailure(
-                        "Authorization failure while retrieving credential: " + subscriptionId, e, log);
-            } else if (e.getMessage() != null && e.getMessage().contains("does not support credential retrieval")) {
-                RestApiUtil.handleBadRequest(e.getMessage(), log);
-            } else {
-                RestApiUtil.handleInternalServerError(
-                        "Error retrieving credential for: " + subscriptionId, e, log);
-            }
-        }
-        return null;
-    }
-
-
-    @Override
-    public Response regenerateSubscriptionCredential(String subscriptionId, MessageContext messageContext)
-            throws APIManagementException {
+    public Response regenerateFederatedCredential(String subscriptionId, String credentialId,
+            MessageContext messageContext) throws APIManagementException {
         String username = RestApiCommonUtil.getLoggedInUsername();
         try {
             String organization = RestApiUtil.getValidatedOrganization(messageContext);
@@ -886,25 +894,67 @@ public class SubscriptionsApiServiceImpl implements SubscriptionsApiService {
                 return null;
             }
 
-            // Single service call — returns complete result
-            FederatedSubscriptionResult result = apiConsumer.regenerateFederatedSubscriptionCredential(
-                    subscribedAPI, api, organization);
+            FederatedCredentialsResult result = apiConsumer.regenerateFederatedCredential(
+                    subscribedAPI, credentialId, api, organization);
 
             FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
             return Response.ok().entity(dto).build();
 
         } catch (APIManagementException e) {
             if (RestApiUtil.isDueToResourceNotFound(e)) {
-                RestApiUtil.handleResourceNotFoundError(
-                        RestApiConstants.RESOURCE_SUBSCRIPTION, subscriptionId, e, log);
+                RestApiUtil.handleResourceNotFoundError("Federated credential", credentialId, e, log);
             } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
                 RestApiUtil.handleAuthorizationFailure(
-                        "Authorization failure while regenerating credential: " + subscriptionId, e, log);
+                        "Authorization failure while regenerating credential: " + credentialId, e, log);
             } else if (e.getMessage() != null && e.getMessage().contains("does not support")) {
                 RestApiUtil.handleBadRequest(e.getMessage(), log);
             } else {
                 RestApiUtil.handleInternalServerError(
-                        "Error regenerating credential for subscription: " + subscriptionId, e, log);
+                        "Error regenerating credential: " + credentialId, e, log);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Response retrieveFederatedCredential(String subscriptionId, String credentialId,
+            MessageContext messageContext) throws APIManagementException {
+        String username = RestApiCommonUtil.getLoggedInUsername();
+        try {
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+
+            SubscribedAPI subscribedAPI = validateAndGetSubscription(subscriptionId, apiConsumer);
+            if (!RestAPIStoreUtils.isUserAccessAllowedForApplication(subscribedAPI.getApplication())) {
+                RestApiUtil.handleAuthorizationFailure(RestApiConstants.RESOURCE_APPLICATION,
+                        subscribedAPI.getApplication().getUUID(), log);
+                return null;
+            }
+
+            API api = validateFederatedApi(subscribedAPI, apiConsumer, organization);
+            if (api == null) {
+                RestApiUtil.handleBadRequest(
+                        "Credential retrieval is only supported for external gateway APIs", log);
+                return null;
+            }
+
+            FederatedCredentialsResult result = apiConsumer.getFederatedCredential(
+                    subscriptionId, credentialId, api, organization, true);
+
+            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
+            return Response.ok().entity(dto).build();
+
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError("Federated credential", credentialId, e, log);
+            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
+                RestApiUtil.handleAuthorizationFailure(
+                        "Authorization failure while retrieving credential: " + credentialId, e, log);
+            } else if (e.getMessage() != null && e.getMessage().contains("does not support credential retrieval")) {
+                RestApiUtil.handleBadRequest(e.getMessage(), log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error retrieving credential: " + credentialId, e, log);
             }
         }
         return null;

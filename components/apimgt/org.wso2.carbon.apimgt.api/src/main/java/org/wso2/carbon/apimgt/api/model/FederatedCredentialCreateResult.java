@@ -31,12 +31,12 @@ public class FederatedCredentialCreateResult {
 
     private final String subscriptionId;
     private final Status status;
-    private final FederatedSubscriptionResult federatedSubscriptionResult;
+    private final FederatedCredentialsResult federatedCredentialsResult;
 
     private FederatedCredentialCreateResult(Builder builder) {
         this.subscriptionId = builder.subscriptionId;
         this.status = builder.status;
-        this.federatedSubscriptionResult = builder.federatedSubscriptionResult;
+        this.federatedCredentialsResult = builder.federatedCredentialsResult;
     }
 
     public String getSubscriptionId() {
@@ -50,8 +50,8 @@ public class FederatedCredentialCreateResult {
     /**
      * Returns the full credential result. Only non-null when status is ACTIVE.
      */
-    public FederatedSubscriptionResult getFederatedSubscriptionResult() {
-        return federatedSubscriptionResult;
+    public FederatedCredentialsResult getFederatedSubscriptionResult() {
+        return federatedCredentialsResult;
     }
 
     public static Builder builder() {
@@ -61,7 +61,7 @@ public class FederatedCredentialCreateResult {
     public static class Builder {
         private String subscriptionId;
         private Status status;
-        private FederatedSubscriptionResult federatedSubscriptionResult;
+        private FederatedCredentialsResult federatedCredentialsResult;
 
         public Builder subscriptionId(String subscriptionId) {
             this.subscriptionId = subscriptionId;
@@ -73,8 +73,8 @@ public class FederatedCredentialCreateResult {
             return this;
         }
 
-        public Builder federatedSubscriptionResult(FederatedSubscriptionResult result) {
-            this.federatedSubscriptionResult = result;
+        public Builder federatedSubscriptionResult(FederatedCredentialsResult result) {
+            this.federatedCredentialsResult = result;
             return this;
         }
 

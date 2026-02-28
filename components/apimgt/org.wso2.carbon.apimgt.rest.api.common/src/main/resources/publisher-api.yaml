@@ -18876,17 +18876,12 @@ components:
           type: boolean
           description: Whether federation should be enabled for this API
         curatedPlanSelections:
-          type: array
-          description: List of plan enable/disable selections
-          items:
-            type: object
-            properties:
-              planId:
-                type: string
-                description: Gateway-specific plan identifier
-              enabled:
-                type: boolean
-                description: Whether the plan is enabled for developers
+          type: string
+          description: |
+            Opaque JSON string containing schema-specific curation selections.
+            The format depends on the subscription options schema (subscription-plans,
+            option-groups, etc.) and is parsed by the schema's applyCuration() method.
+            Passed through to the schema body without parsing at the controller layer.
     GatewaySupportSnapshot:
       title: Gateway Support Snapshot
       type: object

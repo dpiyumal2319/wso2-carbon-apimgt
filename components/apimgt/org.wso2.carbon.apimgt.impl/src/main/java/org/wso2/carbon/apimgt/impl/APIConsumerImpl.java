@@ -78,8 +78,9 @@ import org.wso2.carbon.apimgt.api.model.Documentation.DocumentVisibility;
 import org.wso2.carbon.apimgt.api.FederatedSubscriptionAgent;
 import org.wso2.carbon.apimgt.api.model.AgentOperationResult;
 import org.wso2.carbon.apimgt.api.model.ApiFederationConfig;
-import org.wso2.carbon.apimgt.api.model.FederatedCredentialCreateResult;
 import org.wso2.carbon.apimgt.api.model.FederatedCredentialSummary;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionCreateResult;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionSummary;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
 import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
 import org.wso2.carbon.apimgt.api.model.policy.PolicyConstants;
@@ -5826,7 +5827,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
     }
 
     @Override
-    public FederatedSubscriptionResult regenerateFederatedSubscriptionCredential(
+    public FederatedCredentialsResult regenerateFederatedSubscriptionCredential(
             SubscribedAPI subscribedAPI, API api, String organization) throws APIManagementException {
 
         String subscriptionUuid = subscribedAPI.getUUID();
@@ -5841,6 +5842,14 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                         + subscriptionUuid);
             }
 
+            // Get the credential to regenerate (use first available)
+            java.util.List<ExternalCredential> credentials = apiMgtDAO.getExternalCredentials(mapping.getUuid());
+            if (credentials.isEmpty()) {
+                throw new APIManagementException("No credential found to regenerate for subscription: "
+                        + subscriptionUuid);
+            }
+            ExternalCredential credential = credentials.get(0);
+
             // Get environment and agent
             Environment environment = apiMgtDAO.getEnvironment(organization, envId);
             if (environment == null) {
@@ -5852,10 +5861,10 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             // Get API reference artifact
             String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
 
-            // Build context with old artifact (agent extracts metadata it needs)
+            // Build context with old credential artifact (agent extracts metadata it needs)
             FederatedSubscriptionContext context = buildFederatedContext(subscribedAPI, api, organization,
-                    envId, apiRefArtifact, mapping.getExternalSubscriptionId(),
-                    mapping.getReferenceArtifact());
+                    envId, apiRefArtifact, credential.getExternalSubscriptionId(),
+                    credential.getReferenceArtifact());
 
             // Enrich context with stored federation config snapshot for agent use
             ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
@@ -5867,11 +5876,10 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             // Agent handles everything: extract metadata, delete, create, build new artifact
             AgentOperationResult result = agent.regenerateCredential(context);
 
-            // Update mapping with new opaque result
-            mapping.setExternalSubscriptionId(result.getExternalSubscriptionId());
-            mapping.setReferenceArtifact(result.getReferenceArtifact());
-            mapping.setLastUpdatedTime(new java.sql.Timestamp(System.currentTimeMillis()));
-            apiMgtDAO.updateSubscriptionExternalMapping(mapping);
+            // Update credential with new opaque result
+            credential.setExternalSubscriptionId(result.getExternalSubscriptionId());
+            credential.setReferenceArtifact(result.getReferenceArtifact());
+            apiMgtDAO.updateExternalCredential(credential);
 
             return buildResult(result.getCredential(), result.getInstruction(), environment, envId);
 
@@ -5883,20 +5891,19 @@ APIConstants.AuditLogConstants.DELETED, this.username);
     }
 
     @Override
-    public FederatedSubscriptionResult createFederatedSubscription(SubscribedAPI subscribedAPI, API api,
-            String organization) throws APIManagementException {
+    public FederatedCredentialsResult createFederatedCredential(SubscribedAPI subscribedAPI, API api,
+                                                                String organization, String name, String authzUser)
+            throws APIManagementException {
 
         String subscriptionUuid = subscribedAPI.getUUID();
         String envId = resolveGatewayEnvironmentId(api);
 
-        // Resolve the pending mapping — lazy provisioning requires an existing placeholder
-        SubscriptionExternalMapping existingMapping = null;
-        if (apiMgtDAO.subscriptionExternalMappingExists(subscriptionUuid, envId)) {
-            existingMapping = apiMgtDAO.getSubscriptionExternalMapping(subscriptionUuid, envId);
-            if (existingMapping != null && existingMapping.getReferenceArtifact() != null) {
-                throw new APIManagementException("Federated subscription mapping already exists for subscription: "
-                        + subscriptionUuid + " in environment: " + envId);
-            }
+        // Mapping must already exist — subscription was created via createFederatedSubscription
+        SubscriptionExternalMapping mapping = apiMgtDAO.getSubscriptionExternalMapping(subscriptionUuid, envId);
+        if (mapping == null) {
+            throw new APIManagementException("No subscription mapping found for subscription: "
+                    + subscriptionUuid + " in environment: " + envId
+                    + ". Subscribe to the API before generating credentials.");
         }
 
         // Get gateway environment
@@ -5912,7 +5919,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         // Get API reference artifact
         String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
 
-        // Build lean context
+        // Build lean context (no credential artifact yet)
         FederatedSubscriptionContext context = buildFederatedContext(subscribedAPI, api, organization,
                 envId, apiRefArtifact, null, null);
 
@@ -5923,40 +5930,34 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             context = context.toBuilder().federationConfigSnapshot(configSnapshot).build();
         }
 
-        // Read selectedOption from the stored mapping (set at subscription time, not re-submitted here)
-        String storedSelectedOption = (existingMapping != null) ? existingMapping.getSelectedOption() : null;
+        // Read selectedOption from the stored mapping artifact (set at subscription time)
+        String storedSelectedOption = extractSelectedOptionFromMappingArtifact(mapping.getReferenceArtifact());
         String agentSelectedOption = extractSelectedOptionBody(storedSelectedOption);
 
-        // Agent creates subscription, builds artifact, and bundles everything
+        // Agent creates subscription on gateway and returns credential + artifact
         AgentOperationResult result = agent.createSubscription(context, agentSelectedOption);
 
-        if (existingMapping != null) {
-            // Update existing pending mapping with credential from gateway
-            existingMapping.setExternalSubscriptionId(result.getExternalSubscriptionId());
-            existingMapping.setReferenceArtifact(result.getReferenceArtifact());
-            existingMapping.setLastUpdatedTime(new java.sql.Timestamp(System.currentTimeMillis()));
-            apiMgtDAO.updateSubscriptionExternalMapping(existingMapping);
-        } else {
-            // Store new mapping (no selectedOption since it was not predetermined)
-            SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
-            mapping.setSubscriptionUuid(subscriptionUuid);
-            mapping.setGatewayEnvironmentId(envId);
-            mapping.setExternalSubscriptionId(result.getExternalSubscriptionId());
-            mapping.setReferenceArtifact(result.getReferenceArtifact());
-            apiMgtDAO.addSubscriptionExternalMapping(mapping);
-        }
+        // Store the credential in AM_EXTERNAL_CREDENTIAL
+        ExternalCredential credential = new ExternalCredential();
+        credential.setUuid(UUID.randomUUID().toString());
+        credential.setMappingUuid(mapping.getUuid());
+        credential.setApplicationId(subscribedAPI.getApplication().getUUID());
+        credential.setApiId(api.getUuid());
+        credential.setAuthzUser(StringUtils.isNotBlank(authzUser)
+                ? authzUser : subscribedAPI.getSubscriber().getName());
+        credential.setGatewayEnvironmentId(envId);
+        credential.setName(name);
+        credential.setExternalSubscriptionId(result.getExternalSubscriptionId());
+        credential.setReferenceArtifact(result.getReferenceArtifact());
+        apiMgtDAO.addExternalCredential(credential);
 
         return buildResult(result.getCredential(), result.getInstruction(), environment, envId);
     }
 
     @Override
-    public FederatedCredentialCreateResult subscribeAndCreateFederatedCredential(String apiId,
-            String applicationId, String organization, String userId, String name,
+    public FederatedSubscriptionCreateResult createFederatedSubscription(String apiId,
+            String applicationId, String organization, String userId,
             String selectedOption) throws APIManagementException {
-
-        if (name == null || name.trim().isEmpty()) {
-            throw new APIManagementException("Credential name is required");
-        }
 
         // 1. Get API and Application
         API api = getLightweightAPIByUUID(apiId, organization);
@@ -5977,79 +5978,24 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         String subscriptionUuid = subResponse.getSubscriptionUUID();
         String subscriptionStatus = subResponse.getSubscriptionStatus();
 
-        // 3. Resolve gateway environment
+        // 3. Resolve gateway environment and create mapping row with selectedOption embedded.
+        //    No gateway call is made here — credentials are provisioned separately.
         String envId = resolveGatewayEnvironmentId(api);
-        Environment environment = apiMgtDAO.getEnvironment(organization, envId);
+        String mappingUuid = UUID.randomUUID().toString();
+        SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
+        mapping.setUuid(mappingUuid);
+        mapping.setSubscriptionUuid(subscriptionUuid);
+        mapping.setGatewayEnvironmentId(envId);
+        mapping.setReferenceArtifact(buildMappingArtifact(selectedOption));
+        apiMgtDAO.addSubscriptionExternalMapping(mapping);
 
-        // 4. Branch on subscription status
-        if (APIConstants.SubscriptionStatus.UNBLOCKED.equals(subscriptionStatus)) {
-            // Auto-approved: provision on gateway immediately
-            try {
-                SubscribedAPI subscribedAPI = getSubscriptionByUUID(subscriptionUuid);
-                String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
+        // 4. Return status based on subscription approval status
+        boolean isActive = APIConstants.SubscriptionStatus.UNBLOCKED.equals(subscriptionStatus);
+        String resultStatus = isActive
+                ? FederatedSubscriptionCreateResult.STATUS_ACTIVE
+                : FederatedSubscriptionCreateResult.STATUS_PENDING_APPROVAL;
 
-                FederatedSubscriptionContext context = buildFederatedContext(subscribedAPI, api, organization,
-                        envId, apiRefArtifact, null, null);
-
-                // Enrich with federation config snapshot
-                ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
-                SubscriptionSupportInfo configSnapshot = (fedConfig != null) ?
-                        fedConfig.getPublisherCuratedConfig() : null;
-                if (configSnapshot != null) {
-                    context = context.toBuilder().federationConfigSnapshot(configSnapshot).build();
-                }
-
-                // Extract raw body from {schemaName, body} wrapper for the agent
-                String agentSelectedOption = extractSelectedOptionBody(selectedOption);
-
-                FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
-                        environment, organization);
-                AgentOperationResult result = agent.createSubscription(context, agentSelectedOption);
-
-                // Store mapping with full data
-                SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
-                mapping.setSubscriptionUuid(subscriptionUuid);
-                mapping.setGatewayEnvironmentId(envId);
-                mapping.setExternalSubscriptionId(result.getExternalSubscriptionId());
-                mapping.setName(name);
-                mapping.setReferenceArtifact(result.getReferenceArtifact());
-                mapping.setSelectedOption(selectedOption);
-                apiMgtDAO.addSubscriptionExternalMapping(mapping);
-
-                FederatedSubscriptionResult fedResult = buildResult(
-                        result.getCredential(), result.getInstruction(), environment, envId);
-
-                return FederatedCredentialCreateResult.builder()
-                        .subscriptionId(subscriptionUuid)
-                        .status(FederatedCredentialCreateResult.Status.ACTIVE)
-                        .federatedSubscriptionResult(fedResult)
-                        .build();
-
-            } catch (APIManagementException e) {
-                // Rollback: delete the WSO2 subscription if gateway provisioning fails
-                log.error("Gateway provisioning failed. Rolling back WSO2 subscription: " + subscriptionUuid, e);
-                try {
-                    removeSubscription(getSubscriptionByUUID(subscriptionUuid), organization);
-                } catch (APIManagementException rollbackEx) {
-                    log.error("Failed to rollback WSO2 subscription: " + subscriptionUuid, rollbackEx);
-                }
-                throw e;
-            }
-
-        } else {
-            // Approval needed (ON_HOLD): store mapping placeholder, no gateway call
-            SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
-            mapping.setSubscriptionUuid(subscriptionUuid);
-            mapping.setGatewayEnvironmentId(envId);
-            mapping.setName(name);
-            mapping.setSelectedOption(selectedOption);
-            apiMgtDAO.addSubscriptionExternalMapping(mapping);
-
-            return FederatedCredentialCreateResult.builder()
-                    .subscriptionId(subscriptionUuid)
-                    .status(FederatedCredentialCreateResult.Status.PENDING_APPROVAL)
-                    .build();
-        }
+        return new FederatedSubscriptionCreateResult(subscriptionUuid, resultStatus);
     }
 
     @Override
@@ -6057,6 +6003,199 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             throws APIManagementException {
         String envId = resolveGatewayEnvironmentId(getLightweightAPIByUUID(apiUuid, organization));
         return apiMgtDAO.getApiCredentialSummaries(apiUuid, envId);
+    }
+
+    @Override
+    public List<FederatedSubscriptionSummary> getApiSubscriptionSummaries(String apiUuid, String organization)
+            throws APIManagementException {
+        String envId = resolveGatewayEnvironmentId(getLightweightAPIByUUID(apiUuid, organization));
+        return apiMgtDAO.getApiSubscriptionSummaries(apiUuid, envId);
+    }
+
+    @Override
+    public List<FederatedCredentialsResult> listFederatedCredentials(String subscriptionUuid, API api,
+            String organization) throws APIManagementException {
+
+        String envId = resolveGatewayEnvironmentId(api);
+        SubscribedAPI subscribedAPI = getSubscriptionByUUID(subscriptionUuid);
+        if (subscribedAPI == null) {
+            throw new APIManagementException("Subscription not found: " + subscriptionUuid,
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+        validateSubscriptionApiScope(subscribedAPI, api);
+        String applicationUuid = subscribedAPI.getApplication().getUUID();
+
+        java.util.List<ExternalCredential> credentials = apiMgtDAO.getExternalCredentials(
+                api.getUuid(), applicationUuid, envId);
+        if (credentials.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+
+        Environment environment = apiMgtDAO.getEnvironment(organization, envId);
+        if (environment == null) {
+            throw new APIManagementException("Gateway environment not found: " + envId);
+        }
+        FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
+                environment, organization);
+
+        String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
+        ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
+        SubscriptionSupportInfo configSnapshot = (fedConfig != null) ? fedConfig.getPublisherCuratedConfig() : null;
+
+        java.util.List<FederatedCredentialsResult> results = new java.util.ArrayList<>();
+        for (ExternalCredential credential : credentials) {
+            validateCredentialScope(credential, subscribedAPI, api, envId);
+            FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
+                    .subscriptionUuid(subscriptionUuid)
+                    .externalSubscriptionId(credential.getExternalSubscriptionId())
+                    .credentialReferenceArtifact(credential.getReferenceArtifact())
+                    .apiReferenceArtifact(apiRefArtifact)
+                    .environmentId(envId)
+                    .organizationId(organization)
+                    .federationConfigSnapshot(configSnapshot)
+                    .build();
+            AgentOperationResult agentResult = agent.retrieveSubscription(context, false);
+            FederatedCredentialsResult result = buildResult(
+                    agentResult.getCredential(), agentResult.getInstruction(), environment, envId);
+            result.setCredentialUuid(credential.getUuid());
+            results.add(result);
+        }
+        return results;
+    }
+
+    @Override
+    public FederatedCredentialsResult getFederatedCredential(String subscriptionUuid, String credentialUuid,
+            API api, String organization, boolean includeFullCredential) throws APIManagementException {
+
+        String envId = resolveGatewayEnvironmentId(api);
+        SubscribedAPI subscribedAPI = getSubscriptionByUUID(subscriptionUuid);
+        if (subscribedAPI == null) {
+            throw new APIManagementException("Subscription not found: " + subscriptionUuid,
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+        validateSubscriptionApiScope(subscribedAPI, api);
+
+        ExternalCredential credential = apiMgtDAO.getExternalCredential(credentialUuid);
+        if (credential == null) {
+            throw new APIManagementException("Credential not found: " + credentialUuid,
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+        validateCredentialScope(credential, subscribedAPI, api, envId);
+
+        Environment environment = apiMgtDAO.getEnvironment(organization, envId);
+        if (environment == null) {
+            throw new APIManagementException("Gateway environment not found: " + envId);
+        }
+        FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
+                environment, organization);
+
+        String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
+        ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
+        SubscriptionSupportInfo configSnapshot = (fedConfig != null) ? fedConfig.getPublisherCuratedConfig() : null;
+
+        FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
+                .subscriptionUuid(subscriptionUuid)
+                .externalSubscriptionId(credential.getExternalSubscriptionId())
+                .credentialReferenceArtifact(credential.getReferenceArtifact())
+                .apiReferenceArtifact(apiRefArtifact)
+                .environmentId(envId)
+                .organizationId(organization)
+                .federationConfigSnapshot(configSnapshot)
+                .build();
+
+        AgentOperationResult agentResult = agent.retrieveSubscription(context, includeFullCredential);
+        FederatedCredentialsResult result = buildResult(
+                agentResult.getCredential(), agentResult.getInstruction(), environment, envId);
+        result.setCredentialUuid(credential.getUuid());
+        return result;
+    }
+
+    @Override
+    public void deleteFederatedCredentialByUuid(String subscriptionUuid, String credentialUuid,
+            API api, String organization) throws APIManagementException {
+
+        String envId = resolveGatewayEnvironmentId(api);
+        SubscribedAPI subscribedAPI = getSubscriptionByUUID(subscriptionUuid);
+        if (subscribedAPI == null) {
+            throw new APIManagementException("Subscription not found: " + subscriptionUuid,
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+        validateSubscriptionApiScope(subscribedAPI, api);
+
+        ExternalCredential credential = apiMgtDAO.getExternalCredential(credentialUuid);
+        if (credential == null) {
+            throw new APIManagementException("Credential not found: " + credentialUuid,
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+        validateCredentialScope(credential, subscribedAPI, api, envId);
+
+        Environment environment = apiMgtDAO.getEnvironment(organization, envId);
+        if (environment != null) {
+            try {
+                FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
+                        environment, organization);
+                FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
+                        .subscriptionUuid(subscriptionUuid)
+                        .externalSubscriptionId(credential.getExternalSubscriptionId())
+                        .credentialReferenceArtifact(credential.getReferenceArtifact())
+                        .environmentId(envId)
+                        .organizationId(organization)
+                        .build();
+                agent.deleteSubscription(context);
+            } catch (Exception e) {
+                log.error("Failed to delete credential from external gateway: " + credentialUuid
+                        + ". Proceeding to clear local record.", e);
+            }
+        } else {
+            log.warn("Gateway environment not found: " + envId + ". Clearing local credential data only.");
+        }
+
+        apiMgtDAO.deleteExternalCredential(credentialUuid);
+    }
+
+    @Override
+    public FederatedCredentialsResult regenerateFederatedCredential(SubscribedAPI subscribedAPI,
+            String credentialUuid, API api, String organization) throws APIManagementException {
+
+        String subscriptionUuid = subscribedAPI.getUUID();
+        String envId = resolveGatewayEnvironmentId(api);
+        validateSubscriptionApiScope(subscribedAPI, api);
+
+        ExternalCredential credential = apiMgtDAO.getExternalCredential(credentialUuid);
+        if (credential == null) {
+            throw new APIManagementException("Credential not found: " + credentialUuid,
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+        validateCredentialScope(credential, subscribedAPI, api, envId);
+
+        Environment environment = apiMgtDAO.getEnvironment(organization, envId);
+        if (environment == null) {
+            throw new APIManagementException("Gateway environment not found: " + envId);
+        }
+        FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
+                environment, organization);
+
+        String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
+        ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
+        SubscriptionSupportInfo configSnapshot = (fedConfig != null) ? fedConfig.getPublisherCuratedConfig() : null;
+
+        FederatedSubscriptionContext context = buildFederatedContext(subscribedAPI, api, organization,
+                envId, apiRefArtifact, credential.getExternalSubscriptionId(),
+                credential.getReferenceArtifact());
+        if (configSnapshot != null) {
+            context = context.toBuilder().federationConfigSnapshot(configSnapshot).build();
+        }
+
+        AgentOperationResult result = agent.regenerateCredential(context);
+
+        credential.setExternalSubscriptionId(result.getExternalSubscriptionId());
+        credential.setReferenceArtifact(result.getReferenceArtifact());
+        apiMgtDAO.updateExternalCredential(credential);
+
+        FederatedCredentialsResult credentialsResult = buildResult(
+                result.getCredential(), result.getInstruction(), environment, envId);
+        credentialsResult.setCredentialUuid(credential.getUuid());
+        return credentialsResult;
     }
 
     /**
@@ -6079,17 +6218,60 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         return selectedOption;
     }
 
-    @Override
-    public FederatedSubscriptionResult getFederatedSubscription(String subscriptionUuid, API api,
-            String organization, boolean includeFullCredential) throws APIManagementException {
-
-        String envId = resolveGatewayEnvironmentId(api);
-
-        SubscriptionExternalMapping mapping = apiMgtDAO.getSubscriptionExternalMapping(
-                subscriptionUuid, envId);
-        if (mapping == null) {
+    /**
+     * Extracts the "selectedOption" field from a mapping's JSON reference artifact.
+     * Returns null if the artifact is null or does not contain the field.
+     */
+    private String extractSelectedOptionFromMappingArtifact(String mappingArtifact) {
+        if (mappingArtifact == null || mappingArtifact.isEmpty()) {
             return null;
         }
+        try {
+            com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(mappingArtifact)
+                    .getAsJsonObject();
+            if (json.has("selectedOption")) {
+                com.google.gson.JsonElement el = json.get("selectedOption");
+                return el.isJsonNull() ? null : el.getAsString();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse mapping reference artifact for selectedOption extraction", e);
+        }
+        return null;
+    }
+
+    /**
+     * Builds the JSON blob stored in AM_SUBSCRIPTION_EXTERNAL_MAPPING.REFERENCE_ARTIFACT.
+     * Embeds the selectedOption (as supplied by the user) so it can be recovered at provisioning time.
+     * Returns null if selectedOption is null.
+     */
+    private String buildMappingArtifact(String selectedOption) {
+        if (selectedOption == null) {
+            return null;
+        }
+        com.google.gson.JsonObject json = new com.google.gson.JsonObject();
+        json.addProperty("selectedOption", selectedOption);
+        return json.toString();
+    }
+
+    @Override
+    public FederatedCredentialsResult getFederatedCredentials(String subscriptionUuid, API api,
+                                                              String organization, boolean includeFullCredential) throws APIManagementException {
+
+        String envId = resolveGatewayEnvironmentId(api);
+        SubscribedAPI subscribedAPI = getSubscriptionByUUID(subscriptionUuid);
+        if (subscribedAPI == null) {
+            return null;
+        }
+        validateSubscriptionApiScope(subscribedAPI, api);
+
+        // Get the credential (use first available in subscription scope)
+        java.util.List<ExternalCredential> credentials = apiMgtDAO.getExternalCredentials(
+                api.getUuid(), subscribedAPI.getApplication().getUUID(), envId);
+        if (credentials.isEmpty()) {
+            return null;
+        }
+        ExternalCredential credential = credentials.get(0);
+        validateCredentialScope(credential, subscribedAPI, api, envId);
 
         // Get environment and agent
         Environment environment = apiMgtDAO.getEnvironment(organization, envId);
@@ -6099,14 +6281,14 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
                 environment, organization);
 
-        // Build context with all available artifacts
+        // Build context with credential artifact
         String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
         ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
         SubscriptionSupportInfo configSnapshot = (fedConfig != null) ? fedConfig.getPublisherCuratedConfig() : null;
         FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
                 .subscriptionUuid(subscriptionUuid)
-                .externalSubscriptionId(mapping.getExternalSubscriptionId())
-                .subscriptionReferenceArtifact(mapping.getReferenceArtifact())
+                .externalSubscriptionId(credential.getExternalSubscriptionId())
+                .credentialReferenceArtifact(credential.getReferenceArtifact())
                 .apiReferenceArtifact(apiRefArtifact)
                 .environmentId(envId)
                 .organizationId(organization)
@@ -6120,66 +6302,88 @@ APIConstants.AuditLogConstants.DELETED, this.username);
     }
 
     @Override
-    public void deleteFederatedSubscription(String subscriptionUuid, API api,
-            String organization) throws APIManagementException {
+    public void deleteFederatedCredential(String subscriptionUuid, API api,
+                                          String organization) throws APIManagementException {
 
         String envId = resolveGatewayEnvironmentId(api);
-
-        // Get subscription external mapping
-        SubscriptionExternalMapping mapping = apiMgtDAO.getSubscriptionExternalMapping(
-                subscriptionUuid, envId);
-
-        if (mapping == null) {
+        SubscribedAPI subscribedAPI = getSubscriptionByUUID(subscriptionUuid);
+        if (subscribedAPI == null) {
             if (log.isDebugEnabled()) {
-                log.debug("No federated subscription mapping found for subscription: " + subscriptionUuid
-                        + " in environment: " + envId + ". Nothing to revoke.");
+                log.debug("No subscription found for UUID: " + subscriptionUuid + ". Nothing to revoke.");
             }
             return;
         }
+        validateSubscriptionApiScope(subscribedAPI, api);
+
+        // Get all credentials for this subscription scope
+        java.util.List<ExternalCredential> credentials = apiMgtDAO.getExternalCredentials(
+                api.getUuid(), subscribedAPI.getApplication().getUUID(), envId);
 
         // Get gateway environment
         Environment environment = apiMgtDAO.getEnvironment(organization, envId);
         if (environment == null) {
-            log.warn("Gateway environment not found: " + envId
-                    + ". Clearing local credential data only.");
-            clearLocalCredential(subscriptionUuid, envId, mapping);
+            log.warn("Gateway environment not found: " + envId + ". Clearing local credential data only.");
+            for (ExternalCredential credential : credentials) {
+                apiMgtDAO.deleteExternalCredential(credential.getUuid());
+            }
             return;
         }
 
-        // Best-effort delete credential from external gateway
-        try {
-            FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
-                    environment, organization);
+        // Best-effort delete each credential from external gateway
+        FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
+                environment, organization);
 
-            FederatedSubscriptionContext deleteContext = FederatedSubscriptionContext.builder()
-                    .subscriptionUuid(subscriptionUuid)
-                    .externalSubscriptionId(mapping.getExternalSubscriptionId())
-                    .subscriptionReferenceArtifact(mapping.getReferenceArtifact())
-                    .environmentId(envId)
-                    .organizationId(organization)
-                    .build();
+        for (ExternalCredential credential : credentials) {
+            try {
+                validateCredentialScope(credential, subscribedAPI, api, envId);
+                FederatedSubscriptionContext deleteContext = FederatedSubscriptionContext.builder()
+                        .subscriptionUuid(subscriptionUuid)
+                        .externalSubscriptionId(credential.getExternalSubscriptionId())
+                        .credentialReferenceArtifact(credential.getReferenceArtifact())
+                        .environmentId(envId)
+                        .organizationId(organization)
+                        .build();
 
-            agent.deleteSubscription(deleteContext);
-        } catch (APIManagementException e) {
-            log.error("Failed to revoke credential from external gateway. External subscription ID: "
-                    + mapping.getExternalSubscriptionId() + ". Proceeding to clear local credential data.", e);
+                agent.deleteSubscription(deleteContext);
+            } catch (APIManagementException e) {
+                log.error("Failed to revoke credential from external gateway. External subscription ID: "
+                        + credential.getExternalSubscriptionId()
+                        + ". Proceeding to clear local credential data.", e);
+            }
+
+            // Delete the credential row — mapping row is kept so a new credential can be provisioned later
+            apiMgtDAO.deleteExternalCredential(credential.getUuid());
         }
-
-        // Clear the credential fields from the mapping row — the row itself is kept so the
-        // subscription can have a new credential provisioned later (re-provision path).
-        clearLocalCredential(subscriptionUuid, envId, mapping);
     }
 
-    /**
-     * Clears the credential fields (EXTERNAL_SUBSCRIPTION_ID, REFERENCE_ARTIFACT) from an
-     * existing external mapping row without deleting it. The subscription association is
-     * preserved so credentials can be re-provisioned later.
-     */
-    private void clearLocalCredential(String subscriptionUuid, String envId,
-            SubscriptionExternalMapping mapping) throws APIManagementException {
-        mapping.setExternalSubscriptionId(null);
-        mapping.setReferenceArtifact(null);
-        apiMgtDAO.updateSubscriptionExternalMapping(mapping);
+    private void validateSubscriptionApiScope(SubscribedAPI subscribedAPI, API api) throws APIManagementException {
+        if (subscribedAPI == null || subscribedAPI.getIdentifier() == null) {
+            throw new APIManagementException("Invalid subscription scope",
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+        String subscribedApiUuid = subscribedAPI.getIdentifier().getUUID();
+        if (StringUtils.isBlank(subscribedApiUuid) || !subscribedApiUuid.equals(api.getUuid())) {
+            throw new APIManagementException("Subscription does not belong to API: " + api.getUuid(),
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+    }
+
+    private void validateCredentialScope(ExternalCredential credential, SubscribedAPI subscribedAPI,
+                                         API api, String envId) throws APIManagementException {
+        if (credential == null || subscribedAPI == null || subscribedAPI.getApplication() == null) {
+            throw new APIManagementException("Credential scope validation failed",
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+        String applicationUuid = subscribedAPI.getApplication().getUUID();
+        boolean apiMismatch = StringUtils.isBlank(credential.getApiId()) || !api.getUuid().equals(credential.getApiId());
+        boolean appMismatch = StringUtils.isBlank(credential.getApplicationId())
+                || !applicationUuid.equals(credential.getApplicationId());
+        boolean envMismatch = StringUtils.isBlank(credential.getGatewayEnvironmentId())
+                || !envId.equals(credential.getGatewayEnvironmentId());
+        if (apiMismatch || appMismatch || envMismatch) {
+            throw new APIManagementException("Credential does not belong to the provided subscription scope",
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
     }
 
     // --- Private helpers for federated subscription operations ---
@@ -6201,14 +6405,14 @@ APIConstants.AuditLogConstants.DELETED, this.username);
      */
     private FederatedSubscriptionContext buildFederatedContext(SubscribedAPI subscribedAPI, API api,
             String organization, String envId, String apiRefArtifact, String extSubId,
-            String subRefArtifact) {
+            String credRefArtifact) {
 
         Application application = subscribedAPI.getApplication();
         return FederatedSubscriptionContext.builder()
                 .subscriptionUuid(subscribedAPI.getUUID())
                 .externalSubscriptionId(extSubId)
                 .apiReferenceArtifact(apiRefArtifact)
-                .subscriptionReferenceArtifact(subRefArtifact)
+                .credentialReferenceArtifact(credRefArtifact)
                 .apiName(api.getId().getApiName())
                 .apiVersion(api.getId().getVersion())
                 .apiContext(api.getContext())
@@ -6225,9 +6429,9 @@ APIConstants.AuditLogConstants.DELETED, this.username);
     /**
      * Assembles a FederatedSubscriptionResult from components.
      */
-    private FederatedSubscriptionResult buildResult(FederatedCredential credential,
-            InvocationInstruction instruction, Environment environment, String envId) {
-        return new FederatedSubscriptionResult(credential, instruction,
+    private FederatedCredentialsResult buildResult(FederatedCredential credential,
+                                                   InvocationInstruction instruction, Environment environment, String envId) {
+        return new FederatedCredentialsResult(credential, instruction,
                 environment.getGatewayType(), envId);
     }
 

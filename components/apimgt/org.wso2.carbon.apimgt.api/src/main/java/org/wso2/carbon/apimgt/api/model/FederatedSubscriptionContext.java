@@ -35,6 +35,7 @@ public class FederatedSubscriptionContext {
     // Both Reference Artifacts
     private String apiReferenceArtifact;        // From AM_API_EXTERNAL_API_MAPPING
     private String subscriptionReferenceArtifact; // From AM_SUBSCRIPTION_EXTERNAL_MAPPING
+    private String credentialReferenceArtifact;   // From AM_EXTERNAL_CREDENTIAL
 
     // WSO2 Metadata (for display names, logging)
     private String apiName;
@@ -71,6 +72,7 @@ public class FederatedSubscriptionContext {
         this.throttlingPolicy = builder.throttlingPolicy;
         this.properties = builder.properties != null ? new HashMap<>(builder.properties) : new HashMap<>();
         this.federationConfigSnapshot = builder.federationConfigSnapshot;
+        this.credentialReferenceArtifact = builder.credentialReferenceArtifact;
     }
 
     public static Builder builder() {
@@ -92,6 +94,10 @@ public class FederatedSubscriptionContext {
 
     public String getSubscriptionReferenceArtifact() {
         return subscriptionReferenceArtifact;
+    }
+
+    public String getCredentialReferenceArtifact() {
+        return credentialReferenceArtifact;
     }
 
     public String getApiName() {
@@ -156,6 +162,7 @@ public class FederatedSubscriptionContext {
         b.externalSubscriptionId = this.externalSubscriptionId;
         b.apiReferenceArtifact = this.apiReferenceArtifact;
         b.subscriptionReferenceArtifact = this.subscriptionReferenceArtifact;
+        b.credentialReferenceArtifact = this.credentialReferenceArtifact;
         b.apiName = this.apiName;
         b.apiVersion = this.apiVersion;
         b.apiContext = this.apiContext;
@@ -176,6 +183,7 @@ public class FederatedSubscriptionContext {
         private String externalSubscriptionId;
         private String apiReferenceArtifact;
         private String subscriptionReferenceArtifact;
+        private String credentialReferenceArtifact;
         private String apiName;
         private String apiVersion;
         private String apiContext;
@@ -206,6 +214,11 @@ public class FederatedSubscriptionContext {
 
         public Builder subscriptionReferenceArtifact(String subscriptionReferenceArtifact) {
             this.subscriptionReferenceArtifact = subscriptionReferenceArtifact;
+            return this;
+        }
+
+        public Builder credentialReferenceArtifact(String credentialReferenceArtifact) {
+            this.credentialReferenceArtifact = credentialReferenceArtifact;
             return this;
         }
 

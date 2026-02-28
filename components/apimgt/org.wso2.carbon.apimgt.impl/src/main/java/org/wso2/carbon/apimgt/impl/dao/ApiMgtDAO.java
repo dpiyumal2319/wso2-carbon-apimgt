@@ -64,7 +64,9 @@ import org.wso2.carbon.apimgt.api.model.Application;
 import org.wso2.carbon.apimgt.api.model.ApplicationExternalMapping;
 import org.wso2.carbon.apimgt.api.model.ApiFederationConfig;
 import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
+import org.wso2.carbon.apimgt.api.model.ExternalCredential;
 import org.wso2.carbon.apimgt.api.model.FederatedCredentialSummary;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionSummary;
 import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
 import org.wso2.carbon.apimgt.api.model.ApplicationInfo;
 import org.wso2.carbon.apimgt.api.model.ApplicationInfoKeyManager;
@@ -16775,27 +16777,13 @@ public class ApiMgtDAO {
              PreparedStatement ps = connection.prepareStatement(SQLConstants.ADD_SUBSCRIPTION_EXTERNAL_MAPPING_SQL)) {
 
             connection.setAutoCommit(false);
-            ps.setString(1, mapping.getSubscriptionUuid());
-            ps.setString(2, mapping.getGatewayEnvironmentId());
-            if (mapping.getExternalSubscriptionId() != null) {
-                ps.setString(3, mapping.getExternalSubscriptionId());
-            } else {
-                ps.setNull(3, java.sql.Types.VARCHAR);
-            }
-            if (mapping.getName() != null) {
-                ps.setString(4, mapping.getName());
-            } else {
-                ps.setNull(4, java.sql.Types.VARCHAR);
-            }
+            ps.setString(1, mapping.getUuid());
+            ps.setString(2, mapping.getSubscriptionUuid());
+            ps.setString(3, mapping.getGatewayEnvironmentId());
             if (mapping.getReferenceArtifact() != null) {
-                ps.setBytes(5, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
+                ps.setBytes(4, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
             } else {
-                ps.setNull(5, java.sql.Types.BLOB);
-            }
-            if (mapping.getSelectedOption() != null) {
-                ps.setBytes(6, mapping.getSelectedOption().getBytes(StandardCharsets.UTF_8));
-            } else {
-                ps.setNull(6, java.sql.Types.BLOB);
+                ps.setNull(4, java.sql.Types.BLOB);
             }
             ps.executeUpdate();
             connection.commit();
@@ -16827,22 +16815,15 @@ public class ApiMgtDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     mapping = new SubscriptionExternalMapping();
+                    mapping.setUuid(rs.getString("UUID"));
                     mapping.setSubscriptionUuid(subscriptionUuid);
                     mapping.setGatewayEnvironmentId(environmentId);
-                    mapping.setExternalSubscriptionId(rs.getString("EXTERNAL_SUBSCRIPTION_ID"));
-                    mapping.setName(rs.getString("NAME"));
                     mapping.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
                     mapping.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
 
                     try (InputStream inputStream = rs.getBinaryStream("REFERENCE_ARTIFACT")) {
                         if (inputStream != null) {
                             mapping.setReferenceArtifact(IOUtils.toString(inputStream, StandardCharsets.UTF_8));
-                        }
-                    }
-
-                    try (InputStream optionStream = rs.getBinaryStream("SELECTED_OPTION")) {
-                        if (optionStream != null) {
-                            mapping.setSelectedOption(IOUtils.toString(optionStream, StandardCharsets.UTF_8));
                         }
                     }
                 }
@@ -16867,25 +16848,18 @@ public class ApiMgtDAO {
              PreparedStatement ps = connection.prepareStatement(SQLConstants.UPDATE_SUBSCRIPTION_EXTERNAL_MAPPING_SQL)) {
 
             connection.setAutoCommit(false);
-            if (mapping.getExternalSubscriptionId() != null) {
-                ps.setString(1, mapping.getExternalSubscriptionId());
-            } else {
-                ps.setNull(1, java.sql.Types.VARCHAR);
-            }
             if (mapping.getReferenceArtifact() != null) {
-                ps.setBytes(2, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
+                ps.setBytes(1, mapping.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
             } else {
-                ps.setNull(2, java.sql.Types.BLOB);
+                ps.setNull(1, java.sql.Types.BLOB);
             }
-            ps.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
-            ps.setString(4, mapping.getSubscriptionUuid());
-            ps.setString(5, mapping.getGatewayEnvironmentId());
+            ps.setTimestamp(2, new Timestamp(System.currentTimeMillis()));
+            ps.setString(3, mapping.getUuid());
             ps.executeUpdate();
             connection.commit();
 
         } catch (SQLException e) {
-            handleException("Error while updating subscription external mapping for subscription: " 
-                    + mapping.getSubscriptionUuid(), e);
+            handleException("Error while updating subscription external mapping: " + mapping.getUuid(), e);
         }
     }
 
@@ -16953,11 +16927,10 @@ public class ApiMgtDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
+                    mapping.setUuid(rs.getString("UUID"));
                     mapping.setSubscriptionUuid(subscriptionUuid);
                     String environmentId = rs.getString("GATEWAY_ENV_ID");
                     mapping.setGatewayEnvironmentId(environmentId);
-                    mapping.setExternalSubscriptionId(rs.getString("EXTERNAL_SUBSCRIPTION_ID"));
-                    mapping.setName(rs.getString("NAME"));
                     mapping.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
                     mapping.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
 
@@ -16967,18 +16940,12 @@ public class ApiMgtDAO {
                         }
                     }
 
-                    try (InputStream optionStream = rs.getBinaryStream("SELECTED_OPTION")) {
-                        if (optionStream != null) {
-                            mapping.setSelectedOption(IOUtils.toString(optionStream, StandardCharsets.UTF_8));
-                        }
-                    }
-
                     mappings.put(environmentId, mapping);
                 }
             }
 
         } catch (SQLException | IOException e) {
-            handleException("Error while retrieving all subscription external mappings for subscription: " 
+            handleException("Error while retrieving all subscription external mappings for subscription: "
                     + subscriptionUuid, e);
         }
 
@@ -17036,16 +17003,18 @@ public class ApiMgtDAO {
                 while (rs.next()) {
                     FederatedCredentialSummary summary = new FederatedCredentialSummary();
                     summary.setSubscriptionUuid(rs.getString("SUBSCRIPTION_UUID"));
+                    summary.setMappingUuid(rs.getString("MAPPING_UUID"));
+                    summary.setCredentialUuid(rs.getString("CREDENTIAL_UUID"));
                     summary.setName(rs.getString("NAME"));
-                    summary.setProvisioned(rs.getInt("IS_PROVISIONED") == 1);
                     summary.setSubscriptionStatus(rs.getString("SUB_STATUS"));
                     summary.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
                     summary.setApplicationId(rs.getString("APPLICATION_ID"));
                     summary.setApplicationName(rs.getString("APP_NAME"));
 
-                    try (InputStream optionStream = rs.getBinaryStream("SELECTED_OPTION")) {
-                        if (optionStream != null) {
-                            summary.setSelectedOption(IOUtils.toString(optionStream, StandardCharsets.UTF_8));
+                    try (InputStream mappingArtifactStream = rs.getBinaryStream("MAPPING_ARTIFACT")) {
+                        if (mappingArtifactStream != null) {
+                            String mappingArtifact = IOUtils.toString(mappingArtifactStream, StandardCharsets.UTF_8);
+                            summary.setSelectedOption(extractSelectedOptionFromArtifact(mappingArtifact));
                         }
                     }
 
@@ -17058,6 +17027,317 @@ public class ApiMgtDAO {
         }
 
         return summaries;
+    }
+
+    /**
+     * Get subscription summaries for all federated subscriptions of an API.
+     * Returns lightweight data for the Subscriptions page table including credential count per subscription.
+     *
+     * @param apiUuid       UUID of the API
+     * @param environmentId Gateway environment ID
+     * @return List of FederatedSubscriptionSummary objects
+     * @throws APIManagementException if an error occurs
+     */
+    public List<FederatedSubscriptionSummary> getApiSubscriptionSummaries(String apiUuid, String environmentId)
+            throws APIManagementException {
+        List<FederatedSubscriptionSummary> summaries = new ArrayList<>();
+
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.GET_API_SUBSCRIPTION_SUMMARIES_SQL)) {
+
+            ps.setString(1, apiUuid);
+            ps.setString(2, environmentId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    FederatedSubscriptionSummary summary = new FederatedSubscriptionSummary();
+                    summary.setSubscriptionUuid(rs.getString("SUBSCRIPTION_UUID"));
+                    summary.setMappingUuid(rs.getString("MAPPING_UUID"));
+                    summary.setSubscriptionStatus(rs.getString("SUB_STATUS"));
+                    summary.setApplicationId(rs.getString("APPLICATION_ID"));
+                    summary.setApplicationName(rs.getString("APP_NAME"));
+                    summary.setCredentialCount(rs.getInt("CREDENTIAL_COUNT"));
+                    summary.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
+                    summary.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
+
+                    try (InputStream mappingArtifactStream = rs.getBinaryStream("MAPPING_ARTIFACT")) {
+                        if (mappingArtifactStream != null) {
+                            String mappingArtifact = IOUtils.toString(mappingArtifactStream, StandardCharsets.UTF_8);
+                            summary.setSelectedOption(extractSelectedOptionFromArtifact(mappingArtifact));
+                        }
+                    }
+
+                    summaries.add(summary);
+                }
+            }
+
+        } catch (SQLException | IOException e) {
+            handleException("Error while retrieving subscription summaries for API: " + apiUuid, e);
+        }
+
+        return summaries;
+    }
+
+    /**
+     * Add an external credential linked to an existing subscription external mapping.
+     *
+     * @param credential The ExternalCredential to add
+     * @throws APIManagementException if an error occurs
+     */
+    public void addExternalCredential(ExternalCredential credential) throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.ADD_EXTERNAL_CREDENTIAL_SQL)) {
+
+            connection.setAutoCommit(false);
+            ps.setString(1, credential.getUuid());
+            if (credential.getMappingUuid() != null) {
+                ps.setString(2, credential.getMappingUuid());
+            } else {
+                ps.setNull(2, java.sql.Types.VARCHAR);
+            }
+            ps.setString(3, credential.getApplicationId());
+            ps.setString(4, credential.getApiId());
+            ps.setString(5, credential.getAuthzUser());
+            ps.setString(6, credential.getGatewayEnvironmentId());
+            if (credential.getName() != null) {
+                ps.setString(7, credential.getName());
+            } else {
+                ps.setNull(7, java.sql.Types.VARCHAR);
+            }
+            if (credential.getExternalSubscriptionId() != null) {
+                ps.setString(8, credential.getExternalSubscriptionId());
+            } else {
+                ps.setNull(8, java.sql.Types.VARCHAR);
+            }
+            if (credential.getReferenceArtifact() != null) {
+                ps.setBytes(9, credential.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
+            } else {
+                ps.setNull(9, java.sql.Types.BLOB);
+            }
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while adding external credential for mapping: "
+                    + credential.getMappingUuid(), e);
+        }
+    }
+
+    /**
+     * Get all external credentials for a given subscription external mapping.
+     *
+     * @param mappingUuid UUID of the subscription external mapping
+     * @return List of ExternalCredential objects (empty if none found)
+     * @throws APIManagementException if an error occurs
+     */
+    public List<ExternalCredential> getExternalCredentials(String mappingUuid) throws APIManagementException {
+        List<ExternalCredential> credentials = new ArrayList<>();
+
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(
+                     SQLConstants.GET_EXTERNAL_CREDENTIALS_BY_MAPPING_SQL)) {
+
+            ps.setString(1, mappingUuid);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ExternalCredential credential = new ExternalCredential();
+                    credential.setUuid(rs.getString("UUID"));
+                    credential.setMappingUuid(rs.getString("MAPPING_UUID"));
+                    credential.setApplicationId(rs.getString("APPLICATION_ID"));
+                    credential.setApiId(rs.getString("API_ID"));
+                    credential.setAuthzUser(rs.getString("AUTHZ_USER"));
+                    credential.setGatewayEnvironmentId(rs.getString("GATEWAY_ENV_ID"));
+                    credential.setName(rs.getString("NAME"));
+                    credential.setExternalSubscriptionId(rs.getString("EXTERNAL_SUBSCRIPTION_ID"));
+                    credential.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
+                    credential.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
+
+                    try (InputStream inputStream = rs.getBinaryStream("REFERENCE_ARTIFACT")) {
+                        if (inputStream != null) {
+                            credential.setReferenceArtifact(IOUtils.toString(inputStream, StandardCharsets.UTF_8));
+                        }
+                    }
+
+                    credentials.add(credential);
+                }
+            }
+
+        } catch (SQLException | IOException e) {
+            handleException("Error while retrieving external credentials for mapping: " + mappingUuid, e);
+        }
+
+        return credentials;
+    }
+
+    /**
+     * Get all external credentials scoped to an API + application + gateway environment.
+     *
+     * @param apiUuid API UUID
+     * @param applicationUuid Application UUID
+     * @param environmentId Gateway environment UUID
+     * @return List of ExternalCredential objects (empty if none found)
+     * @throws APIManagementException if an error occurs
+     */
+    public List<ExternalCredential> getExternalCredentials(String apiUuid, String applicationUuid, String environmentId)
+            throws APIManagementException {
+        List<ExternalCredential> credentials = new ArrayList<>();
+
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(
+                     SQLConstants.GET_EXTERNAL_CREDENTIALS_BY_SCOPE_SQL)) {
+
+            ps.setString(1, apiUuid);
+            ps.setString(2, applicationUuid);
+            ps.setString(3, environmentId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ExternalCredential credential = new ExternalCredential();
+                    credential.setUuid(rs.getString("UUID"));
+                    credential.setMappingUuid(rs.getString("MAPPING_UUID"));
+                    credential.setApplicationId(rs.getString("APPLICATION_ID"));
+                    credential.setApiId(rs.getString("API_ID"));
+                    credential.setAuthzUser(rs.getString("AUTHZ_USER"));
+                    credential.setGatewayEnvironmentId(rs.getString("GATEWAY_ENV_ID"));
+                    credential.setName(rs.getString("NAME"));
+                    credential.setExternalSubscriptionId(rs.getString("EXTERNAL_SUBSCRIPTION_ID"));
+                    credential.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
+                    credential.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
+
+                    try (InputStream inputStream = rs.getBinaryStream("REFERENCE_ARTIFACT")) {
+                        if (inputStream != null) {
+                            credential.setReferenceArtifact(IOUtils.toString(inputStream, StandardCharsets.UTF_8));
+                        }
+                    }
+
+                    credentials.add(credential);
+                }
+            }
+
+        } catch (SQLException | IOException e) {
+            handleException("Error while retrieving scoped external credentials for API: " + apiUuid
+                    + ", application: " + applicationUuid + ", environment: " + environmentId, e);
+        }
+
+        return credentials;
+    }
+
+    /**
+     * Get a single external credential by its UUID.
+     *
+     * @param credentialUuid UUID of the external credential
+     * @return ExternalCredential or null if not found
+     * @throws APIManagementException if an error occurs
+     */
+    public ExternalCredential getExternalCredential(String credentialUuid) throws APIManagementException {
+        ExternalCredential credential = null;
+
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.GET_EXTERNAL_CREDENTIAL_BY_UUID_SQL)) {
+
+            ps.setString(1, credentialUuid);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    credential = new ExternalCredential();
+                    credential.setUuid(rs.getString("UUID"));
+                    credential.setMappingUuid(rs.getString("MAPPING_UUID"));
+                    credential.setApplicationId(rs.getString("APPLICATION_ID"));
+                    credential.setApiId(rs.getString("API_ID"));
+                    credential.setAuthzUser(rs.getString("AUTHZ_USER"));
+                    credential.setGatewayEnvironmentId(rs.getString("GATEWAY_ENV_ID"));
+                    credential.setName(rs.getString("NAME"));
+                    credential.setExternalSubscriptionId(rs.getString("EXTERNAL_SUBSCRIPTION_ID"));
+                    credential.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
+                    credential.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
+
+                    try (InputStream inputStream = rs.getBinaryStream("REFERENCE_ARTIFACT")) {
+                        if (inputStream != null) {
+                            credential.setReferenceArtifact(IOUtils.toString(inputStream, StandardCharsets.UTF_8));
+                        }
+                    }
+                }
+            }
+
+        } catch (SQLException | IOException e) {
+            handleException("Error while retrieving external credential: " + credentialUuid, e);
+        }
+
+        return credential;
+    }
+
+    /**
+     * Update an external credential's external subscription ID, reference artifact, and last updated time.
+     *
+     * @param credential The ExternalCredential with updated fields (UUID must be set)
+     * @throws APIManagementException if an error occurs
+     */
+    public void updateExternalCredential(ExternalCredential credential) throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.UPDATE_EXTERNAL_CREDENTIAL_SQL)) {
+
+            connection.setAutoCommit(false);
+            if (credential.getExternalSubscriptionId() != null) {
+                ps.setString(1, credential.getExternalSubscriptionId());
+            } else {
+                ps.setNull(1, java.sql.Types.VARCHAR);
+            }
+            if (credential.getReferenceArtifact() != null) {
+                ps.setBytes(2, credential.getReferenceArtifact().getBytes(StandardCharsets.UTF_8));
+            } else {
+                ps.setNull(2, java.sql.Types.BLOB);
+            }
+            ps.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
+            ps.setString(4, credential.getUuid());
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while updating external credential: " + credential.getUuid(), e);
+        }
+    }
+
+    /**
+     * Delete a single external credential by its UUID.
+     * The parent subscription external mapping row is preserved.
+     *
+     * @param credentialUuid UUID of the external credential to delete
+     * @throws APIManagementException if an error occurs
+     */
+    public void deleteExternalCredential(String credentialUuid) throws APIManagementException {
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.DELETE_EXTERNAL_CREDENTIAL_SQL)) {
+
+            connection.setAutoCommit(false);
+            ps.setString(1, credentialUuid);
+            ps.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            handleException("Error while deleting external credential: " + credentialUuid, e);
+        }
+    }
+
+    /**
+     * Extracts the "selectedOption" field from a mapping's JSON reference artifact.
+     * Returns null if the artifact is null or does not contain the field.
+     */
+    private String extractSelectedOptionFromArtifact(String mappingArtifact) {
+        if (mappingArtifact == null || mappingArtifact.isEmpty()) {
+            return null;
+        }
+        try {
+            com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(mappingArtifact)
+                    .getAsJsonObject();
+            if (json.has("selectedOption")) {
+                com.google.gson.JsonElement el = json.get("selectedOption");
+                return el.isJsonNull() ? null : el.getAsString();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse mapping reference artifact for selectedOption extraction", e);
+        }
+        return null;
     }
 
     // ---- API Federation Config ----

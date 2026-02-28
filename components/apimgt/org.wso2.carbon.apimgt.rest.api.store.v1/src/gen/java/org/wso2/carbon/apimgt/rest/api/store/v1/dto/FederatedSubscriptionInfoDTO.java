@@ -25,6 +25,7 @@ import javax.validation.Valid;
 
 public class FederatedSubscriptionInfoDTO   {
   
+    private String credentialId = null;
     private FederatedCredentialDTO credential = null;
     private InvocationInstructionDTO invocationInstruction = null;
 
@@ -62,6 +63,24 @@ return null;
     }
     private GatewayTypeEnum gatewayType = null;
     private String gatewayEnvironmentId = null;
+
+  /**
+   * UUID of the local credential record (used to reference specific credentials for delete/regenerate/retrieve)
+   **/
+  public FederatedSubscriptionInfoDTO credentialId(String credentialId) {
+    this.credentialId = credentialId;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "faae5fcc-cbae-40c4-bf43-89931571d250", value = "UUID of the local credential record (used to reference specific credentials for delete/regenerate/retrieve)")
+  @JsonProperty("credentialId")
+  public String getCredentialId() {
+    return credentialId;
+  }
+  public void setCredentialId(String credentialId) {
+    this.credentialId = credentialId;
+  }
 
   /**
    **/
@@ -145,7 +164,8 @@ return null;
       return false;
     }
     FederatedSubscriptionInfoDTO federatedSubscriptionInfo = (FederatedSubscriptionInfoDTO) o;
-    return Objects.equals(credential, federatedSubscriptionInfo.credential) &&
+    return Objects.equals(credentialId, federatedSubscriptionInfo.credentialId) &&
+        Objects.equals(credential, federatedSubscriptionInfo.credential) &&
         Objects.equals(invocationInstruction, federatedSubscriptionInfo.invocationInstruction) &&
         Objects.equals(gatewayType, federatedSubscriptionInfo.gatewayType) &&
         Objects.equals(gatewayEnvironmentId, federatedSubscriptionInfo.gatewayEnvironmentId);
@@ -153,7 +173,7 @@ return null;
 
   @Override
   public int hashCode() {
-    return Objects.hash(credential, invocationInstruction, gatewayType, gatewayEnvironmentId);
+    return Objects.hash(credentialId, credential, invocationInstruction, gatewayType, gatewayEnvironmentId);
   }
 
   @Override
@@ -161,6 +181,7 @@ return null;
     StringBuilder sb = new StringBuilder();
     sb.append("class FederatedSubscriptionInfoDTO {\n");
     
+    sb.append("    credentialId: ").append(toIndentedString(credentialId)).append("\n");
     sb.append("    credential: ").append(toIndentedString(credential)).append("\n");
     sb.append("    invocationInstruction: ").append(toIndentedString(invocationInstruction)).append("\n");
     sb.append("    gatewayType: ").append(toIndentedString(gatewayType)).append("\n");
