@@ -21,30 +21,34 @@ package org.wso2.carbon.apimgt.api.model;
 import java.sql.Timestamp;
 
 /**
- * Represents the logical link between a WSO2 subscription and an external gateway environment.
- * This model corresponds to the AM_SUBSCRIPTION_EXTERNAL_MAPPING database table.
+ * Represents a concrete credential provisioned on an external gateway for a given subscription mapping.
+ * This model corresponds to the AM_EXTERNAL_CREDENTIAL database table.
  * <p>
- * The REFERENCE_ARTIFACT (JSON blob) is service-layer managed and embeds the
- * "selectedOption" field chosen by the subscriber at provisioning time.
- * Actual credential data (external IDs, agent blobs) is stored in
- * {@link ExternalCredential} rows linked via the UUID of this mapping.
+ * Multiple credentials can exist per {@link SubscriptionExternalMapping}, enabling
+ * named credentials, credential rotation, and multi-key scenarios.
+ * The REFERENCE_ARTIFACT is an agent-owned opaque blob holding gateway-specific
+ * credential metadata (masked value, type, retrievability flag, etc.).
  * </p>
  */
-public class SubscriptionExternalMapping {
+public class ExternalCredential {
 
     private String uuid;
-    private String subscriptionUuid;
+    private String mappingUuid;
+    private String applicationId;
+    private String apiId;
+    private String authzUser;
     private String gatewayEnvironmentId;
+    private String name;
+    private String externalSubscriptionId;
     private String referenceArtifact;
     private Timestamp createdTime;
     private Timestamp lastUpdatedTime;
 
-    public SubscriptionExternalMapping() {
+    public ExternalCredential() {
     }
 
-    public SubscriptionExternalMapping(String subscriptionUuid, String gatewayEnvironmentId) {
-        this.subscriptionUuid = subscriptionUuid;
-        this.gatewayEnvironmentId = gatewayEnvironmentId;
+    public ExternalCredential(String mappingUuid) {
+        this.mappingUuid = mappingUuid;
     }
 
     public String getUuid() {
@@ -55,12 +59,36 @@ public class SubscriptionExternalMapping {
         this.uuid = uuid;
     }
 
-    public String getSubscriptionUuid() {
-        return subscriptionUuid;
+    public String getMappingUuid() {
+        return mappingUuid;
     }
 
-    public void setSubscriptionUuid(String subscriptionUuid) {
-        this.subscriptionUuid = subscriptionUuid;
+    public void setMappingUuid(String mappingUuid) {
+        this.mappingUuid = mappingUuid;
+    }
+
+    public String getApplicationId() {
+        return applicationId;
+    }
+
+    public void setApplicationId(String applicationId) {
+        this.applicationId = applicationId;
+    }
+
+    public String getApiId() {
+        return apiId;
+    }
+
+    public void setApiId(String apiId) {
+        this.apiId = apiId;
+    }
+
+    public String getAuthzUser() {
+        return authzUser;
+    }
+
+    public void setAuthzUser(String authzUser) {
+        this.authzUser = authzUser;
     }
 
     public String getGatewayEnvironmentId() {
@@ -69,6 +97,22 @@ public class SubscriptionExternalMapping {
 
     public void setGatewayEnvironmentId(String gatewayEnvironmentId) {
         this.gatewayEnvironmentId = gatewayEnvironmentId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getExternalSubscriptionId() {
+        return externalSubscriptionId;
+    }
+
+    public void setExternalSubscriptionId(String externalSubscriptionId) {
+        this.externalSubscriptionId = externalSubscriptionId;
     }
 
     public String getReferenceArtifact() {
@@ -97,10 +141,15 @@ public class SubscriptionExternalMapping {
 
     @Override
     public String toString() {
-        return "SubscriptionExternalMapping{" +
+        return "ExternalCredential{" +
                 "uuid='" + uuid + '\'' +
-                ", subscriptionUuid='" + subscriptionUuid + '\'' +
+                ", mappingUuid='" + mappingUuid + '\'' +
+                ", applicationId='" + applicationId + '\'' +
+                ", apiId='" + apiId + '\'' +
+                ", authzUser='" + authzUser + '\'' +
                 ", gatewayEnvironmentId='" + gatewayEnvironmentId + '\'' +
+                ", name='" + name + '\'' +
+                ", externalSubscriptionId='" + externalSubscriptionId + '\'' +
                 ", createdTime=" + createdTime +
                 ", lastUpdatedTime=" + lastUpdatedTime +
                 '}';

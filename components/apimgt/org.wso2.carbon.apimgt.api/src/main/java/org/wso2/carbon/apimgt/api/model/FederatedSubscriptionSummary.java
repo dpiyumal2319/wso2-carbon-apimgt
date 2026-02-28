@@ -21,20 +21,21 @@ package org.wso2.carbon.apimgt.api.model;
 import java.sql.Timestamp;
 
 /**
- * Lightweight summary of a federated credential mapping for bulk-fetch display.
- * Used by the API Credentials page to render the credentials table without
- * fetching full reference artifacts or calling gateway agents.
+ * Lightweight summary of a federated subscription mapping for bulk-fetch display.
+ * Used by the Subscriptions page to render the subscriptions table — shows which
+ * applications have subscribed, with what selected option, and how many credentials
+ * have been provisioned — without fetching full reference artifacts.
  */
-public class FederatedCredentialSummary {
+public class FederatedSubscriptionSummary {
 
     private String subscriptionUuid;
     private String mappingUuid;
-    private String credentialUuid;
     private String applicationId;
     private String applicationName;
-    private String name;
     private String selectedOption;
     private String subscriptionStatus;
+    private int credentialCount;
+    private Timestamp createdTime;
     private Timestamp lastUpdatedTime;
 
     public String getSubscriptionUuid() {
@@ -53,14 +54,6 @@ public class FederatedCredentialSummary {
         this.mappingUuid = mappingUuid;
     }
 
-    public String getCredentialUuid() {
-        return credentialUuid;
-    }
-
-    public void setCredentialUuid(String credentialUuid) {
-        this.credentialUuid = credentialUuid;
-    }
-
     public String getApplicationId() {
         return applicationId;
     }
@@ -77,14 +70,6 @@ public class FederatedCredentialSummary {
         this.applicationName = applicationName;
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
     public String getSelectedOption() {
         return selectedOption;
     }
@@ -99,6 +84,22 @@ public class FederatedCredentialSummary {
 
     public void setSubscriptionStatus(String subscriptionStatus) {
         this.subscriptionStatus = subscriptionStatus;
+    }
+
+    public int getCredentialCount() {
+        return credentialCount;
+    }
+
+    public void setCredentialCount(int credentialCount) {
+        this.credentialCount = credentialCount;
+    }
+
+    public Timestamp getCreatedTime() {
+        return createdTime;
+    }
+
+    public void setCreatedTime(Timestamp createdTime) {
+        this.createdTime = createdTime;
     }
 
     public Timestamp getLastUpdatedTime() {
