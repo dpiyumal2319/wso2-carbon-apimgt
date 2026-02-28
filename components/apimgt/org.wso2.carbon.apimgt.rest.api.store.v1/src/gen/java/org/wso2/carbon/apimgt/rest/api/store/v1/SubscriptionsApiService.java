@@ -12,6 +12,8 @@ import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.APIMonetizationUsageDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.AdditionalSubscriptionInfoListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialListDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
 import java.util.List;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionDTO;
@@ -27,12 +29,14 @@ import javax.ws.rs.core.SecurityContext;
 
 
 public interface SubscriptionsApiService {
-      public Response createFederatedSubscription(String subscriptionId, MessageContext messageContext) throws APIManagementException;
+      public Response createFederatedCredential(String subscriptionId, FederatedCredentialRequestDTO federatedCredentialRequestDTO, MessageContext messageContext) throws APIManagementException;
+      public Response deleteFederatedCredential(String subscriptionId, String credentialId, MessageContext messageContext) throws APIManagementException;
       public Response deleteFederatedSubscription(String subscriptionId, MessageContext messageContext) throws APIManagementException;
       public Response getAdditionalInfoOfAPISubscriptions(String apiId, String groupId, String xWSO2Tenant, Integer offset, Integer limit, String ifNoneMatch, MessageContext messageContext) throws APIManagementException;
-      public Response getFederatedSubscription(String subscriptionId, MessageContext messageContext) throws APIManagementException;
-      public Response regenerateSubscriptionCredential(String subscriptionId, MessageContext messageContext) throws APIManagementException;
-      public Response retrieveFederatedCredential(String subscriptionId, MessageContext messageContext) throws APIManagementException;
+      public Response getFederatedCredential(String subscriptionId, String credentialId, MessageContext messageContext) throws APIManagementException;
+      public Response listFederatedCredentials(String subscriptionId, MessageContext messageContext) throws APIManagementException;
+      public Response regenerateFederatedCredential(String subscriptionId, String credentialId, MessageContext messageContext) throws APIManagementException;
+      public Response retrieveFederatedCredential(String subscriptionId, String credentialId, MessageContext messageContext) throws APIManagementException;
       public Response subscriptionsGet(String apiId, String applicationId, String groupId, String xWSO2Tenant, Integer offset, Integer limit, String ifNoneMatch, MessageContext messageContext) throws APIManagementException;
       public Response subscriptionsMultiplePost(List<SubscriptionDTO> subscriptionDTO, String xWSO2Tenant, MessageContext messageContext) throws APIManagementException;
       public Response subscriptionsPost(SubscriptionDTO subscriptionDTO, String xWSO2Tenant, MessageContext messageContext) throws APIManagementException;

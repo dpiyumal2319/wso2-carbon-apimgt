@@ -7,7 +7,7 @@ import io.swagger.annotations.ApiModelProperty;
 import javax.validation.constraints.*;
 
 /**
- * Request parameters for the combined subscribe-and-create-credential operation
+ * Request parameters for creating a federated subscription (mapping only, no credential)
  **/
 
 import io.swagger.annotations.*;
@@ -19,18 +19,17 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 
 import javax.validation.Valid;
 
-@ApiModel(description = "Request parameters for the combined subscribe-and-create-credential operation")
+@ApiModel(description = "Request parameters for creating a federated subscription (mapping only, no credential)")
 
-public class FederatedCredentialCreateRequestDTO   {
+public class FederatedSubscriptionCreateRequestDTO   {
   
     private String applicationId = null;
-    private String name = null;
     private String selectedOption = null;
 
   /**
    * UUID of the application to subscribe with
    **/
-  public FederatedCredentialCreateRequestDTO applicationId(String applicationId) {
+  public FederatedSubscriptionCreateRequestDTO applicationId(String applicationId) {
     this.applicationId = applicationId;
     return this;
   }
@@ -47,28 +46,9 @@ public class FederatedCredentialCreateRequestDTO   {
   }
 
   /**
-   * Name for the credential
-   **/
-  public FederatedCredentialCreateRequestDTO name(String name) {
-    this.name = name;
-    return this;
-  }
-
-  
-  @ApiModelProperty(example = "My Production Key", required = true, value = "Name for the credential")
-  @JsonProperty("name")
-  @NotNull
- @Size(min=1,max=255)  public String getName() {
-    return name;
-  }
-  public void setName(String name) {
-    this.name = name;
-  }
-
-  /**
    * JSON wrapper containing schemaName and body for the developer&#39;s selected subscription option. Format: {\&quot;schemaName\&quot;:\&quot;tier-selector\&quot;,\&quot;body\&quot;:\&quot;{\\\&quot;id\\\&quot;:\\\&quot;plan1\\\&quot;,\\\&quot;name\\\&quot;:\\\&quot;Basic\\\&quot;}\&quot;} 
    **/
-  public FederatedCredentialCreateRequestDTO selectedOption(String selectedOption) {
+  public FederatedSubscriptionCreateRequestDTO selectedOption(String selectedOption) {
     this.selectedOption = selectedOption;
     return this;
   }
@@ -92,24 +72,22 @@ public class FederatedCredentialCreateRequestDTO   {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    FederatedCredentialCreateRequestDTO federatedCredentialCreateRequest = (FederatedCredentialCreateRequestDTO) o;
-    return Objects.equals(applicationId, federatedCredentialCreateRequest.applicationId) &&
-        Objects.equals(name, federatedCredentialCreateRequest.name) &&
-        Objects.equals(selectedOption, federatedCredentialCreateRequest.selectedOption);
+    FederatedSubscriptionCreateRequestDTO federatedSubscriptionCreateRequest = (FederatedSubscriptionCreateRequestDTO) o;
+    return Objects.equals(applicationId, federatedSubscriptionCreateRequest.applicationId) &&
+        Objects.equals(selectedOption, federatedSubscriptionCreateRequest.selectedOption);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(applicationId, name, selectedOption);
+    return Objects.hash(applicationId, selectedOption);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class FederatedCredentialCreateRequestDTO {\n");
+    sb.append("class FederatedSubscriptionCreateRequestDTO {\n");
     
     sb.append("    applicationId: ").append(toIndentedString(applicationId)).append("\n");
-    sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    selectedOption: ").append(toIndentedString(selectedOption)).append("\n");
     sb.append("}");
     return sb.toString();

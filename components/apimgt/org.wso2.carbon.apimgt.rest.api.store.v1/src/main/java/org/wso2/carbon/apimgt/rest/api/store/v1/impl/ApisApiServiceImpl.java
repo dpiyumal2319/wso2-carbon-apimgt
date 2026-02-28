@@ -43,7 +43,8 @@ import org.wso2.carbon.apimgt.api.model.CommentList;
 import org.wso2.carbon.apimgt.api.model.Documentation;
 import org.wso2.carbon.apimgt.api.model.DocumentationContent;
 import org.wso2.carbon.apimgt.api.model.Environment;
-import org.wso2.carbon.apimgt.api.model.FederatedCredentialCreateResult;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionCreateResult;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionSummary;
 import org.wso2.carbon.apimgt.api.model.FederatedCredentialSummary;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionOptions;
@@ -1299,23 +1300,22 @@ public class ApisApiServiceImpl implements ApisApiService {
     }
 
     @Override
-    public Response subscribeAndCreateFederatedCredential(String apiId,
-            FederatedCredentialCreateRequestDTO body, MessageContext messageContext)
+    public Response createFederatedSubscription(String apiId,
+            FederatedSubscriptionCreateRequestDTO body, MessageContext messageContext)
             throws APIManagementException {
         try {
             String organization = RestApiUtil.getValidatedOrganization(messageContext);
             String username = RestApiCommonUtil.getLoggedInUsername();
             APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
 
-            FederatedCredentialCreateResult result = apiConsumer.subscribeAndCreateFederatedCredential(
+            FederatedSubscriptionCreateResult result = apiConsumer.createFederatedSubscription(
                     apiId,
                     body.getApplicationId(),
                     organization,
                     username,
-                    body.getName(),
                     body.getSelectedOption());
 
-            FederatedCredentialCreateResponseDTO responseDTO =
+            FederatedSubscriptionCreateResponseDTO responseDTO =
                     FederatedSubscriptionMappingUtil.fromCreateResultToDTO(result);
 
             return Response.status(Response.Status.CREATED).entity(responseDTO).build();
@@ -1328,7 +1328,34 @@ public class ApisApiServiceImpl implements ApisApiService {
                         "Subscription already exists for this API and application", e, log);
             } else {
                 RestApiUtil.handleInternalServerError(
-                        "Error creating federated credential for API: " + apiId, e, log);
+                        "Error creating federated subscription for API: " + apiId, e, log);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Response getApiSubscriptionSummaries(String apiId, MessageContext messageContext)
+            throws APIManagementException {
+        try {
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            String username = RestApiCommonUtil.getLoggedInUsername();
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+
+            List<FederatedSubscriptionSummary> summaries =
+                    apiConsumer.getApiSubscriptionSummaries(apiId, organization);
+
+            FederatedSubscriptionSummaryListDTO listDTO =
+                    FederatedSubscriptionMappingUtil.fromSubscriptionSummaryListToDTO(summaries);
+
+            return Response.ok().entity(listDTO).build();
+
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_API, apiId, e, log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error retrieving subscription summaries for API: " + apiId, e, log);
             }
         }
         return null;

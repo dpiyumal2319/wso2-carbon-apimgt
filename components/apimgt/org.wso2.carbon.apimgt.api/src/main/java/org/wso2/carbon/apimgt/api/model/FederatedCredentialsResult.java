@@ -19,25 +19,34 @@
 package org.wso2.carbon.apimgt.api.model;
 
 /**
- * Complete result object returned from the service layer to the controller for federated subscription operations.
+ * Complete result object returned from the service layer to the controller for federated credential operations.
  * Contains everything needed to build the DTO in a single mapping call.
  */
-public class FederatedSubscriptionResult {
+public class FederatedCredentialsResult {
 
+    private String credentialUuid;       // UUID of the local AM_EXTERNAL_CREDENTIAL row
     private FederatedCredential credential;
     private InvocationInstruction invocationInstruction;
     private String gatewayType;          // "aws", "azure", etc.
     private String gatewayEnvironmentId;
 
-    public FederatedSubscriptionResult() {
+    public FederatedCredentialsResult() {
     }
 
-    public FederatedSubscriptionResult(FederatedCredential credential, InvocationInstruction invocationInstruction,
-                                       String gatewayType, String gatewayEnvironmentId) {
+    public FederatedCredentialsResult(FederatedCredential credential, InvocationInstruction invocationInstruction,
+                                      String gatewayType, String gatewayEnvironmentId) {
         this.credential = credential;
         this.invocationInstruction = invocationInstruction;
         this.gatewayType = gatewayType;
         this.gatewayEnvironmentId = gatewayEnvironmentId;
+    }
+
+    public String getCredentialUuid() {
+        return credentialUuid;
+    }
+
+    public void setCredentialUuid(String credentialUuid) {
+        this.credentialUuid = credentialUuid;
     }
 
     public FederatedCredential getCredential() {

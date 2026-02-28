@@ -19,14 +19,18 @@
 package org.wso2.carbon.apimgt.rest.api.store.v1.mappings;
 
 import org.wso2.carbon.apimgt.api.model.FederatedCredential;
-import org.wso2.carbon.apimgt.api.model.FederatedCredentialCreateResult;
 import org.wso2.carbon.apimgt.api.model.FederatedCredentialSummary;
-import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionResult;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialCreateResponseDTO;
+import org.wso2.carbon.apimgt.api.model.FederatedCredentialsResult;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionCreateResult;
+import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionSummary;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialSummaryDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialSummaryListDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionCreateResponseDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionSummaryDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionSummaryListDTO;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,15 +62,16 @@ public class FederatedSubscriptionMappingUtil {
     }
 
     /**
-     * Converts a FederatedSubscriptionResult to DTO.
+     * Converts a FederatedCredentialsResult to DTO.
      * Single mapping call that assembles the complete response DTO.
      */
-    public static FederatedSubscriptionInfoDTO toDTO(FederatedSubscriptionResult result) {
+    public static FederatedSubscriptionInfoDTO toDTO(FederatedCredentialsResult result) {
         if (result == null) {
             return null;
         }
 
         FederatedSubscriptionInfoDTO dto = new FederatedSubscriptionInfoDTO();
+        dto.setCredentialId(result.getCredentialUuid());
         dto.setCredential(fromFederatedCredentialToDTO(result.getCredential()));
         dto.setInvocationInstruction(
                 InvocationInstructionMappingUtil.fromInvocationInstructionToDTO(result.getInvocationInstruction()));
@@ -78,30 +83,85 @@ public class FederatedSubscriptionMappingUtil {
     }
 
     /**
-     * Converts a FederatedCredentialCreateResult to the response DTO.
+     * Converts a FederatedSubscriptionCreateResult to the response DTO.
      */
-    public static FederatedCredentialCreateResponseDTO fromCreateResultToDTO(
-            FederatedCredentialCreateResult result) {
+    public static FederatedSubscriptionCreateResponseDTO fromCreateResultToDTO(
+            FederatedSubscriptionCreateResult result) {
         if (result == null) {
             return null;
         }
 
-        FederatedCredentialCreateResponseDTO dto = new FederatedCredentialCreateResponseDTO();
-        dto.setSubscriptionId(result.getSubscriptionId());
-        dto.setStatus(FederatedCredentialCreateResponseDTO.StatusEnum.fromValue(
-                result.getStatus().name()));
+        FederatedSubscriptionCreateResponseDTO dto = new FederatedSubscriptionCreateResponseDTO();
+        dto.setSubscriptionId(result.getSubscriptionUuid());
+        dto.setStatus(FederatedSubscriptionCreateResponseDTO.StatusEnum.fromValue(result.getStatus()));
 
-        FederatedSubscriptionResult subResult = result.getFederatedSubscriptionResult();
-        if (subResult != null) {
-            dto.setCredential(fromFederatedCredentialToDTO(subResult.getCredential()));
-            dto.setInvocationInstruction(
-                    InvocationInstructionMappingUtil.fromInvocationInstructionToDTO(
-                            subResult.getInvocationInstruction()));
-            dto.setGatewayType(subResult.getGatewayType());
-            dto.setGatewayEnvironmentId(subResult.getGatewayEnvironmentId());
+        return dto;
+    }
+
+    /**
+     * Converts a FederatedSubscriptionSummary model to DTO.
+     */
+    public static FederatedSubscriptionSummaryDTO fromSubscriptionSummaryToDTO(FederatedSubscriptionSummary summary) {
+        if (summary == null) {
+            return null;
+        }
+
+        FederatedSubscriptionSummaryDTO dto = new FederatedSubscriptionSummaryDTO();
+        dto.setSubscriptionId(summary.getSubscriptionUuid());
+        dto.setMappingId(summary.getMappingUuid());
+        dto.setApplicationId(summary.getApplicationId());
+        dto.setApplicationName(summary.getApplicationName());
+        dto.setSelectedOption(summary.getSelectedOption());
+        dto.setSubscriptionStatus(FederatedSubscriptionSummaryDTO.SubscriptionStatusEnum.fromValue(
+                summary.getSubscriptionStatus()));
+        dto.setCredentialCount(summary.getCredentialCount());
+        if (summary.getCreatedTime() != null) {
+            dto.setCreatedTime(summary.getCreatedTime());
+        }
+        if (summary.getLastUpdatedTime() != null) {
+            dto.setLastUpdatedTime(summary.getLastUpdatedTime());
         }
 
         return dto;
+    }
+
+    /**
+     * Converts a list of FederatedSubscriptionSummary models to a list DTO.
+     */
+    public static FederatedSubscriptionSummaryListDTO fromSubscriptionSummaryListToDTO(
+            List<FederatedSubscriptionSummary> summaries) {
+        FederatedSubscriptionSummaryListDTO listDTO = new FederatedSubscriptionSummaryListDTO();
+        List<FederatedSubscriptionSummaryDTO> dtoList = new ArrayList<>();
+
+        if (summaries != null) {
+            for (FederatedSubscriptionSummary summary : summaries) {
+                dtoList.add(fromSubscriptionSummaryToDTO(summary));
+            }
+        }
+
+        listDTO.setList(dtoList);
+        listDTO.setCount(dtoList.size());
+        return listDTO;
+    }
+
+    /**
+     * Converts a list of FederatedCredentialsResult models to a credential list DTO.
+     * Each entry contains a masked credential and invocation instructions.
+     */
+    public static FederatedCredentialListDTO fromCredentialResultsListToDTO(
+            List<FederatedCredentialsResult> results) {
+        FederatedCredentialListDTO listDTO = new FederatedCredentialListDTO();
+        List<FederatedSubscriptionInfoDTO> dtoList = new ArrayList<>();
+
+        if (results != null) {
+            for (FederatedCredentialsResult result : results) {
+                dtoList.add(toDTO(result));
+            }
+        }
+
+        listDTO.setList(dtoList);
+        listDTO.setCount(dtoList.size());
+        return listDTO;
     }
 
     /**
@@ -118,7 +178,6 @@ public class FederatedSubscriptionMappingUtil {
         dto.setApplicationName(summary.getApplicationName());
         dto.setName(summary.getName());
         dto.setSelectedOption(summary.getSelectedOption());
-        dto.setIsProvisioned(summary.isProvisioned());
         dto.setSubscriptionStatus(FederatedCredentialSummaryDTO.SubscriptionStatusEnum.fromValue(
                 summary.getSubscriptionStatus()));
         if (summary.getLastUpdatedTime() != null) {

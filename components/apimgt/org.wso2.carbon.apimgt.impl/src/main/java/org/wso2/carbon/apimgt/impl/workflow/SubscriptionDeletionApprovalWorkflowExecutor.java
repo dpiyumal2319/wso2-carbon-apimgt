@@ -23,6 +23,7 @@ import org.wso2.carbon.apimgt.api.WorkflowResponse;
 import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.APIProduct;
 import org.wso2.carbon.apimgt.api.model.Environment;
+import org.wso2.carbon.apimgt.api.model.ExternalCredential;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
 import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
 import org.wso2.carbon.apimgt.api.model.SubscriptionExternalMapping;
@@ -142,9 +143,9 @@ public class SubscriptionDeletionApprovalWorkflowExecutor extends WorkflowExecut
     }
 
     /**
-     * Best-effort cleanup of federated subscription resources (gateway credential + local mapping).
-     * If the subscription has no external mappings this method returns immediately without any gateway calls.
-     * Agent call failures are logged but do not propagate — local mapping deletion always proceeds.
+     * Best-effort cleanup of federated subscription resources (gateway credentials + local mappings).
+     * For each mapping, iterates all provisioned credentials and calls the gateway agent to delete each one.
+     * Agent call failures are logged but do not propagate — local mapping deletion (with cascade) always proceeds.
      */
     private void cleanupFederatedSubscription(ApiMgtDAO dao, String subscriptionUuid, String organization) {
         try {
@@ -156,6 +157,10 @@ public class SubscriptionDeletionApprovalWorkflowExecutor extends WorkflowExecut
                 String envId = entry.getKey();
                 SubscriptionExternalMapping mapping = entry.getValue();
                 try {
+                    List<ExternalCredential> credentials = dao.getExternalCredentials(mapping.getUuid());
+                    if (credentials.isEmpty()) {
+                        continue;
+                    }
                     Environment environment = dao.getEnvironment(organization, envId);
                     if (environment == null) {
                         log.warn("Gateway environment not found: " + envId
@@ -164,19 +169,28 @@ public class SubscriptionDeletionApprovalWorkflowExecutor extends WorkflowExecut
                     }
                     FederatedSubscriptionAgent agent =
                             FederatedSubscriptionAgentFactory.getSubscriptionAgent(environment, organization);
-                    FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
-                            .subscriptionUuid(subscriptionUuid)
-                            .externalSubscriptionId(mapping.getExternalSubscriptionId())
-                            .subscriptionReferenceArtifact(mapping.getReferenceArtifact())
-                            .environmentId(envId)
-                            .organizationId(organization)
-                            .build();
-                    agent.deleteSubscription(context);
+                    for (ExternalCredential credential : credentials) {
+                        try {
+                            FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
+                                    .subscriptionUuid(subscriptionUuid)
+                                    .externalSubscriptionId(credential.getExternalSubscriptionId())
+                                    .subscriptionReferenceArtifact(credential.getReferenceArtifact())
+                                    .environmentId(envId)
+                                    .organizationId(organization)
+                                    .build();
+                            agent.deleteSubscription(context);
+                        } catch (Exception e) {
+                            log.error("Failed to delete credential " + credential.getUuid()
+                                    + " from external gateway for subscription: " + subscriptionUuid
+                                    + ", env: " + envId + ". Proceeding.", e);
+                        }
+                    }
                 } catch (Exception e) {
-                    log.error("Failed to delete federated subscription from external gateway for subscription: "
-                            + subscriptionUuid + ", env: " + envId + ". Proceeding to delete local mapping.", e);
+                    log.error("Failed to cleanup credentials for mapping " + mapping.getUuid()
+                            + ", env: " + envId + " for subscription: " + subscriptionUuid, e);
                 }
             }
+            // Cascade deletes all AM_EXTERNAL_CREDENTIAL rows for this subscription
             dao.deleteAllSubscriptionExternalMappings(subscriptionUuid);
         } catch (Exception e) {
             log.error("Failed to clean up federated subscription mappings for subscription: "
