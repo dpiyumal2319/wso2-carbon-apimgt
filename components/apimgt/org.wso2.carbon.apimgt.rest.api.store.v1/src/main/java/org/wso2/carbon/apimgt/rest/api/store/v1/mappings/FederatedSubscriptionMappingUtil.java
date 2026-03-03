@@ -28,7 +28,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialSummaryDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialSummaryListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionCreateResponseDTO;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialInfoDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionSummaryDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionSummaryListDTO;
 
@@ -65,17 +65,17 @@ public class FederatedSubscriptionMappingUtil {
      * Converts a FederatedCredentialsResult to DTO.
      * Single mapping call that assembles the complete response DTO.
      */
-    public static FederatedSubscriptionInfoDTO toDTO(FederatedCredentialsResult result) {
+    public static FederatedCredentialInfoDTO toDTO(FederatedCredentialsResult result) {
         if (result == null) {
             return null;
         }
 
-        FederatedSubscriptionInfoDTO dto = new FederatedSubscriptionInfoDTO();
+        FederatedCredentialInfoDTO dto = new FederatedCredentialInfoDTO();
         dto.setCredentialId(result.getCredentialUuid());
         dto.setCredential(fromFederatedCredentialToDTO(result.getCredential()));
         dto.setInvocationInstruction(
                 InvocationInstructionMappingUtil.fromInvocationInstructionToDTO(result.getInvocationInstruction()));
-        dto.setGatewayType(FederatedSubscriptionInfoDTO.GatewayTypeEnum.fromValue(
+        dto.setGatewayType(FederatedCredentialInfoDTO.GatewayTypeEnum.fromValue(
                 result.getGatewayType() != null ? result.getGatewayType().toLowerCase() : null));
         dto.setGatewayEnvironmentId(result.getGatewayEnvironmentId());
 
@@ -151,7 +151,7 @@ public class FederatedSubscriptionMappingUtil {
     public static FederatedCredentialListDTO fromCredentialResultsListToDTO(
             List<FederatedCredentialsResult> results) {
         FederatedCredentialListDTO listDTO = new FederatedCredentialListDTO();
-        List<FederatedSubscriptionInfoDTO> dtoList = new ArrayList<>();
+        List<FederatedCredentialInfoDTO> dtoList = new ArrayList<>();
 
         if (results != null) {
             for (FederatedCredentialsResult result : results) {
