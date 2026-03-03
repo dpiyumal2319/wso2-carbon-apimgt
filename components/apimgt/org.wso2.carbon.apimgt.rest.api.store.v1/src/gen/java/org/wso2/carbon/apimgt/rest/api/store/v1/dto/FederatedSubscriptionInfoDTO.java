@@ -65,7 +65,7 @@ return null;
     private String gatewayEnvironmentId = null;
 
   /**
-   * UUID of the local credential record (used to reference specific credentials for delete/regenerate/retrieve)
+   * UUID of the local credential record (used to reference specific credentials for delete/retrieve)
    **/
   public FederatedSubscriptionInfoDTO credentialId(String credentialId) {
     this.credentialId = credentialId;
@@ -73,7 +73,7 @@ return null;
   }
 
   
-  @ApiModelProperty(example = "faae5fcc-cbae-40c4-bf43-89931571d250", value = "UUID of the local credential record (used to reference specific credentials for delete/regenerate/retrieve)")
+  @ApiModelProperty(example = "faae5fcc-cbae-40c4-bf43-89931571d250", value = "UUID of the local credential record (used to reference specific credentials for delete/retrieve)")
   @JsonProperty("credentialId")
   public String getCredentialId() {
     return credentialId;

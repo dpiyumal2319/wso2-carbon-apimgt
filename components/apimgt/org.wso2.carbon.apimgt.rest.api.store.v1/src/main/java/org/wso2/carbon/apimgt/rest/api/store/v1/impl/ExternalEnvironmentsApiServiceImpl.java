@@ -122,18 +122,15 @@ public class ExternalEnvironmentsApiServiceImpl implements ExternalEnvironmentsA
         List<String> invocationSchemas = new ArrayList<>();
         
         try {
-            // fedSubFeatures is typically a JSON array of capability objects
-            if (fedSubFeatures instanceof List) {
-                List<?> featureList = (List<?>) fedSubFeatures;
-                for (Object item : featureList) {
-                    if (item instanceof Map) {
-                        Map<String, Object> capability = (Map<String, Object>) item;
-                        if (capability.containsKey("credentialSchema")) {
-                            credentialSchemas.add((String) capability.get("credentialSchema"));
-                        }
-                        if (capability.containsKey("invocationSchema")) {
-                            invocationSchemas.add((String) capability.get("invocationSchema"));
-                        }
+            if (fedSubFeatures instanceof Map) {
+                Map<String, Object> capability = (Map<String, Object>) fedSubFeatures;
+                boolean supportsFederatedSubscriptions = Boolean.TRUE.equals(capability.get("subcriptionSupport"));
+                if (supportsFederatedSubscriptions) {
+                    if (capability.containsKey("credentialSchema") && capability.get("credentialSchema") instanceof String) {
+                        credentialSchemas.add((String) capability.get("credentialSchema"));
+                    }
+                    if (capability.containsKey("invocationSchema") && capability.get("invocationSchema") instanceof String) {
+                        invocationSchemas.add((String) capability.get("invocationSchema"));
                     }
                 }
             }

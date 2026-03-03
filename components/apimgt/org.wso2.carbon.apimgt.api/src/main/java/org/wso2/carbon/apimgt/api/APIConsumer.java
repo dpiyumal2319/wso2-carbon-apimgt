@@ -931,19 +931,6 @@ public interface APIConsumer extends APIManager {
             throws APIManagementException;
 
     /**
-     * Regenerate credential for a federated API subscription.
-     * Service builds context, orchestrates agent delete + create, and returns complete result.
-     *
-     * @param subscribedAPI The subscription
-     * @param api The API
-     * @param organization Organization name
-     * @return FederatedSubscriptionResult with new credential, instruction, and gateway info
-     * @throws APIManagementException if regeneration fails
-     */
-    FederatedCredentialsResult regenerateFederatedSubscriptionCredential(
-            SubscribedAPI subscribedAPI, API api, String organization) throws APIManagementException;
-
-    /**
      * Create a federated credential on an external gateway for an existing subscription.
      * The subscription mapping must already exist (created via createFederatedSubscription).
      * Multiple credentials can be created per subscription.
@@ -953,11 +940,32 @@ public interface APIConsumer extends APIManager {
      * @param organization  Organization name
      * @param name          Name for the credential
      * @param authzUser     Authenticated user creating the credential
+     * @param selectedOption Optional selected option from key generation request. Used when
+     *                       gateway/publisher subscription flow is not in effect.
      * @return FederatedCredentialsResult with full credential (one-time display), instruction, and gateway info
      * @throws APIManagementException if creation fails or no subscription mapping exists
      */
     FederatedCredentialsResult createFederatedCredential(SubscribedAPI subscribedAPI, API api,
-                                                         String organization, String name, String authzUser)
+                                                         String organization, String name, String authzUser,
+                                                         String selectedOption)
+            throws APIManagementException;
+
+    /**
+     * Create a federated credential for an API + application scope.
+     * The authorization user must be resolved by the caller from the current security context.
+     *
+     * @param apiUuid       API UUID
+     * @param applicationId Application UUID
+     * @param organization  Organization name
+     * @param name          Optional credential display name
+     * @param authzUser     Authenticated user performing the operation
+     * @param selectedOption Optional selected option from key generation request. Used when
+     *                       gateway/publisher subscription flow is not in effect.
+     * @return Federated credential result
+     * @throws APIManagementException if validation or provisioning fails
+     */
+    FederatedCredentialsResult createFederatedCredential(String apiUuid, String applicationId,
+            String organization, String name, String authzUser, String selectedOption)
             throws APIManagementException;
 
     /**
@@ -1034,6 +1042,17 @@ public interface APIConsumer extends APIManager {
             String apiUuid, String organization) throws APIManagementException;
 
     /**
+     * Get credential summaries for all federated credentials of an application.
+     *
+     * @param applicationUuid Application UUID
+     * @param organization    Organization name
+     * @return List of federated credential summaries
+     * @throws APIManagementException if retrieval fails
+     */
+    java.util.List<org.wso2.carbon.apimgt.api.model.FederatedCredentialSummary> getApplicationCredentialSummaries(
+            String applicationUuid, String organization) throws APIManagementException;
+
+    /**
      * Get subscription summaries for all federated subscriptions of an API.
      * Returns per-subscription data including application info, selected option, and credential count.
      *
@@ -1085,16 +1104,29 @@ public interface APIConsumer extends APIManager {
             API api, String organization) throws APIManagementException;
 
     /**
-     * Regenerate a specific federated credential by UUID.
-     * Calls the agent to regenerate the credential, then updates the local record.
+     * Get a specific federated credential by API scope and credential ID.
      *
-     * @param subscribedAPI  The subscription
-     * @param credentialUuid UUID of the local AM_EXTERNAL_CREDENTIAL row
-     * @param api            The API
-     * @param organization   Organization name
-     * @return FederatedCredentialsResult with new credential (one-time full display)
-     * @throws APIManagementException if regeneration fails
+     * @param apiUuid               API UUID
+     * @param credentialUuid        Credential UUID
+     * @param organization          Organization name
+     * @param authzUser             Authenticated user performing the operation
+     * @param includeFullCredential Whether to fetch full credential value from gateway
+     * @return Federated credential result
+     * @throws APIManagementException if retrieval fails
      */
-    FederatedCredentialsResult regenerateFederatedCredential(SubscribedAPI subscribedAPI,
-            String credentialUuid, API api, String organization) throws APIManagementException;
+    FederatedCredentialsResult getFederatedCredentialByApi(String apiUuid, String credentialUuid,
+            String organization, String authzUser, boolean includeFullCredential) throws APIManagementException;
+
+    /**
+     * Delete a federated credential by API scope and credential ID.
+     *
+     * @param apiUuid        API UUID
+     * @param credentialUuid Credential UUID
+     * @param organization   Organization name
+     * @param authzUser      Authenticated user performing the operation
+     * @throws APIManagementException if deletion fails
+     */
+    void deleteFederatedCredentialByApi(String apiUuid, String credentialUuid,
+            String organization, String authzUser) throws APIManagementException;
+
 }

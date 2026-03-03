@@ -7,7 +7,7 @@ import io.swagger.annotations.ApiModelProperty;
 import javax.validation.constraints.*;
 
 /**
- * Request parameters for creating a new credential for an existing subscription
+ * Request parameters for creating a federated credential scoped by API and application
  **/
 
 import io.swagger.annotations.*;
@@ -19,11 +19,32 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 
 import javax.validation.Valid;
 
-@ApiModel(description = "Request parameters for creating a new credential for an existing subscription")
+@ApiModel(description = "Request parameters for creating a federated credential scoped by API and application")
 
 public class FederatedCredentialRequestDTO   {
   
+    private String applicationId = null;
     private String name = null;
+    private String selectedOption = null;
+
+  /**
+   * UUID of the application used as the logical credential container
+   **/
+  public FederatedCredentialRequestDTO applicationId(String applicationId) {
+    this.applicationId = applicationId;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "3a4b5c6d-7e8f-9a0b-1c2d-3e4f5a6b7c8d", required = true, value = "UUID of the application used as the logical credential container")
+  @JsonProperty("applicationId")
+  @NotNull
+  public String getApplicationId() {
+    return applicationId;
+  }
+  public void setApplicationId(String applicationId) {
+    this.applicationId = applicationId;
+  }
 
   /**
    * Name for the credential
@@ -34,14 +55,31 @@ public class FederatedCredentialRequestDTO   {
   }
 
   
-  @ApiModelProperty(example = "My Production Key", required = true, value = "Name for the credential")
+  @ApiModelProperty(example = "My Production Key", value = "Name for the credential")
   @JsonProperty("name")
-  @NotNull
  @Size(min=1,max=255)  public String getName() {
     return name;
   }
   public void setName(String name) {
     this.name = name;
+  }
+
+  /**
+   * JSON wrapper containing schemaName and body for the selected option to use during key generation. Format: {\&quot;schemaName\&quot;:\&quot;tier-selector\&quot;,\&quot;body\&quot;:\&quot;{\\\&quot;id\\\&quot;:\\\&quot;plan1\\\&quot;,\\\&quot;name\\\&quot;:\\\&quot;Basic\\\&quot;}\&quot;} 
+   **/
+  public FederatedCredentialRequestDTO selectedOption(String selectedOption) {
+    this.selectedOption = selectedOption;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "{\"schemaName\":\"tier-selector\",\"body\":\"{\\\"id\\\":\\\"plan1\\\",\\\"name\\\":\\\"Basic\\\"}\"}", value = "JSON wrapper containing schemaName and body for the selected option to use during key generation. Format: {\"schemaName\":\"tier-selector\",\"body\":\"{\\\"id\\\":\\\"plan1\\\",\\\"name\\\":\\\"Basic\\\"}\"} ")
+  @JsonProperty("selectedOption")
+  public String getSelectedOption() {
+    return selectedOption;
+  }
+  public void setSelectedOption(String selectedOption) {
+    this.selectedOption = selectedOption;
   }
 
 
@@ -54,12 +92,14 @@ public class FederatedCredentialRequestDTO   {
       return false;
     }
     FederatedCredentialRequestDTO federatedCredentialRequest = (FederatedCredentialRequestDTO) o;
-    return Objects.equals(name, federatedCredentialRequest.name);
+    return Objects.equals(applicationId, federatedCredentialRequest.applicationId) &&
+        Objects.equals(name, federatedCredentialRequest.name) &&
+        Objects.equals(selectedOption, federatedCredentialRequest.selectedOption);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name);
+    return Objects.hash(applicationId, name, selectedOption);
   }
 
   @Override
@@ -67,7 +107,9 @@ public class FederatedCredentialRequestDTO   {
     StringBuilder sb = new StringBuilder();
     sb.append("class FederatedCredentialRequestDTO {\n");
     
+    sb.append("    applicationId: ").append(toIndentedString(applicationId)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
+    sb.append("    selectedOption: ").append(toIndentedString(selectedOption)).append("\n");
     sb.append("}");
     return sb.toString();
   }

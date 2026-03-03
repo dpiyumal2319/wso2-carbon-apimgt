@@ -2446,6 +2446,6 @@ public interface APIProvider extends APIManager {
      * Always captures the live gateway snapshot hash and publisher reviewed timestamp.
      * @param curatedPlanSelectionsJson JSON array of {@code {planId, enabled}} selections, or null to clear curation
      */
-    ApiFederationConfig updateApiFederationConfig(String apiUuid, String organization, boolean federationEnabled,
+    ApiFederationConfig updateApiFederationConfig(String apiUuid, String organization, boolean subscriptionEnabled,
             String curatedPlanSelectionsJson) throws APIManagementException;
 }

@@ -29,7 +29,7 @@ import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
 /**
  * Interface for managing subscriptions in external gateways.
  * <p>
- * Mutating operations (create, regenerate) return {@link AgentOperationResult}
+ * Mutating operations (create) return {@link AgentOperationResult}
  * containing credential, instruction, and reference artifact.
  * </p>
  * <p>
@@ -82,31 +82,6 @@ public interface FederatedSubscriptionAgent {
     }
 
     /**
-     * Regenerates a credential for an existing subscription.
-     * <p>
-     * Default implementation deletes and recreates the subscription.
-     * Override to preserve metadata from the old artifact.
-     * </p>
-     *
-     * @param context The subscription context
-     * @return AgentOperationResult with the new credential and reference artifact
-     * @throws APIManagementException If regeneration fails
-     */
-    default AgentOperationResult regenerateCredential(FederatedSubscriptionContext context)
-            throws APIManagementException {
-        try {
-            deleteSubscription(context);
-        } catch (APIManagementException e) {
-            // best-effort delete, continue with create
-        }
-        FederatedSubscriptionContext createCtx = context.toBuilder()
-                .externalSubscriptionId(null)
-                .subscriptionReferenceArtifact(null)
-                .build();
-        return createSubscription(createCtx, null);
-    }
-
-    /**
      * Checks if a subscription exists in the external gateway.
      *
      * @param context The subscription context containing external subscription identifier
@@ -123,6 +98,16 @@ public interface FederatedSubscriptionAgent {
      * @return The gateway type (e.g., "Azure", "AWS", "Kong", "Envoy")
      */
     String getGatewayType();
+
+    /**
+     * Returns whether this agent/gateway supports managed subscription workflows.
+     * Defaults to false for backward compatibility.
+     *
+     * @return true when subscription operations are supported by this gateway
+     */
+    default boolean isSubscriptionSupport() {
+        return false;
+    }
 
     /**
      * Fetches the full federation config live from the gateway, including the invocation template.
