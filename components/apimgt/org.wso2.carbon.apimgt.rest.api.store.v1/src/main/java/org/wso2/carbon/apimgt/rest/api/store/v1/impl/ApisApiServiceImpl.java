@@ -29,7 +29,6 @@ import org.wso2.carbon.apimgt.api.APIConstants.UnifiedSearchConstants;
 import org.wso2.carbon.apimgt.api.APIConsumer;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.ExceptionCodes;
-import org.wso2.carbon.apimgt.api.FederatedSubscriptionAgent;
 import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.APIChatAPISpec;
 import org.wso2.carbon.apimgt.api.model.APIChatExecutionResponse;
@@ -61,7 +60,6 @@ import org.wso2.carbon.apimgt.impl.APIClientGenerationException;
 import org.wso2.carbon.apimgt.impl.APIClientGenerationManager;
 import org.wso2.carbon.apimgt.impl.APIConstants;
 import org.wso2.carbon.apimgt.impl.dao.ApiMgtDAO;
-import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedSubscriptionAgentFactory;
 import org.wso2.carbon.apimgt.impl.dto.ai.ApiChatConfigurationDTO;
 import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
@@ -81,7 +79,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
 import java.util.Arrays;
-import java.util.Collections;
 
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.*;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.APIMappingUtil;
@@ -1435,7 +1432,7 @@ public class ApisApiServiceImpl implements ApisApiService {
 
             FederatedCredentialsResult result = apiConsumer.createFederatedCredential(apiId, application.getUUID(),
                     organization, body.getName(), username, body.getSelectedOption());
-            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
+            FederatedCredentialInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
             return Response.status(Response.Status.CREATED).entity(dto).build();
 
         } catch (APIManagementException e) {
@@ -1468,7 +1465,7 @@ public class ApisApiServiceImpl implements ApisApiService {
 
             FederatedCredentialsResult result = apiConsumer.getFederatedCredentialByApi(
                     apiId, credentialId, organization, username, false);
-            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
+            FederatedCredentialInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
             return Response.ok().entity(dto).build();
 
         } catch (APIManagementException e) {
@@ -1532,7 +1529,7 @@ public class ApisApiServiceImpl implements ApisApiService {
 
             FederatedCredentialsResult result = apiConsumer.getFederatedCredentialByApi(
                     apiId, credentialId, organization, username, true);
-            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
+            FederatedCredentialInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
             return Response.ok().entity(dto).build();
 
         } catch (APIManagementException e) {
