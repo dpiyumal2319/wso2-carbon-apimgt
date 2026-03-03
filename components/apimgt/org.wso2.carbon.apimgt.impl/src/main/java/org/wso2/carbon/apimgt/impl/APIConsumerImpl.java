@@ -5854,6 +5854,14 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         SubscriptionExternalMapping mapping = null;
         String agentSelectedOption;
         if (useSubscriptionMapping) {
+            // Subscription drives the credential lifecycle — validate it is active
+            String subStatus = subscribedAPI.getSubStatus();
+            if (!APIConstants.SubscriptionStatus.UNBLOCKED.equals(subStatus)) {
+                throw new APIManagementException(
+                        "Cannot create credential: subscription is not active (status: " + subStatus
+                                + "). Only active subscriptions can generate credentials.",
+                        ExceptionCodes.SUBSCRIPTION_STATE_INVALID);
+            }
             mapping = apiMgtDAO.getSubscriptionExternalMapping(subscriptionUuid, envId);
             if (mapping == null) {
                 throw new APIManagementException("No subscription mapping found for subscription: "
@@ -5908,7 +5916,49 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                     ExceptionCodes.RESOURCE_NOT_FOUND);
         }
 
-        SubscribedAPI subscribedAPI = resolveSubscribedApiForScope(apiUuid, application);
+        // Determine whether subscription mapping is required (state matrix check)
+        String envId = resolveGatewayEnvironmentId(api);
+        Environment environment = apiMgtDAO.getEnvironment(organization, envId);
+        if (environment == null) {
+            throw new APIManagementException("Gateway environment not found: " + envId);
+        }
+        FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
+                environment, organization);
+        ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
+        boolean subscriptionEnabledByPublisher = fedConfig == null || fedConfig.isSubscriptionEnabled();
+        boolean subscriptionSupportedByGateway = agent.isSubscriptionSupport();
+        boolean useSubscriptionMapping = subscriptionSupportedByGateway && subscriptionEnabledByPublisher;
+
+        // Resolve or auto-create the WSO2 subscription scope anchor
+        SubscribedAPI subscribedAPI;
+        int apiId = apiMgtDAO.getAPIID(apiUuid);
+        String subscriptionUuid = apiMgtDAO.getSubscriptionUuid(apiId, application.getId());
+
+        if (StringUtils.isNotBlank(subscriptionUuid)) {
+            subscribedAPI = getSubscriptionByUUID(subscriptionUuid);
+            if (subscribedAPI == null) {
+                throw new APIManagementException("Subscription not found: " + subscriptionUuid,
+                        ExceptionCodes.RESOURCE_NOT_FOUND);
+            }
+        } else if (!useSubscriptionMapping) {
+            // Auto-create WSO2 subscription as scope anchor (no external mapping)
+            ApiTypeWrapper apiTypeWrapper = new ApiTypeWrapper(api);
+            apiTypeWrapper.setTier(APIConstants.UNLIMITED_TIER);
+            SubscriptionResponse subResponse = addSubscription(apiTypeWrapper, authzUser, application);
+            subscribedAPI = getSubscriptionByUUID(subResponse.getSubscriptionUUID());
+            if (subscribedAPI == null) {
+                throw new APIManagementException(
+                        "Failed to auto-create subscription for credential provisioning",
+                        ExceptionCodes.INTERNAL_ERROR);
+            }
+        } else {
+            throw new APIManagementException(
+                    "No subscription exists for application: " + application.getUUID()
+                            + " and API: " + apiUuid
+                            + ". Subscribe to the API before generating credentials.",
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+
         return createFederatedCredential(subscribedAPI, api, organization, name, authzUser, selectedOption);
     }
 
@@ -5921,6 +5971,24 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         API api = getLightweightAPIByUUID(apiId, organization);
         if (!APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor())) {
             throw new APIManagementException("API is not a federated API: " + apiId);
+        }
+
+        // Validate that subscription support is active (both gateway + publisher flags)
+        String envId = resolveGatewayEnvironmentId(api);
+        Environment environment = apiMgtDAO.getEnvironment(organization, envId);
+        if (environment == null) {
+            throw new APIManagementException("Gateway environment not found: " + envId);
+        }
+        FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
+                environment, organization);
+        ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
+        boolean subscriptionEnabledByPublisher = fedConfig == null || fedConfig.isSubscriptionEnabled();
+        boolean subscriptionSupportedByGateway = agent.isSubscriptionSupport();
+        if (!subscriptionSupportedByGateway || !subscriptionEnabledByPublisher) {
+            throw new APIManagementException(
+                    "Federated subscriptions are not enabled for API: " + apiId
+                            + ". Gateway subscription support: " + subscriptionSupportedByGateway
+                            + ", Publisher subscription enabled: " + subscriptionEnabledByPublisher);
         }
 
         Application application = getApplicationByUUID(applicationId);
@@ -5936,9 +6004,8 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         String subscriptionUuid = subResponse.getSubscriptionUUID();
         String subscriptionStatus = subResponse.getSubscriptionStatus();
 
-        // 3. Resolve gateway environment and create mapping row with selectedOption embedded.
+        // 3. Create mapping row with selectedOption embedded.
         //    No gateway call is made here — credentials are provisioned separately.
-        String envId = resolveGatewayEnvironmentId(api);
         String mappingUuid = UUID.randomUUID().toString();
         SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
         mapping.setUuid(mappingUuid);
