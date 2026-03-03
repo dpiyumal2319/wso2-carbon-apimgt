@@ -23,7 +23,7 @@ import javax.validation.Valid;
 
 @ApiModel(description = "Contains credential and invocation information for APIs deployed on external gateways")
 
-public class FederatedSubscriptionInfoDTO   {
+public class FederatedCredentialInfoDTO   {
   
     private String credentialId = null;
     private FederatedCredentialDTO credential = null;
@@ -67,7 +67,7 @@ return null;
   /**
    * UUID of the local credential record (used to reference specific credentials for delete/retrieve)
    **/
-  public FederatedSubscriptionInfoDTO credentialId(String credentialId) {
+  public FederatedCredentialInfoDTO credentialId(String credentialId) {
     this.credentialId = credentialId;
     return this;
   }
@@ -84,7 +84,7 @@ return null;
 
   /**
    **/
-  public FederatedSubscriptionInfoDTO credential(FederatedCredentialDTO credential) {
+  public FederatedCredentialInfoDTO credential(FederatedCredentialDTO credential) {
     this.credential = credential;
     return this;
   }
@@ -102,7 +102,7 @@ return null;
 
   /**
    **/
-  public FederatedSubscriptionInfoDTO invocationInstruction(InvocationInstructionDTO invocationInstruction) {
+  public FederatedCredentialInfoDTO invocationInstruction(InvocationInstructionDTO invocationInstruction) {
     this.invocationInstruction = invocationInstruction;
     return this;
   }
@@ -121,7 +121,7 @@ return null;
   /**
    * Type of the external gateway
    **/
-  public FederatedSubscriptionInfoDTO gatewayType(GatewayTypeEnum gatewayType) {
+  public FederatedCredentialInfoDTO gatewayType(GatewayTypeEnum gatewayType) {
     this.gatewayType = gatewayType;
     return this;
   }
@@ -139,7 +139,7 @@ return null;
   /**
    * UUID of the gateway environment
    **/
-  public FederatedSubscriptionInfoDTO gatewayEnvironmentId(String gatewayEnvironmentId) {
+  public FederatedCredentialInfoDTO gatewayEnvironmentId(String gatewayEnvironmentId) {
     this.gatewayEnvironmentId = gatewayEnvironmentId;
     return this;
   }
@@ -163,12 +163,12 @@ return null;
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    FederatedSubscriptionInfoDTO federatedSubscriptionInfo = (FederatedSubscriptionInfoDTO) o;
-    return Objects.equals(credentialId, federatedSubscriptionInfo.credentialId) &&
-        Objects.equals(credential, federatedSubscriptionInfo.credential) &&
-        Objects.equals(invocationInstruction, federatedSubscriptionInfo.invocationInstruction) &&
-        Objects.equals(gatewayType, federatedSubscriptionInfo.gatewayType) &&
-        Objects.equals(gatewayEnvironmentId, federatedSubscriptionInfo.gatewayEnvironmentId);
+    FederatedCredentialInfoDTO federatedCredentialInfo = (FederatedCredentialInfoDTO) o;
+    return Objects.equals(credentialId, federatedCredentialInfo.credentialId) &&
+        Objects.equals(credential, federatedCredentialInfo.credential) &&
+        Objects.equals(invocationInstruction, federatedCredentialInfo.invocationInstruction) &&
+        Objects.equals(gatewayType, federatedCredentialInfo.gatewayType) &&
+        Objects.equals(gatewayEnvironmentId, federatedCredentialInfo.gatewayEnvironmentId);
   }
 
   @Override
@@ -179,7 +179,7 @@ return null;
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class FederatedSubscriptionInfoDTO {\n");
+    sb.append("class FederatedCredentialInfoDTO {\n");
     
     sb.append("    credentialId: ").append(toIndentedString(credentialId)).append("\n");
     sb.append("    credential: ").append(toIndentedString(credential)).append("\n");

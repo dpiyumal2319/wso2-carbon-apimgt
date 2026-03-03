@@ -6,7 +6,7 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialInfoDTO;
 import javax.validation.constraints.*;
 
 /**
@@ -27,7 +27,7 @@ import javax.validation.Valid;
 public class FederatedCredentialListDTO   {
   
     private Integer count = null;
-    private List<FederatedSubscriptionInfoDTO> list = new ArrayList<FederatedSubscriptionInfoDTO>();
+    private List<FederatedCredentialInfoDTO> list = new ArrayList<FederatedCredentialInfoDTO>();
 
   /**
    * Number of credentials returned
@@ -49,7 +49,7 @@ public class FederatedCredentialListDTO   {
 
   /**
    **/
-  public FederatedCredentialListDTO list(List<FederatedSubscriptionInfoDTO> list) {
+  public FederatedCredentialListDTO list(List<FederatedCredentialInfoDTO> list) {
     this.list = list;
     return this;
   }
@@ -58,10 +58,10 @@ public class FederatedCredentialListDTO   {
   @ApiModelProperty(value = "")
       @Valid
   @JsonProperty("list")
-  public List<FederatedSubscriptionInfoDTO> getList() {
+  public List<FederatedCredentialInfoDTO> getList() {
     return list;
   }
-  public void setList(List<FederatedSubscriptionInfoDTO> list) {
+  public void setList(List<FederatedCredentialInfoDTO> list) {
     this.list = list;
   }
 
