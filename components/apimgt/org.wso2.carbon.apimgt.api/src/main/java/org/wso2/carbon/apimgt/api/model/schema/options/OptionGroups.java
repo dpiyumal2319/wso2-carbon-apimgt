@@ -49,7 +49,7 @@ import java.util.Map;
  */
 public class OptionGroups implements SubscriptionOptionsBody {
 
-    public static final String SCHEMA_NAME = "option-groups";
+    public static final String SCHEMA_NAME = SubscriptionOptionsBody.SCHEMA_OPTION_GROUPS;
 
     private List<OptionGroup> groups;
 

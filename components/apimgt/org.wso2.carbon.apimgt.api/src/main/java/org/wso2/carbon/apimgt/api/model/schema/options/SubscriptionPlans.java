@@ -42,7 +42,7 @@ import java.util.Map;
  */
 public class SubscriptionPlans implements SubscriptionOptionsBody {
 
-    public static final String SCHEMA_NAME = "subscription-plans";
+    public static final String SCHEMA_NAME = SubscriptionOptionsBody.SCHEMA_SUBSCRIPTION_PLANS;
 
     private String optionName;
     private List<SubscriptionPlan> plans;

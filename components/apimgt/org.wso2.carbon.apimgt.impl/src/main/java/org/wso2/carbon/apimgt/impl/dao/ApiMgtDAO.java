@@ -17006,7 +17006,6 @@ public class ApiMgtDAO {
                     summary.setMappingUuid(rs.getString("MAPPING_UUID"));
                     summary.setCredentialUuid(rs.getString("CREDENTIAL_UUID"));
                     summary.setName(rs.getString("NAME"));
-                    summary.setSubscriptionStatus(rs.getString("SUB_STATUS"));
                     summary.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
                     summary.setApplicationId(rs.getString("APPLICATION_ID"));
                     summary.setApplicationName(rs.getString("APP_NAME"));
@@ -17030,6 +17029,50 @@ public class ApiMgtDAO {
     }
 
     /**
+     * Get credential summaries for all federated credentials of an application.
+     *
+     * @param applicationUuid Application UUID
+     * @return List of FederatedCredentialSummary objects
+     * @throws APIManagementException if an error occurs
+     */
+    public List<FederatedCredentialSummary> getApplicationCredentialSummaries(String applicationUuid)
+            throws APIManagementException {
+        List<FederatedCredentialSummary> summaries = new ArrayList<>();
+
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = connection.prepareStatement(SQLConstants.GET_APPLICATION_CREDENTIAL_SUMMARIES_SQL)) {
+
+            ps.setString(1, applicationUuid);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    FederatedCredentialSummary summary = new FederatedCredentialSummary();
+                    summary.setSubscriptionUuid(rs.getString("SUBSCRIPTION_UUID"));
+                    summary.setMappingUuid(rs.getString("MAPPING_UUID"));
+                    summary.setCredentialUuid(rs.getString("CREDENTIAL_UUID"));
+                    summary.setName(rs.getString("NAME"));
+                    summary.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
+                    summary.setApplicationId(rs.getString("APPLICATION_ID"));
+                    summary.setApplicationName(rs.getString("APP_NAME"));
+
+                    try (InputStream mappingArtifactStream = rs.getBinaryStream("MAPPING_ARTIFACT")) {
+                        if (mappingArtifactStream != null) {
+                            String mappingArtifact = IOUtils.toString(mappingArtifactStream, StandardCharsets.UTF_8);
+                            summary.setSelectedOption(extractSelectedOptionFromArtifact(mappingArtifact));
+                        }
+                    }
+                    summaries.add(summary);
+                }
+            }
+
+        } catch (SQLException | IOException e) {
+            handleException("Error while retrieving credential summaries for application: " + applicationUuid, e);
+        }
+
+        return summaries;
+    }
+
+    /**
      * Get subscription summaries for all federated subscriptions of an API.
      * Returns lightweight data for the Subscriptions page table including credential count per subscription.
      *
@@ -17045,8 +17088,8 @@ public class ApiMgtDAO {
         try (Connection connection = APIMgtDBUtil.getConnection();
              PreparedStatement ps = connection.prepareStatement(SQLConstants.GET_API_SUBSCRIPTION_SUMMARIES_SQL)) {
 
-            ps.setString(1, apiUuid);
-            ps.setString(2, environmentId);
+            ps.setString(1, environmentId);
+            ps.setString(2, apiUuid);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -17349,7 +17392,7 @@ public class ApiMgtDAO {
             connection.setAutoCommit(false);
             ps.setString(1, config.getApiUuid());
             ps.setString(2, config.getGatewayEnvId());
-            ps.setInt(3, config.isFederationEnabled() ? 1 : 0);
+            ps.setInt(3, config.isSubscriptionEnabled() ? 1 : 0);
             if (config.getPublisherCuratedConfig() != null) {
                 ps.setBytes(4, config.getPublisherCuratedConfig().toJson().getBytes(StandardCharsets.UTF_8));
             } else {
@@ -17378,7 +17421,7 @@ public class ApiMgtDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     config = new ApiFederationConfig(apiUuid, envId);
-                    config.setFederationEnabled(rs.getInt("FEDERATION_ENABLED") == 1);
+                    config.setSubscriptionEnabled(rs.getInt("SUBSCRIPTION_ENABLED") == 1);
                     config.setGatewaySnapshotHash(rs.getString("GATEWAY_SNAPSHOT_HASH"));
                     config.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
                     config.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
@@ -17425,14 +17468,14 @@ public class ApiMgtDAO {
      * COALESCE'd — pass null to leave them unchanged.
      */
     public void updateApiFederationConfigPublisherData(String apiUuid, String envId,
-            boolean federationEnabled, SubscriptionSupportInfo curatedConfig, String snapshotHash,
+            boolean subscriptionEnabled, SubscriptionSupportInfo curatedConfig, String snapshotHash,
             Timestamp reviewedTime) throws APIManagementException {
         try (Connection connection = APIMgtDBUtil.getConnection();
              PreparedStatement ps = connection.prepareStatement(
                      SQLConstants.UPDATE_API_FEDERATION_CONFIG_PUBLISHER_SQL)) {
 
             connection.setAutoCommit(false);
-            ps.setInt(1, federationEnabled ? 1 : 0);
+            ps.setInt(1, subscriptionEnabled ? 1 : 0);
             if (curatedConfig != null) {
                 ps.setBytes(2, curatedConfig.toJson().getBytes(StandardCharsets.UTF_8));
             } else {

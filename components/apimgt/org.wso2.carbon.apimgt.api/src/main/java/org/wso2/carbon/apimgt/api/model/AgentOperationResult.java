@@ -20,7 +20,7 @@ package org.wso2.carbon.apimgt.api.model;
 
 /**
  * Bundled result returned by {@link org.wso2.carbon.apimgt.api.FederatedSubscriptionAgent}
- * from mutating operations (create, regenerate).
+ * from mutating operations (create).
  * <p>
  * The agent fully owns its artifact lifecycle — the service layer treats
  * {@code referenceArtifact} as an opaque blob and never parses it.

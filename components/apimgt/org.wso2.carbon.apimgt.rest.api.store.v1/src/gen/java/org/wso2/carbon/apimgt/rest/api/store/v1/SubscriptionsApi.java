@@ -3,9 +3,6 @@ package org.wso2.carbon.apimgt.rest.api.store.v1;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.APIMonetizationUsageDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.AdditionalSubscriptionInfoListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialListDTO;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialRequestDTO;
-import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionInfoDTO;
 import java.util.List;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscriptionListDTO;
@@ -44,43 +41,6 @@ public class SubscriptionsApi  {
 SubscriptionsApiService delegate = new SubscriptionsApiServiceImpl();
 
 
-    @POST
-    @Path("/{subscriptionId}/federated-credential")
-    @Consumes({ "application/json" })
-    @Produces({ "application/json" })
-    @ApiOperation(value = "Create Federated Credential ", notes = "Provisions a new credential on the external gateway for an existing federated subscription. Multiple credentials can be created per subscription. Returns the full credential value (one-time display) and invocation instructions. ", response = FederatedSubscriptionInfoDTO.class, authorizations = {
-        @Authorization(value = "OAuth2Security", scopes = {
-            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
-            @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
-        })
-    }, tags={ "Federated Subscriptions",  })
-    @ApiResponses(value = { 
-        @ApiResponse(code = 201, message = "Created. Federated credential provisioned successfully. ", response = FederatedSubscriptionInfoDTO.class),
-        @ApiResponse(code = 400, message = "Bad Request. Invalid request or subscription is not for a federated API. ", response = ErrorDTO.class),
-        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
-        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
-    public Response createFederatedCredential(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId, @ApiParam(value = "Credential creation request parameters " ,required=true) FederatedCredentialRequestDTO federatedCredentialRequestDTO) throws APIManagementException{
-        return delegate.createFederatedCredential(subscriptionId, federatedCredentialRequestDTO, securityContext);
-    }
-
-    @DELETE
-    @Path("/{subscriptionId}/federated-credential/{credentialId}")
-    
-    @Produces({ "application/json" })
-    @ApiOperation(value = "Delete Federated Credential ", notes = "Deletes a specific federated credential from the external gateway and removes it from the local store. ", response = Void.class, authorizations = {
-        @Authorization(value = "OAuth2Security", scopes = {
-            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
-            @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
-        })
-    }, tags={ "Federated Subscriptions",  })
-    @ApiResponses(value = { 
-        @ApiResponse(code = 200, message = "OK. Credential deleted successfully. ", response = Void.class),
-        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
-        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
-    public Response deleteFederatedCredential(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId, @ApiParam(value = "UUID of the credential",required=true) @PathParam("credentialId") String credentialId) throws APIManagementException{
-        return delegate.deleteFederatedCredential(subscriptionId, credentialId, securityContext);
-    }
-
     @DELETE
     @Path("/{subscriptionId}/federated-subscription")
     
@@ -113,80 +73,6 @@ SubscriptionsApiService delegate = new SubscriptionsApiServiceImpl();
         @ApiResponse(code = 404, message = "Not Found. Retrieving types and fields failed. ", response = Void.class) })
     public Response getAdditionalInfoOfAPISubscriptions(@ApiParam(value = "**API ID** consisting of the **UUID** of the API. ",required=true) @PathParam("apiId") String apiId,  @ApiParam(value = "Application Group Id ")  @QueryParam("groupId") String groupId,  @ApiParam(value = "For cross-tenant invocations, this is used to specify the tenant domain, where the resource need to be   retrieved from. " )@HeaderParam("X-WSO2-Tenant") String xWSO2Tenant,  @ApiParam(value = "Starting point within the complete list of items qualified. ", defaultValue="0") @DefaultValue("0") @QueryParam("offset") Integer offset,  @ApiParam(value = "Maximum size of resource array to return. ", defaultValue="25") @DefaultValue("25") @QueryParam("limit") Integer limit,  @ApiParam(value = "Validator for conditional requests; based on the ETag of the formerly retrieved variant of the resourec. " )@HeaderParam("If-None-Match") String ifNoneMatch) throws APIManagementException{
         return delegate.getAdditionalInfoOfAPISubscriptions(apiId, groupId, xWSO2Tenant, offset, limit, ifNoneMatch, securityContext);
-    }
-
-    @GET
-    @Path("/{subscriptionId}/federated-credential/{credentialId}")
-    
-    @Produces({ "application/json" })
-    @ApiOperation(value = "Get Federated Credential ", notes = "Retrieves a specific federated credential (masked) and invocation instructions. ", response = FederatedSubscriptionInfoDTO.class, authorizations = {
-        @Authorization(value = "OAuth2Security", scopes = {
-            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
-            @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
-        })
-    }, tags={ "Federated Subscriptions",  })
-    @ApiResponses(value = { 
-        @ApiResponse(code = 200, message = "OK. Credential returned successfully. ", response = FederatedSubscriptionInfoDTO.class),
-        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
-        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
-    public Response getFederatedCredential(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId, @ApiParam(value = "UUID of the credential",required=true) @PathParam("credentialId") String credentialId) throws APIManagementException{
-        return delegate.getFederatedCredential(subscriptionId, credentialId, securityContext);
-    }
-
-    @GET
-    @Path("/{subscriptionId}/federated-credentials")
-    
-    @Produces({ "application/json" })
-    @ApiOperation(value = "List Federated Credentials ", notes = "Returns all credentials provisioned for a federated subscription. Each entry contains a masked credential and invocation instructions. ", response = FederatedCredentialListDTO.class, authorizations = {
-        @Authorization(value = "OAuth2Security", scopes = {
-            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
-            @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
-        })
-    }, tags={ "Federated Subscriptions",  })
-    @ApiResponses(value = { 
-        @ApiResponse(code = 200, message = "OK. Credential list returned successfully. ", response = FederatedCredentialListDTO.class),
-        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
-        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
-    public Response listFederatedCredentials(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId) throws APIManagementException{
-        return delegate.listFederatedCredentials(subscriptionId, securityContext);
-    }
-
-    @POST
-    @Path("/{subscriptionId}/federated-credential/{credentialId}/regenerate")
-    
-    @Produces({ "application/json" })
-    @ApiOperation(value = "Regenerate Federated Credential ", notes = "Regenerates a specific credential on the external gateway. The old credential is replaced and the new one is returned (one-time full display). ", response = FederatedSubscriptionInfoDTO.class, authorizations = {
-        @Authorization(value = "OAuth2Security", scopes = {
-            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
-            @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
-        })
-    }, tags={ "Federated Subscriptions",  })
-    @ApiResponses(value = { 
-        @ApiResponse(code = 200, message = "OK. Credential regenerated successfully. ", response = FederatedSubscriptionInfoDTO.class),
-        @ApiResponse(code = 400, message = "Bad Request. Invalid request or credential does not support regeneration. ", response = ErrorDTO.class),
-        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
-        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
-    public Response regenerateFederatedCredential(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId, @ApiParam(value = "UUID of the credential to regenerate",required=true) @PathParam("credentialId") String credentialId) throws APIManagementException{
-        return delegate.regenerateFederatedCredential(subscriptionId, credentialId, securityContext);
-    }
-
-    @POST
-    @Path("/{subscriptionId}/federated-credential/{credentialId}/retrieve")
-    
-    @Produces({ "application/json" })
-    @ApiOperation(value = "Retrieve Full Credential Value ", notes = "Retrieves the full (unmasked) credential value from the external gateway. Only works if the gateway's isValueRetrievable flag is true (e.g., Azure). ", response = FederatedSubscriptionInfoDTO.class, authorizations = {
-        @Authorization(value = "OAuth2Security", scopes = {
-            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
-            @AuthorizationScope(scope = "apim:sub_manage", description = "Retrieve, Manage subscriptions")
-        })
-    }, tags={ "Federated Subscriptions",  })
-    @ApiResponses(value = { 
-        @ApiResponse(code = 200, message = "OK. Full credential retrieved successfully. ", response = FederatedSubscriptionInfoDTO.class),
-        @ApiResponse(code = 400, message = "Bad Request. Invalid request or validation error.", response = ErrorDTO.class),
-        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
-        @ApiResponse(code = 412, message = "Precondition Failed. The request has not been performed because one of the preconditions is not met.", response = ErrorDTO.class) })
-    public Response retrieveFederatedCredential(@ApiParam(value = "Subscription Id ",required=true) @PathParam("subscriptionId") String subscriptionId, @ApiParam(value = "UUID of the credential to retrieve",required=true) @PathParam("credentialId") String credentialId) throws APIManagementException{
-        return delegate.retrieveFederatedCredential(subscriptionId, credentialId, securityContext);
     }
 
     @GET

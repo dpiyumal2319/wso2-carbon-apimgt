@@ -22,14 +22,14 @@ import java.sql.Timestamp;
 
 /**
  * Federation configuration for an API on an external gateway (AM_API_FEDERATION_CONFIG).
- * Persisted: federationEnabled, publisherCuratedConfig, gatewaySnapshotHash (last-acknowledged).
+ * Persisted: subscriptionEnabled, publisherCuratedConfig, gatewaySnapshotHash (last-acknowledged).
  * Transient: liveGatewaySnapshot, liveSnapshotHash, stale — populated on GET via live gateway fetch.
  */
 public class ApiFederationConfig {
 
     private String apiUuid;
     private String gatewayEnvId;
-    private boolean federationEnabled;
+    private boolean subscriptionEnabled;
     private SubscriptionSupportInfo publisherCuratedConfig;
     private String gatewaySnapshotHash;
     private Timestamp createdTime;
@@ -40,6 +40,7 @@ public class ApiFederationConfig {
     private SubscriptionSupportInfo liveGatewaySnapshot;
     private String liveSnapshotHash;
     private boolean stale;
+    private boolean subscriptionSupport;
 
     public ApiFederationConfig() {
     }
@@ -65,12 +66,12 @@ public class ApiFederationConfig {
         this.gatewayEnvId = gatewayEnvId;
     }
 
-    public boolean isFederationEnabled() {
-        return federationEnabled;
+    public boolean isSubscriptionEnabled() {
+        return subscriptionEnabled;
     }
 
-    public void setFederationEnabled(boolean federationEnabled) {
-        this.federationEnabled = federationEnabled;
+    public void setSubscriptionEnabled(boolean subscriptionEnabled) {
+        this.subscriptionEnabled = subscriptionEnabled;
     }
 
     public SubscriptionSupportInfo getLiveGatewaySnapshot() {
@@ -111,6 +112,14 @@ public class ApiFederationConfig {
 
     public void setStale(boolean stale) {
         this.stale = stale;
+    }
+
+    public boolean isSubscriptionSupport() {
+        return subscriptionSupport;
+    }
+
+    public void setSubscriptionSupport(boolean subscriptionSupport) {
+        this.subscriptionSupport = subscriptionSupport;
     }
 
     public Timestamp getCreatedTime() {

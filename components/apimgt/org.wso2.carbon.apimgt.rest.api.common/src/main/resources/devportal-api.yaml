@@ -358,6 +358,55 @@ paths:
           "https://localhost:9443/api/am/devportal/v3/apis/API_ID/federated-subscriptions"'
 
   /apis/{apiId}/federated-credentials:
+    post:
+      tags:
+        - Federated Subscriptions
+      summary: |
+        Create API Federated Credential
+      description: |
+        Provisions a new credential on the external gateway for an API and application context.
+        The authenticated user is resolved internally as the credential owner.
+      operationId: createApiFederatedCredential
+      parameters:
+        - $ref: '#/components/parameters/apiId'
+      requestBody:
+        required: true
+        description: |
+          Credential creation request parameters
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FederatedCredentialRequest'
+      responses:
+        201:
+          description: |
+            Created.
+            Federated credential provisioned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FederatedSubscriptionInfo'
+        400:
+          description: |
+            Bad Request.
+            Invalid request or API is not a federated API.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+            - apim:sub_manage
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer TOKEN"
+          -H "Content-Type: application/json" -d "{\"applicationId\":\"APP_UUID\",\"name\":\"My Key\"}"
+          -X POST "https://localhost:9443/api/am/devportal/v3/apis/API_ID/federated-credentials"'
     get:
       tags:
         - Federated Subscriptions
@@ -390,6 +439,120 @@ paths:
         - lang: Curl
           source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
           "https://localhost:9443/api/am/devportal/v3/apis/API_ID/federated-credentials"'
+
+  /apis/{apiId}/federated-credentials/{credentialId}:
+    get:
+      tags:
+        - Federated Subscriptions
+      summary: |
+        Get API Federated Credential
+      description: |
+        Retrieves a specific federated credential (masked) and invocation instructions.
+      operationId: getApiFederatedCredential
+      parameters:
+        - $ref: '#/components/parameters/apiId'
+        - name: credentialId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: UUID of the credential
+      responses:
+        200:
+          description: |
+            OK.
+            Credential returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FederatedSubscriptionInfo'
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+            - apim:sub_manage
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer TOKEN"
+          "https://localhost:9443/api/am/devportal/v3/apis/API_ID/federated-credentials/CREDENTIAL_ID"'
+    delete:
+      tags:
+        - Federated Subscriptions
+      summary: |
+        Delete API Federated Credential
+      description: |
+        Deletes a specific federated credential from the external gateway and removes it from the local store.
+      operationId: deleteApiFederatedCredential
+      parameters:
+        - $ref: '#/components/parameters/apiId'
+        - name: credentialId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: UUID of the credential
+      responses:
+        200:
+          description: |
+            OK.
+            Credential deleted successfully.
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+            - apim:sub_manage
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer TOKEN"
+          -X DELETE "https://localhost:9443/api/am/devportal/v3/apis/API_ID/federated-credentials/CREDENTIAL_ID"'
+
+  /apis/{apiId}/federated-credentials/{credentialId}/retrieve:
+    post:
+      tags:
+        - Federated Subscriptions
+      summary: |
+        Retrieve API Federated Credential Value
+      description: |
+        Retrieves the full (unmasked) credential value from the external gateway.
+        Only works if the gateway's isValueRetrievable flag is true.
+      operationId: retrieveApiFederatedCredential
+      parameters:
+        - $ref: '#/components/parameters/apiId'
+        - name: credentialId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: UUID of the credential to retrieve
+      responses:
+        "200":
+          description: |
+            OK.
+            Full credential retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FederatedSubscriptionInfo'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "412":
+          $ref: '#/components/responses/PreconditionFailed'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+            - apim:sub_manage
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer TOKEN"
+          -X POST "https://localhost:9443/api/am/devportal/v3/apis/API_ID/federated-credentials/CREDENTIAL_ID/retrieve"'
 
   /apis/{apiId}/swagger:
     get:
@@ -3121,6 +3284,39 @@ paths:
           source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
           -H "Content-Type: application/json" -X POST -d @data.json "https://localhost:9443/api/am/devportal/v3/applications/896658a0-b4ee-4535-bbfa-806c894a4015/map-keys"'
 
+  /applications/{applicationId}/federated-credentials:
+    get:
+      tags:
+        - Federated Subscriptions
+      summary: |
+        Get Application Credential Summaries
+      description: |
+        Retrieves a list of federated credential summaries for this application.
+      operationId: getApplicationCredentialSummaries
+      parameters:
+        - $ref: '#/components/parameters/applicationId'
+      responses:
+        200:
+          description: |
+            OK.
+            Credential summaries retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FederatedCredentialSummaryList'
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - OAuth2Security:
+            - apim:subscribe
+            - apim:app_manage
+      x-code-samples:
+        - lang: Curl
+          source: 'curl -k -H "Authorization: Bearer TOKEN"
+          "https://localhost:9443/api/am/devportal/v3/applications/APP_ID/federated-credentials"'
+
   /applications/{applicationId}/keys:
     get:
       tags:
@@ -4876,254 +5072,6 @@ paths:
         - lang: Curl
           source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
           -X DELETE "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/federated-subscription"'
-
-  /subscriptions/{subscriptionId}/federated-credential:
-    post:
-      tags:
-        - Federated Subscriptions
-      summary: |
-        Create Federated Credential
-      description: |
-        Provisions a new credential on the external gateway for an existing federated subscription.
-        Multiple credentials can be created per subscription. Returns the full credential value
-        (one-time display) and invocation instructions.
-      operationId: createFederatedCredential
-      parameters:
-        - $ref: '#/components/parameters/subscriptionId'
-      requestBody:
-        required: true
-        description: |
-          Credential creation request parameters
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FederatedCredentialRequest'
-      responses:
-        201:
-          description: |
-            Created.
-            Federated credential provisioned successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FederatedSubscriptionInfo'
-        400:
-          description: |
-            Bad Request.
-            Invalid request or subscription is not for a federated API.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        404:
-          $ref: '#/components/responses/NotFound'
-        500:
-          $ref: '#/components/responses/InternalServerError'
-      security:
-        - OAuth2Security:
-            - apim:subscribe
-            - apim:sub_manage
-      x-code-samples:
-        - lang: Curl
-          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
-          -H "Content-Type: application/json" -d "{\"name\":\"My Key\"}"
-          -X POST "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/federated-credential"'
-
-  /subscriptions/{subscriptionId}/federated-credentials:
-    get:
-      tags:
-        - Federated Subscriptions
-      summary: |
-        List Federated Credentials
-      description: |
-        Returns all credentials provisioned for a federated subscription.
-        Each entry contains a masked credential and invocation instructions.
-      operationId: listFederatedCredentials
-      parameters:
-        - $ref: '#/components/parameters/subscriptionId'
-      responses:
-        200:
-          description: |
-            OK.
-            Credential list returned successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FederatedCredentialList'
-        404:
-          $ref: '#/components/responses/NotFound'
-        500:
-          $ref: '#/components/responses/InternalServerError'
-      security:
-        - OAuth2Security:
-            - apim:subscribe
-            - apim:sub_manage
-      x-code-samples:
-        - lang: Curl
-          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
-          "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/federated-credentials"'
-
-  /subscriptions/{subscriptionId}/federated-credential/{credentialId}:
-    get:
-      tags:
-        - Federated Subscriptions
-      summary: |
-        Get Federated Credential
-      description: |
-        Retrieves a specific federated credential (masked) and invocation instructions.
-      operationId: getFederatedCredential
-      parameters:
-        - $ref: '#/components/parameters/subscriptionId'
-        - name: credentialId
-          in: path
-          required: true
-          schema:
-            type: string
-          description: UUID of the credential
-      responses:
-        200:
-          description: |
-            OK.
-            Credential returned successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FederatedSubscriptionInfo'
-        404:
-          $ref: '#/components/responses/NotFound'
-        500:
-          $ref: '#/components/responses/InternalServerError'
-      security:
-        - OAuth2Security:
-            - apim:subscribe
-            - apim:sub_manage
-      x-code-samples:
-        - lang: Curl
-          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
-          "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/federated-credential/CREDENTIAL_ID"'
-    delete:
-      tags:
-        - Federated Subscriptions
-      summary: |
-        Delete Federated Credential
-      description: |
-        Deletes a specific federated credential from the external gateway and removes it from the local store.
-      operationId: deleteFederatedCredential
-      parameters:
-        - $ref: '#/components/parameters/subscriptionId'
-        - name: credentialId
-          in: path
-          required: true
-          schema:
-            type: string
-          description: UUID of the credential
-      responses:
-        200:
-          description: |
-            OK.
-            Credential deleted successfully.
-        404:
-          $ref: '#/components/responses/NotFound'
-        500:
-          $ref: '#/components/responses/InternalServerError'
-      security:
-        - OAuth2Security:
-            - apim:subscribe
-            - apim:sub_manage
-      x-code-samples:
-        - lang: Curl
-          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
-          -X DELETE "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/federated-credential/CREDENTIAL_ID"'
-
-  /subscriptions/{subscriptionId}/federated-credential/{credentialId}/regenerate:
-    post:
-      tags:
-        - Federated Subscriptions
-      summary: |
-        Regenerate Federated Credential
-      description: |
-        Regenerates a specific credential on the external gateway.
-        The old credential is replaced and the new one is returned (one-time full display).
-      operationId: regenerateFederatedCredential
-      parameters:
-        - $ref: '#/components/parameters/subscriptionId'
-        - name: credentialId
-          in: path
-          required: true
-          schema:
-            type: string
-          description: UUID of the credential to regenerate
-      responses:
-        200:
-          description: |
-            OK.
-            Credential regenerated successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FederatedSubscriptionInfo'
-        400:
-          description: |
-            Bad Request.
-            Invalid request or credential does not support regeneration.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        404:
-          $ref: '#/components/responses/NotFound'
-        500:
-          $ref: '#/components/responses/InternalServerError'
-      security:
-        - OAuth2Security:
-            - apim:subscribe
-            - apim:sub_manage
-      x-code-samples:
-        - lang: Curl
-          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
-          -X POST "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/federated-credential/CREDENTIAL_ID/regenerate"'
-
-  /subscriptions/{subscriptionId}/federated-credential/{credentialId}/retrieve:
-    post:
-      tags:
-        - Federated Subscriptions
-      summary: |
-        Retrieve Full Credential Value
-      description: |
-        Retrieves the full (unmasked) credential value from the external gateway.
-        Only works if the gateway's isValueRetrievable flag is true (e.g., Azure).
-      operationId: retrieveFederatedCredential
-      parameters:
-        - $ref: '#/components/parameters/subscriptionId'
-        - name: credentialId
-          in: path
-          required: true
-          schema:
-            type: string
-          description: UUID of the credential to retrieve
-      responses:
-        "200":
-          description: |
-            OK.
-            Full credential retrieved successfully.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FederatedSubscriptionInfo'
-        "400":
-          $ref: '#/components/responses/BadRequest'
-        "404":
-          $ref: '#/components/responses/NotFound'
-        "412":
-          $ref: '#/components/responses/PreconditionFailed'
-      security:
-        - OAuth2Security:
-            - apim:subscribe
-            - apim:sub_manage
-      x-code-samples:
-        - lang: Curl
-          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
-          -X POST "https://localhost:9443/api/am/devportal/v3/subscriptions/80369180-7d90-4ee8-99a1-19fa68512aa5/federated-credential/CREDENTIAL_ID/retrieve"'
 
   /subscriptions/{subscriptionId}/usage:
     get:
@@ -7165,7 +7113,7 @@ components:
       properties:
         credentialId:
           type: string
-          description: UUID of the local credential record (used to reference specific credentials for delete/regenerate/retrieve)
+          description: UUID of the local credential record (used to reference specific credentials for delete/retrieve)
           example: faae5fcc-cbae-40c4-bf43-89931571d250
         credential:
           $ref: '#/components/schemas/FederatedCredential'
@@ -7199,7 +7147,7 @@ components:
           type: string
           description: |
             Opaque JSON string containing credential details. Structure is connector-specific.
-            On create/regenerate contains full credential value. On get contains masked value.
+            On create contains full credential value. On get contains masked value.
           example: '{"value":"abc123...","headerName":"x-api-key","createdTime":"2025-01-30T10:00:00Z"}'
         externalSubscriptionId:
           type: string
@@ -7245,6 +7193,10 @@ components:
             * OPEN - No credentials needed, invoke directly
             * SECURED - Credentials required, subscription management available
           example: SECURED
+        subscriptionSupport:
+          type: boolean
+          description: Whether this API supports subscription operations for credential lifecycle
+          example: true
         supportedAuthTypes:
           type: array
           items:
@@ -7388,16 +7340,26 @@ components:
     FederatedCredentialRequest:
       title: Federated Credential Request
       required:
-        - name
+        - applicationId
       type: object
-      description: Request parameters for creating a new credential for an existing subscription
+      description: Request parameters for creating a federated credential scoped by API and application
       properties:
+        applicationId:
+          type: string
+          description: UUID of the application used as the logical credential container
+          example: 3a4b5c6d-7e8f-9a0b-1c2d-3e4f5a6b7c8d
         name:
           type: string
           description: Name for the credential
           minLength: 1
           maxLength: 255
           example: My Production Key
+        selectedOption:
+          type: string
+          description: |
+            JSON wrapper containing schemaName and body for the selected option to use during key generation.
+            Format: {"schemaName":"tier-selector","body":"{\"id\":\"plan1\",\"name\":\"Basic\"}"}
+          example: '{"schemaName":"tier-selector","body":"{\"id\":\"plan1\",\"name\":\"Basic\"}"}'
     FederatedCredentialList:
       title: Federated Credential List
       type: object
@@ -7416,6 +7378,10 @@ components:
       type: object
       description: Lightweight summary of a federated credential for table display
       properties:
+        credentialId:
+          type: string
+          description: UUID of the local credential record
+          example: 1b2c3d4e-5f67-890a-bcde-f1234567890a
         subscriptionId:
           type: string
           description: UUID of the WSO2 subscription
@@ -7438,18 +7404,6 @@ components:
             JSON wrapper containing schemaName and body of the selected subscription option.
             Format: {"schemaName":"tier-selector","body":"{\"id\":\"plan1\",\"name\":\"Basic\"}"}
           example: '{"schemaName":"tier-selector","body":"{\"id\":\"plan1\",\"name\":\"Basic\"}"}'
-        subscriptionStatus:
-          type: string
-          enum:
-            - BLOCKED
-            - PROD_ONLY_BLOCKED
-            - UNBLOCKED
-            - ON_HOLD
-            - REJECTED
-            - TIER_UPDATE_PENDING
-            - DELETE_PENDING
-          description: Status of the WSO2 subscription
-          example: UNBLOCKED
         lastUpdatedTime:
           type: string
           format: date-time

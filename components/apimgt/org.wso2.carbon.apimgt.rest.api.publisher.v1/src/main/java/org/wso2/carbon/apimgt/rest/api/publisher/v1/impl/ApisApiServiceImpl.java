@@ -5201,19 +5201,19 @@ public class ApisApiServiceImpl implements ApisApiService {
         APIProvider apiProvider = RestApiCommonUtil.getLoggedInUserProvider();
         String organization = RestApiUtil.getValidatedOrganization(messageContext);
 
-        boolean federationEnabled = updateDTO.isFederationEnabled() != null
-                ? updateDTO.isFederationEnabled() : true;
+        boolean subscriptionEnabled = updateDTO.isSubscriptionEnabled() != null
+                ? updateDTO.isSubscriptionEnabled() : true;
         String curatedPlanSelections = updateDTO.getCuratedPlanSelections();
 
         ApiFederationConfig config = apiProvider.updateApiFederationConfig(apiId, organization,
-                federationEnabled, curatedPlanSelections);
+                subscriptionEnabled, curatedPlanSelections);
         ApiFederationConfigDTO dto = mapFederationConfigToDTO(config);
         return Response.ok().entity(dto).build();
     }
 
     private ApiFederationConfigDTO mapFederationConfigToDTO(ApiFederationConfig config) {
         ApiFederationConfigDTO dto = new ApiFederationConfigDTO();
-        dto.setFederationEnabled(config.isFederationEnabled());
+        dto.setSubscriptionEnabled(config.isSubscriptionEnabled());
         dto.setIsStale(config.isStale());
         dto.setGatewaySnapshotHash(config.getGatewaySnapshotHash());
         dto.setLiveSnapshotHash(config.getLiveSnapshotHash());

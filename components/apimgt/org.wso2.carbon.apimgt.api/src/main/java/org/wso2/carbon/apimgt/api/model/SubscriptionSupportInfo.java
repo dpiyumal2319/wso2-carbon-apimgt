@@ -42,6 +42,7 @@ public class SubscriptionSupportInfo {
     }
 
     private SubscriptionStatus status;
+    private boolean subscriptionSupport;
     private String[] supportedAuthTypes;
     private FederatedSubscriptionOptions subscriptionOptions;
     private InvocationInstruction invocationTemplate;
@@ -51,6 +52,7 @@ public class SubscriptionSupportInfo {
 
     private SubscriptionSupportInfo(Builder builder) {
         this.status = builder.status;
+        this.subscriptionSupport = builder.subscriptionSupport;
         this.supportedAuthTypes = builder.supportedAuthTypes;
         this.subscriptionOptions = builder.subscriptionOptions;
         this.invocationTemplate = builder.invocationTemplate;
@@ -62,6 +64,14 @@ public class SubscriptionSupportInfo {
 
     public void setStatus(SubscriptionStatus status) {
         this.status = status;
+    }
+
+    public boolean isSubscriptionSupport() {
+        return subscriptionSupport;
+    }
+
+    public void setSubscriptionSupport(boolean subscriptionSupport) {
+        this.subscriptionSupport = subscriptionSupport;
     }
 
     public String[] getSupportedAuthTypes() {
@@ -121,6 +131,7 @@ public class SubscriptionSupportInfo {
     public String computeGatewayHash() {
         JsonObject json = new JsonObject();
         json.addProperty("status", status != null ? status.name() : null);
+        json.addProperty("subscriptionSupport", subscriptionSupport);
 
         if (supportedAuthTypes != null) {
             JsonArray authTypes = new JsonArray();
@@ -165,6 +176,7 @@ public class SubscriptionSupportInfo {
     public String toJson() {
         JsonObject json = new JsonObject();
         json.addProperty("status", status != null ? status.name() : null);
+        json.addProperty("subscriptionSupport", subscriptionSupport);
 
         if (supportedAuthTypes != null) {
             JsonArray authTypes = new JsonArray();
@@ -200,6 +212,9 @@ public class SubscriptionSupportInfo {
         if (root.has("status") && !root.get("status").isJsonNull()) {
             builder.status(SubscriptionStatus.valueOf(root.get("status").getAsString()));
         }
+        if (root.has("subscriptionSupport") && !root.get("subscriptionSupport").isJsonNull()) {
+            builder.subscriptionSupport(root.get("subscriptionSupport").getAsBoolean());
+        }
 
         if (root.has("supportedAuthTypes") && !root.get("supportedAuthTypes").isJsonNull()) {
             JsonArray arr = root.getAsJsonArray("supportedAuthTypes");
@@ -232,6 +247,7 @@ public class SubscriptionSupportInfo {
 
     public static class Builder {
         private SubscriptionStatus status;
+        private boolean subscriptionSupport;
         private String[] supportedAuthTypes;
         private FederatedSubscriptionOptions subscriptionOptions;
         private InvocationInstruction invocationTemplate;
@@ -243,6 +259,11 @@ public class SubscriptionSupportInfo {
 
         public Builder supportedAuthTypes(String[] supportedAuthTypes) {
             this.supportedAuthTypes = supportedAuthTypes;
+            return this;
+        }
+
+        public Builder subscriptionSupport(boolean subscriptionSupport) {
+            this.subscriptionSupport = subscriptionSupport;
             return this;
         }
 
