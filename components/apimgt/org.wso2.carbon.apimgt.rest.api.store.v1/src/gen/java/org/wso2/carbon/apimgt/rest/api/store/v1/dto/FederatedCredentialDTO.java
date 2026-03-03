@@ -48,7 +48,7 @@ public class FederatedCredentialDTO   {
   }
 
   /**
-   * Opaque JSON string containing credential details. Structure is connector-specific. On create/regenerate contains full credential value. On get contains masked value. 
+   * Opaque JSON string containing credential details. Structure is connector-specific. On create contains full credential value. On get contains masked value. 
    **/
   public FederatedCredentialDTO body(String body) {
     this.body = body;
@@ -56,7 +56,7 @@ public class FederatedCredentialDTO   {
   }
 
   
-  @ApiModelProperty(example = "{\"value\":\"abc123...\",\"headerName\":\"x-api-key\",\"createdTime\":\"2025-01-30T10:00:00Z\"}", value = "Opaque JSON string containing credential details. Structure is connector-specific. On create/regenerate contains full credential value. On get contains masked value. ")
+  @ApiModelProperty(example = "{\"value\":\"abc123...\",\"headerName\":\"x-api-key\",\"createdTime\":\"2025-01-30T10:00:00Z\"}", value = "Opaque JSON string containing credential details. Structure is connector-specific. On create contains full credential value. On get contains masked value. ")
   @JsonProperty("body")
   public String getBody() {
     return body;

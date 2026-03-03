@@ -34,7 +34,6 @@ public class FederatedCredentialSummary {
     private String applicationName;
     private String name;
     private String selectedOption;
-    private String subscriptionStatus;
     private Timestamp lastUpdatedTime;
 
     public String getSubscriptionUuid() {
@@ -91,14 +90,6 @@ public class FederatedCredentialSummary {
 
     public void setSelectedOption(String selectedOption) {
         this.selectedOption = selectedOption;
-    }
-
-    public String getSubscriptionStatus() {
-        return subscriptionStatus;
-    }
-
-    public void setSubscriptionStatus(String subscriptionStatus) {
-        this.subscriptionStatus = subscriptionStatus;
     }
 
     public Timestamp getLastUpdatedTime() {

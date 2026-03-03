@@ -38,6 +38,7 @@ import org.wso2.carbon.apimgt.api.model.APIChatTestInitializerInfo;
 import org.wso2.carbon.apimgt.api.model.APIIdentifier;
 import org.wso2.carbon.apimgt.api.model.APIRating;
 import org.wso2.carbon.apimgt.api.model.ApiTypeWrapper;
+import org.wso2.carbon.apimgt.api.model.Application;
 import org.wso2.carbon.apimgt.api.model.Comment;
 import org.wso2.carbon.apimgt.api.model.CommentList;
 import org.wso2.carbon.apimgt.api.model.Documentation;
@@ -46,6 +47,7 @@ import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionCreateResult;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionSummary;
 import org.wso2.carbon.apimgt.api.model.FederatedCredentialSummary;
+import org.wso2.carbon.apimgt.api.model.FederatedCredentialsResult;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionOptions;
 import org.wso2.carbon.apimgt.api.model.OrganizationInfo;
@@ -1383,6 +1385,167 @@ public class ApisApiServiceImpl implements ApisApiService {
             } else {
                 RestApiUtil.handleInternalServerError(
                         "Error retrieving credential summaries for API: " + apiId, e, log);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Response createApiFederatedCredential(String apiId, FederatedCredentialRequestDTO body,
+            MessageContext messageContext) throws APIManagementException {
+        String username = RestApiCommonUtil.getLoggedInUsername();
+        try {
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+
+            ApiTypeWrapper apiTypeWrapper = apiConsumer.getAPIorAPIProductByUUID(apiId, organization);
+            if (apiTypeWrapper.isAPIProduct()) {
+                RestApiUtil.handleBadRequest(
+                        "Credential creation is only supported for external gateway APIs (not API Products)", log);
+                return null;
+            }
+            API api = apiTypeWrapper.getApi();
+            if (api == null || !APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor())) {
+                RestApiUtil.handleBadRequest(
+                        "Credential creation is only supported for external gateway APIs", log);
+                return null;
+            }
+            String environmentId = ApiMgtDAO.getInstance().getGatewayEnvironmentIdForExternalApi(apiId);
+            if (StringUtils.isBlank(environmentId)) {
+                RestApiUtil.handleBadRequest(
+                        "No federated gateway environment mapping found for API: " + apiId, log);
+                return null;
+            }
+
+            if (body == null || StringUtils.isBlank(body.getApplicationId())) {
+                RestApiUtil.handleBadRequest("Application ID is required to create federated credentials", log);
+                return null;
+            }
+            Application application = apiConsumer.getApplicationByUUID(body.getApplicationId());
+            if (application == null) {
+                RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_APPLICATION,
+                        body.getApplicationId(), log);
+                return null;
+            }
+            if (!RestAPIStoreUtils.isUserAccessAllowedForApplication(application)) {
+                RestApiUtil.handleAuthorizationFailure(RestApiConstants.RESOURCE_APPLICATION,
+                        application.getUUID(), log);
+                return null;
+            }
+
+            FederatedCredentialsResult result = apiConsumer.createFederatedCredential(apiId, application.getUUID(),
+                    organization, body.getName(), username, body.getSelectedOption());
+            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
+            return Response.status(Response.Status.CREATED).entity(dto).build();
+
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_API, apiId, e, log);
+            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
+                RestApiUtil.handleAuthorizationFailure(
+                        "Authorization failure while creating federated credential for API: " + apiId, e, log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error creating federated credential for API: " + apiId, e, log);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Response getApiFederatedCredential(String apiId, String credentialId,
+            MessageContext messageContext) throws APIManagementException {
+        String username = RestApiCommonUtil.getLoggedInUsername();
+        try {
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+            String environmentId = ApiMgtDAO.getInstance().getGatewayEnvironmentIdForExternalApi(apiId);
+            if (StringUtils.isBlank(environmentId)) {
+                RestApiUtil.handleBadRequest(
+                        "No federated gateway environment mapping found for API: " + apiId, log);
+                return null;
+            }
+
+            FederatedCredentialsResult result = apiConsumer.getFederatedCredentialByApi(
+                    apiId, credentialId, organization, username, false);
+            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
+            return Response.ok().entity(dto).build();
+
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError("Federated credential", credentialId, e, log);
+            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
+                RestApiUtil.handleAuthorizationFailure(
+                        "Authorization failure while getting federated credential: " + credentialId, e, log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error getting federated credential: " + credentialId, e, log);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Response deleteApiFederatedCredential(String apiId, String credentialId,
+            MessageContext messageContext) throws APIManagementException {
+        String username = RestApiCommonUtil.getLoggedInUsername();
+        try {
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+            String environmentId = ApiMgtDAO.getInstance().getGatewayEnvironmentIdForExternalApi(apiId);
+            if (StringUtils.isBlank(environmentId)) {
+                RestApiUtil.handleBadRequest(
+                        "No federated gateway environment mapping found for API: " + apiId, log);
+                return null;
+            }
+
+            apiConsumer.deleteFederatedCredentialByApi(apiId, credentialId, organization, username);
+            return Response.ok().build();
+
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError("Federated credential", credentialId, e, log);
+            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
+                RestApiUtil.handleAuthorizationFailure(
+                        "Authorization failure while deleting federated credential: " + credentialId, e, log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error deleting federated credential: " + credentialId, e, log);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Response retrieveApiFederatedCredential(String apiId, String credentialId,
+            MessageContext messageContext) throws APIManagementException {
+        String username = RestApiCommonUtil.getLoggedInUsername();
+        try {
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+            String environmentId = ApiMgtDAO.getInstance().getGatewayEnvironmentIdForExternalApi(apiId);
+            if (StringUtils.isBlank(environmentId)) {
+                RestApiUtil.handleBadRequest(
+                        "No federated gateway environment mapping found for API: " + apiId, log);
+                return null;
+            }
+
+            FederatedCredentialsResult result = apiConsumer.getFederatedCredentialByApi(
+                    apiId, credentialId, organization, username, true);
+            FederatedSubscriptionInfoDTO dto = FederatedSubscriptionMappingUtil.toDTO(result);
+            return Response.ok().entity(dto).build();
+
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError("Federated credential", credentialId, e, log);
+            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
+                RestApiUtil.handleAuthorizationFailure(
+                        "Authorization failure while retrieving federated credential: " + credentialId, e, log);
+            } else if (e.getMessage() != null && e.getMessage().contains("does not support credential retrieval")) {
+                RestApiUtil.handleBadRequest(e.getMessage(), log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error retrieving federated credential: " + credentialId, e, log);
             }
         }
         return null;

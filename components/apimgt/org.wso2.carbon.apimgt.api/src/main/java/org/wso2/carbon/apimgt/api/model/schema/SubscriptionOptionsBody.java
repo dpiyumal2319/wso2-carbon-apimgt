@@ -28,6 +28,16 @@ package org.wso2.carbon.apimgt.api.model.schema;
 public interface SubscriptionOptionsBody {
 
     /**
+     * Canonical schema name for single-plan/tier style options.
+     */
+    String SCHEMA_SUBSCRIPTION_PLANS = "subscription-plans";
+
+    /**
+     * Canonical schema name for grouped multi-dimension options.
+     */
+    String SCHEMA_OPTION_GROUPS = "option-groups";
+
+    /**
      * Returns the schema name for this options type.
      * Used by the frontend to select the appropriate renderer.
      *

@@ -16,6 +16,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ApplicationThrottleResetDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ApplicationTokenDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ApplicationTokenGenerateRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialSummaryListDTO;
 import java.io.File;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.WorkflowResponseDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.ApplicationsApiService;
@@ -520,7 +521,7 @@ ApplicationsApiService delegate = new ApplicationsApiServiceImpl();
             @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
             @AuthorizationScope(scope = "apim:app_manage", description = "Retrieve, Manage and Import, Export applications")
         })
-    }, tags={ "Applications" })
+    }, tags={ "Applications",  })
     @ApiResponses(value = { 
         @ApiResponse(code = 201, message = "Created. Successful response with the newly created object as entity in the body. Location header contains URL of newly created entity. ", response = ApplicationDTO.class),
         @ApiResponse(code = 202, message = "Accepted. The request has been accepted. ", response = WorkflowResponseDTO.class),
@@ -529,5 +530,23 @@ ApplicationsApiService delegate = new ApplicationsApiServiceImpl();
         @ApiResponse(code = 415, message = "Unsupported Media Type. The entity of the request was not in a supported format.", response = ErrorDTO.class) })
     public Response applicationsPost(@ApiParam(value = "Application object that is to be created. " ,required=true) ApplicationDTO applicationDTO) throws APIManagementException{
         return delegate.applicationsPost(applicationDTO, securityContext);
+    }
+
+    @GET
+    @Path("/{applicationId}/federated-credentials")
+    
+    @Produces({ "application/json" })
+    @ApiOperation(value = "Get Application Credential Summaries ", notes = "Retrieves a list of federated credential summaries for this application. ", response = FederatedCredentialSummaryListDTO.class, authorizations = {
+        @Authorization(value = "OAuth2Security", scopes = {
+            @AuthorizationScope(scope = "apim:subscribe", description = "Subscribe API"),
+            @AuthorizationScope(scope = "apim:app_manage", description = "Retrieve, Manage and Import, Export applications")
+        })
+    }, tags={ "Federated Subscriptions" })
+    @ApiResponses(value = { 
+        @ApiResponse(code = 200, message = "OK. Credential summaries retrieved successfully. ", response = FederatedCredentialSummaryListDTO.class),
+        @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
+        @ApiResponse(code = 500, message = "Internal Server Error.", response = ErrorDTO.class) })
+    public Response getApplicationCredentialSummaries(@ApiParam(value = "Application Identifier consisting of the UUID of the Application. ",required=true) @PathParam("applicationId") String applicationId) throws APIManagementException{
+        return delegate.getApplicationCredentialSummaries(applicationId, securityContext);
     }
 }

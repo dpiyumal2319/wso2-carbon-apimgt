@@ -9527,7 +9527,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
         ApiFederationConfig config = apiMgtDAO.getApiFederationConfig(apiUuid, envId);
         if (config == null) {
             config = new ApiFederationConfig(apiUuid, envId);
-            config.setFederationEnabled(false);
+            config.setSubscriptionEnabled(false);
         }
 
         // Fetch live snapshot and populate transient staleness fields
@@ -9537,6 +9537,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
             if (apiRefArtifact != null && environment != null) {
                 FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory
                         .getSubscriptionAgent(environment, organization);
+                config.setSubscriptionSupport(agent.isSubscriptionSupport());
                 FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
                         .apiReferenceArtifact(apiRefArtifact)
                         .apiUuid(apiUuid)
@@ -9555,6 +9556,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
         } catch (Exception e) {
             log.warn("Failed to fetch live gateway snapshot for API: " + apiUuid
                     + ". Returning config without staleness info.", e);
+            config.setSubscriptionSupport(false);
         }
 
         return config;
@@ -9562,7 +9564,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
 
     @Override
     public ApiFederationConfig updateApiFederationConfig(String apiUuid, String organization,
-            boolean federationEnabled, String curatedPlanSelectionsJson)
+            boolean subscriptionEnabled, String curatedPlanSelectionsJson)
             throws APIManagementException {
 
         String envId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(apiUuid);
@@ -9573,7 +9575,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
         }
         if (!apiMgtDAO.apiFederationConfigExists(apiUuid, envId)) {
             ApiFederationConfig config = new ApiFederationConfig(apiUuid, envId);
-            config.setFederationEnabled(federationEnabled);
+            config.setSubscriptionEnabled(subscriptionEnabled);
             apiMgtDAO.addApiFederationConfig(config);
         }
 
@@ -9602,7 +9604,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
             log.warn("Failed to fetch live gateway config during update for API: " + apiUuid, e);
         }
 
-        apiMgtDAO.updateApiFederationConfigPublisherData(apiUuid, envId, federationEnabled,
+        apiMgtDAO.updateApiFederationConfigPublisherData(apiUuid, envId, subscriptionEnabled,
                 newCuratedConfig, snapshotHash,
                 new java.sql.Timestamp(System.currentTimeMillis()));
         return getApiFederationConfig(apiUuid, organization);

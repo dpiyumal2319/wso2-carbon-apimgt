@@ -59,6 +59,7 @@ return null;
         }
     }
     private SubscriptionStatusEnum subscriptionStatus = null;
+    private Boolean subscriptionSupport = null;
     private List<String> supportedAuthTypes = new ArrayList<String>();
     private FederatedSubscriptionOptionsDTO subscriptionOptions = null;
     private InvocationTemplateDTO invocationTemplate = null;
@@ -79,6 +80,24 @@ return null;
   }
   public void setSubscriptionStatus(SubscriptionStatusEnum subscriptionStatus) {
     this.subscriptionStatus = subscriptionStatus;
+  }
+
+  /**
+   * Whether this API supports subscription operations for credential lifecycle
+   **/
+  public SubscriptionSupportInfoDTO subscriptionSupport(Boolean subscriptionSupport) {
+    this.subscriptionSupport = subscriptionSupport;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "true", value = "Whether this API supports subscription operations for credential lifecycle")
+  @JsonProperty("subscriptionSupport")
+  public Boolean isSubscriptionSupport() {
+    return subscriptionSupport;
+  }
+  public void setSubscriptionSupport(Boolean subscriptionSupport) {
+    this.subscriptionSupport = subscriptionSupport;
   }
 
   /**
@@ -146,6 +165,7 @@ return null;
     }
     SubscriptionSupportInfoDTO subscriptionSupportInfo = (SubscriptionSupportInfoDTO) o;
     return Objects.equals(subscriptionStatus, subscriptionSupportInfo.subscriptionStatus) &&
+        Objects.equals(subscriptionSupport, subscriptionSupportInfo.subscriptionSupport) &&
         Objects.equals(supportedAuthTypes, subscriptionSupportInfo.supportedAuthTypes) &&
         Objects.equals(subscriptionOptions, subscriptionSupportInfo.subscriptionOptions) &&
         Objects.equals(invocationTemplate, subscriptionSupportInfo.invocationTemplate);
@@ -153,7 +173,7 @@ return null;
 
   @Override
   public int hashCode() {
-    return Objects.hash(subscriptionStatus, supportedAuthTypes, subscriptionOptions, invocationTemplate);
+    return Objects.hash(subscriptionStatus, subscriptionSupport, supportedAuthTypes, subscriptionOptions, invocationTemplate);
   }
 
   @Override
@@ -162,6 +182,7 @@ return null;
     sb.append("class SubscriptionSupportInfoDTO {\n");
     
     sb.append("    subscriptionStatus: ").append(toIndentedString(subscriptionStatus)).append("\n");
+    sb.append("    subscriptionSupport: ").append(toIndentedString(subscriptionSupport)).append("\n");
     sb.append("    supportedAuthTypes: ").append(toIndentedString(supportedAuthTypes)).append("\n");
     sb.append("    subscriptionOptions: ").append(toIndentedString(subscriptionOptions)).append("\n");
     sb.append("    invocationTemplate: ").append(toIndentedString(invocationTemplate)).append("\n");

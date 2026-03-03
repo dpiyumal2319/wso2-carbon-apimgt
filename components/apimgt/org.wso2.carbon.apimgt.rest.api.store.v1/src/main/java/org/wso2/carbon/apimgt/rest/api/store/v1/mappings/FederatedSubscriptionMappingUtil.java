@@ -173,13 +173,12 @@ public class FederatedSubscriptionMappingUtil {
         }
 
         FederatedCredentialSummaryDTO dto = new FederatedCredentialSummaryDTO();
+        dto.setCredentialId(summary.getCredentialUuid());
         dto.setSubscriptionId(summary.getSubscriptionUuid());
         dto.setApplicationId(summary.getApplicationId());
         dto.setApplicationName(summary.getApplicationName());
         dto.setName(summary.getName());
         dto.setSelectedOption(summary.getSelectedOption());
-        dto.setSubscriptionStatus(FederatedCredentialSummaryDTO.SubscriptionStatusEnum.fromValue(
-                summary.getSubscriptionStatus()));
         if (summary.getLastUpdatedTime() != null) {
             dto.setLastUpdatedTime(summary.getLastUpdatedTime());
         }

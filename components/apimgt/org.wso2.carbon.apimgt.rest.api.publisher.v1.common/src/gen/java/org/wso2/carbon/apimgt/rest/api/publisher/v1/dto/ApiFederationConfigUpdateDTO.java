@@ -23,25 +23,25 @@ import javax.validation.Valid;
 
 public class ApiFederationConfigUpdateDTO   {
   
-    private Boolean federationEnabled = null;
+    private Boolean subscriptionEnabled = null;
     private String curatedPlanSelections = null;
 
   /**
    * Whether federation should be enabled for this API
    **/
-  public ApiFederationConfigUpdateDTO federationEnabled(Boolean federationEnabled) {
-    this.federationEnabled = federationEnabled;
+  public ApiFederationConfigUpdateDTO subscriptionEnabled(Boolean subscriptionEnabled) {
+    this.subscriptionEnabled = subscriptionEnabled;
     return this;
   }
 
   
   @ApiModelProperty(value = "Whether federation should be enabled for this API")
-  @JsonProperty("federationEnabled")
-  public Boolean isFederationEnabled() {
-    return federationEnabled;
+  @JsonProperty("subscriptionEnabled")
+  public Boolean isSubscriptionEnabled() {
+    return subscriptionEnabled;
   }
-  public void setFederationEnabled(Boolean federationEnabled) {
-    this.federationEnabled = federationEnabled;
+  public void setSubscriptionEnabled(Boolean subscriptionEnabled) {
+    this.subscriptionEnabled = subscriptionEnabled;
   }
 
   /**
@@ -72,13 +72,13 @@ public class ApiFederationConfigUpdateDTO   {
       return false;
     }
     ApiFederationConfigUpdateDTO apiFederationConfigUpdate = (ApiFederationConfigUpdateDTO) o;
-    return Objects.equals(federationEnabled, apiFederationConfigUpdate.federationEnabled) &&
+    return Objects.equals(subscriptionEnabled, apiFederationConfigUpdate.subscriptionEnabled) &&
         Objects.equals(curatedPlanSelections, apiFederationConfigUpdate.curatedPlanSelections);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(federationEnabled, curatedPlanSelections);
+    return Objects.hash(subscriptionEnabled, curatedPlanSelections);
   }
 
   @Override
@@ -86,7 +86,7 @@ public class ApiFederationConfigUpdateDTO   {
     StringBuilder sb = new StringBuilder();
     sb.append("class ApiFederationConfigUpdateDTO {\n");
     
-    sb.append("    federationEnabled: ").append(toIndentedString(federationEnabled)).append("\n");
+    sb.append("    subscriptionEnabled: ").append(toIndentedString(subscriptionEnabled)).append("\n");
     sb.append("    curatedPlanSelections: ").append(toIndentedString(curatedPlanSelections)).append("\n");
     sb.append("}");
     return sb.toString();

@@ -23,49 +23,31 @@ import javax.validation.Valid;
 
 public class FederatedCredentialSummaryDTO   {
   
+    private String credentialId = null;
     private String subscriptionId = null;
     private String applicationId = null;
     private String applicationName = null;
     private String name = null;
     private String selectedOption = null;
-
-    @XmlType(name="SubscriptionStatusEnum")
-    @XmlEnum(String.class)
-    public enum SubscriptionStatusEnum {
-        BLOCKED("BLOCKED"),
-        PROD_ONLY_BLOCKED("PROD_ONLY_BLOCKED"),
-        UNBLOCKED("UNBLOCKED"),
-        ON_HOLD("ON_HOLD"),
-        REJECTED("REJECTED"),
-        TIER_UPDATE_PENDING("TIER_UPDATE_PENDING"),
-        DELETE_PENDING("DELETE_PENDING");
-        private String value;
-
-        SubscriptionStatusEnum (String v) {
-            value = v;
-        }
-
-        public String value() {
-            return value;
-        }
-
-        @Override
-        public String toString() {
-            return String.valueOf(value);
-        }
-
-        @JsonCreator
-        public static SubscriptionStatusEnum fromValue(String v) {
-            for (SubscriptionStatusEnum b : SubscriptionStatusEnum.values()) {
-                if (String.valueOf(b.value).equals(v)) {
-                    return b;
-                }
-            }
-return null;
-        }
-    }
-    private SubscriptionStatusEnum subscriptionStatus = null;
     private java.util.Date lastUpdatedTime = null;
+
+  /**
+   * UUID of the local credential record
+   **/
+  public FederatedCredentialSummaryDTO credentialId(String credentialId) {
+    this.credentialId = credentialId;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "1b2c3d4e-5f67-890a-bcde-f1234567890a", value = "UUID of the local credential record")
+  @JsonProperty("credentialId")
+  public String getCredentialId() {
+    return credentialId;
+  }
+  public void setCredentialId(String credentialId) {
+    this.credentialId = credentialId;
+  }
 
   /**
    * UUID of the WSO2 subscription
@@ -158,24 +140,6 @@ return null;
   }
 
   /**
-   * Status of the WSO2 subscription
-   **/
-  public FederatedCredentialSummaryDTO subscriptionStatus(SubscriptionStatusEnum subscriptionStatus) {
-    this.subscriptionStatus = subscriptionStatus;
-    return this;
-  }
-
-  
-  @ApiModelProperty(example = "UNBLOCKED", value = "Status of the WSO2 subscription")
-  @JsonProperty("subscriptionStatus")
-  public SubscriptionStatusEnum getSubscriptionStatus() {
-    return subscriptionStatus;
-  }
-  public void setSubscriptionStatus(SubscriptionStatusEnum subscriptionStatus) {
-    this.subscriptionStatus = subscriptionStatus;
-  }
-
-  /**
    * Last time the mapping was updated
    **/
   public FederatedCredentialSummaryDTO lastUpdatedTime(java.util.Date lastUpdatedTime) {
@@ -203,18 +167,18 @@ return null;
       return false;
     }
     FederatedCredentialSummaryDTO federatedCredentialSummary = (FederatedCredentialSummaryDTO) o;
-    return Objects.equals(subscriptionId, federatedCredentialSummary.subscriptionId) &&
+    return Objects.equals(credentialId, federatedCredentialSummary.credentialId) &&
+        Objects.equals(subscriptionId, federatedCredentialSummary.subscriptionId) &&
         Objects.equals(applicationId, federatedCredentialSummary.applicationId) &&
         Objects.equals(applicationName, federatedCredentialSummary.applicationName) &&
         Objects.equals(name, federatedCredentialSummary.name) &&
         Objects.equals(selectedOption, federatedCredentialSummary.selectedOption) &&
-        Objects.equals(subscriptionStatus, federatedCredentialSummary.subscriptionStatus) &&
         Objects.equals(lastUpdatedTime, federatedCredentialSummary.lastUpdatedTime);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(subscriptionId, applicationId, applicationName, name, selectedOption, subscriptionStatus, lastUpdatedTime);
+    return Objects.hash(credentialId, subscriptionId, applicationId, applicationName, name, selectedOption, lastUpdatedTime);
   }
 
   @Override
@@ -222,12 +186,12 @@ return null;
     StringBuilder sb = new StringBuilder();
     sb.append("class FederatedCredentialSummaryDTO {\n");
     
+    sb.append("    credentialId: ").append(toIndentedString(credentialId)).append("\n");
     sb.append("    subscriptionId: ").append(toIndentedString(subscriptionId)).append("\n");
     sb.append("    applicationId: ").append(toIndentedString(applicationId)).append("\n");
     sb.append("    applicationName: ").append(toIndentedString(applicationName)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    selectedOption: ").append(toIndentedString(selectedOption)).append("\n");
-    sb.append("    subscriptionStatus: ").append(toIndentedString(subscriptionStatus)).append("\n");
     sb.append("    lastUpdatedTime: ").append(toIndentedString(lastUpdatedTime)).append("\n");
     sb.append("}");
     return sb.toString();
