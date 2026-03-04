@@ -7394,6 +7394,30 @@ components:
           type: string
           description: Name of the application
           example: MyApp
+        apiId:
+          type: string
+          description: UUID of the API
+          example: 6f5e4d3c-2b1a-0f9e-8d7c-6b5a4e3d2c1b
+        apiName:
+          type: string
+          description: Name of the API
+          example: PetStore
+        apiDisplayName:
+          type: string
+          description: Display name of the API
+          example: Pet Store API
+        apiVersion:
+          type: string
+          description: Version of the API
+          example: v1
+        apiLifeCycleStatus:
+          type: string
+          description: Lifecycle status of the API
+          example: PUBLISHED
+        apiType:
+          type: string
+          description: Type of the API
+          example: HTTP
         name:
           type: string
           description: Name for the credential
