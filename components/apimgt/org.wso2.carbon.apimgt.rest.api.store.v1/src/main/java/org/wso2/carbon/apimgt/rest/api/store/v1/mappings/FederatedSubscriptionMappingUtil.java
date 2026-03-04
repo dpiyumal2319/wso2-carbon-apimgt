@@ -177,6 +177,12 @@ public class FederatedSubscriptionMappingUtil {
         dto.setSubscriptionId(summary.getSubscriptionUuid());
         dto.setApplicationId(summary.getApplicationId());
         dto.setApplicationName(summary.getApplicationName());
+        dto.setApiId(summary.getApiId());
+        dto.setApiName(summary.getApiName());
+        dto.setApiDisplayName(summary.getApiDisplayName());
+        dto.setApiVersion(summary.getApiVersion());
+        dto.setApiLifeCycleStatus(summary.getApiLifeCycleStatus());
+        dto.setApiType(summary.getApiType());
         dto.setName(summary.getName());
         dto.setSelectedOption(summary.getSelectedOption());
         if (summary.getLastUpdatedTime() != null) {

@@ -16960,6 +16960,12 @@ public class ApiMgtDAO {
                     summary.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
                     summary.setApplicationId(rs.getString("APPLICATION_ID"));
                     summary.setApplicationName(rs.getString("APP_NAME"));
+                    summary.setApiId(rs.getString("API_UUID"));
+                    summary.setApiName(rs.getString("API_NAME"));
+                    summary.setApiDisplayName(rs.getString("API_DISPLAY_NAME"));
+                    summary.setApiVersion(rs.getString("API_VERSION"));
+                    summary.setApiLifeCycleStatus(rs.getString("API_LIFECYCLE_STATUS"));
+                    summary.setApiType(rs.getString("API_TYPE"));
                     String mappingArtifact = readArtifactAsString(rs, "MAPPING_ARTIFACT");
                     String credentialArtifact = readArtifactAsString(rs, "CREDENTIAL_ARTIFACT");
                     summary.setSelectedOption(extractSelectedOptionFromArtifacts(mappingArtifact, credentialArtifact));
@@ -17001,6 +17007,12 @@ public class ApiMgtDAO {
                     summary.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
                     summary.setApplicationId(rs.getString("APPLICATION_ID"));
                     summary.setApplicationName(rs.getString("APP_NAME"));
+                    summary.setApiId(rs.getString("API_UUID"));
+                    summary.setApiName(rs.getString("API_NAME"));
+                    summary.setApiDisplayName(rs.getString("API_DISPLAY_NAME"));
+                    summary.setApiVersion(rs.getString("API_VERSION"));
+                    summary.setApiLifeCycleStatus(rs.getString("API_LIFECYCLE_STATUS"));
+                    summary.setApiType(rs.getString("API_TYPE"));
                     String mappingArtifact = readArtifactAsString(rs, "MAPPING_ARTIFACT");
                     String credentialArtifact = readArtifactAsString(rs, "CREDENTIAL_ARTIFACT");
                     summary.setSelectedOption(extractSelectedOptionFromArtifacts(mappingArtifact, credentialArtifact));

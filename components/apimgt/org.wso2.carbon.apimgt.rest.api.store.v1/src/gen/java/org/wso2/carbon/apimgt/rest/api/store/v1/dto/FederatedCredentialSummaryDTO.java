@@ -27,6 +27,12 @@ public class FederatedCredentialSummaryDTO   {
     private String subscriptionId = null;
     private String applicationId = null;
     private String applicationName = null;
+    private String apiId = null;
+    private String apiName = null;
+    private String apiDisplayName = null;
+    private String apiVersion = null;
+    private String apiLifeCycleStatus = null;
+    private String apiType = null;
     private String name = null;
     private String selectedOption = null;
     private java.util.Date lastUpdatedTime = null;
@@ -104,6 +110,114 @@ public class FederatedCredentialSummaryDTO   {
   }
 
   /**
+   * UUID of the API
+   **/
+  public FederatedCredentialSummaryDTO apiId(String apiId) {
+    this.apiId = apiId;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "6f5e4d3c-2b1a-0f9e-8d7c-6b5a4e3d2c1b", value = "UUID of the API")
+  @JsonProperty("apiId")
+  public String getApiId() {
+    return apiId;
+  }
+  public void setApiId(String apiId) {
+    this.apiId = apiId;
+  }
+
+  /**
+   * Name of the API
+   **/
+  public FederatedCredentialSummaryDTO apiName(String apiName) {
+    this.apiName = apiName;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "PetStore", value = "Name of the API")
+  @JsonProperty("apiName")
+  public String getApiName() {
+    return apiName;
+  }
+  public void setApiName(String apiName) {
+    this.apiName = apiName;
+  }
+
+  /**
+   * Display name of the API
+   **/
+  public FederatedCredentialSummaryDTO apiDisplayName(String apiDisplayName) {
+    this.apiDisplayName = apiDisplayName;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "Pet Store API", value = "Display name of the API")
+  @JsonProperty("apiDisplayName")
+  public String getApiDisplayName() {
+    return apiDisplayName;
+  }
+  public void setApiDisplayName(String apiDisplayName) {
+    this.apiDisplayName = apiDisplayName;
+  }
+
+  /**
+   * Version of the API
+   **/
+  public FederatedCredentialSummaryDTO apiVersion(String apiVersion) {
+    this.apiVersion = apiVersion;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "v1", value = "Version of the API")
+  @JsonProperty("apiVersion")
+  public String getApiVersion() {
+    return apiVersion;
+  }
+  public void setApiVersion(String apiVersion) {
+    this.apiVersion = apiVersion;
+  }
+
+  /**
+   * Lifecycle status of the API
+   **/
+  public FederatedCredentialSummaryDTO apiLifeCycleStatus(String apiLifeCycleStatus) {
+    this.apiLifeCycleStatus = apiLifeCycleStatus;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "PUBLISHED", value = "Lifecycle status of the API")
+  @JsonProperty("apiLifeCycleStatus")
+  public String getApiLifeCycleStatus() {
+    return apiLifeCycleStatus;
+  }
+  public void setApiLifeCycleStatus(String apiLifeCycleStatus) {
+    this.apiLifeCycleStatus = apiLifeCycleStatus;
+  }
+
+  /**
+   * Type of the API
+   **/
+  public FederatedCredentialSummaryDTO apiType(String apiType) {
+    this.apiType = apiType;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "HTTP", value = "Type of the API")
+  @JsonProperty("apiType")
+  public String getApiType() {
+    return apiType;
+  }
+  public void setApiType(String apiType) {
+    this.apiType = apiType;
+  }
+
+  /**
    * Name for the credential
    **/
   public FederatedCredentialSummaryDTO name(String name) {
@@ -171,6 +285,12 @@ public class FederatedCredentialSummaryDTO   {
         Objects.equals(subscriptionId, federatedCredentialSummary.subscriptionId) &&
         Objects.equals(applicationId, federatedCredentialSummary.applicationId) &&
         Objects.equals(applicationName, federatedCredentialSummary.applicationName) &&
+        Objects.equals(apiId, federatedCredentialSummary.apiId) &&
+        Objects.equals(apiName, federatedCredentialSummary.apiName) &&
+        Objects.equals(apiDisplayName, federatedCredentialSummary.apiDisplayName) &&
+        Objects.equals(apiVersion, federatedCredentialSummary.apiVersion) &&
+        Objects.equals(apiLifeCycleStatus, federatedCredentialSummary.apiLifeCycleStatus) &&
+        Objects.equals(apiType, federatedCredentialSummary.apiType) &&
         Objects.equals(name, federatedCredentialSummary.name) &&
         Objects.equals(selectedOption, federatedCredentialSummary.selectedOption) &&
         Objects.equals(lastUpdatedTime, federatedCredentialSummary.lastUpdatedTime);
@@ -178,7 +298,7 @@ public class FederatedCredentialSummaryDTO   {
 
   @Override
   public int hashCode() {
-    return Objects.hash(credentialId, subscriptionId, applicationId, applicationName, name, selectedOption, lastUpdatedTime);
+    return Objects.hash(credentialId, subscriptionId, applicationId, applicationName, apiId, apiName, apiDisplayName, apiVersion, apiLifeCycleStatus, apiType, name, selectedOption, lastUpdatedTime);
   }
 
   @Override
@@ -190,6 +310,12 @@ public class FederatedCredentialSummaryDTO   {
     sb.append("    subscriptionId: ").append(toIndentedString(subscriptionId)).append("\n");
     sb.append("    applicationId: ").append(toIndentedString(applicationId)).append("\n");
     sb.append("    applicationName: ").append(toIndentedString(applicationName)).append("\n");
+    sb.append("    apiId: ").append(toIndentedString(apiId)).append("\n");
+    sb.append("    apiName: ").append(toIndentedString(apiName)).append("\n");
+    sb.append("    apiDisplayName: ").append(toIndentedString(apiDisplayName)).append("\n");
+    sb.append("    apiVersion: ").append(toIndentedString(apiVersion)).append("\n");
+    sb.append("    apiLifeCycleStatus: ").append(toIndentedString(apiLifeCycleStatus)).append("\n");
+    sb.append("    apiType: ").append(toIndentedString(apiType)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    selectedOption: ").append(toIndentedString(selectedOption)).append("\n");
     sb.append("    lastUpdatedTime: ").append(toIndentedString(lastUpdatedTime)).append("\n");
