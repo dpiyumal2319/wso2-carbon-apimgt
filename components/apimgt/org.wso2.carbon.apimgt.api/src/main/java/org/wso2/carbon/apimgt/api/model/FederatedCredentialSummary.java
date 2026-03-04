@@ -32,6 +32,12 @@ public class FederatedCredentialSummary {
     private String credentialUuid;
     private String applicationId;
     private String applicationName;
+    private String apiId;
+    private String apiName;
+    private String apiDisplayName;
+    private String apiVersion;
+    private String apiLifeCycleStatus;
+    private String apiType;
     private String name;
     private String selectedOption;
     private Timestamp lastUpdatedTime;
@@ -74,6 +80,54 @@ public class FederatedCredentialSummary {
 
     public void setApplicationName(String applicationName) {
         this.applicationName = applicationName;
+    }
+
+    public String getApiId() {
+        return apiId;
+    }
+
+    public void setApiId(String apiId) {
+        this.apiId = apiId;
+    }
+
+    public String getApiName() {
+        return apiName;
+    }
+
+    public void setApiName(String apiName) {
+        this.apiName = apiName;
+    }
+
+    public String getApiDisplayName() {
+        return apiDisplayName;
+    }
+
+    public void setApiDisplayName(String apiDisplayName) {
+        this.apiDisplayName = apiDisplayName;
+    }
+
+    public String getApiVersion() {
+        return apiVersion;
+    }
+
+    public void setApiVersion(String apiVersion) {
+        this.apiVersion = apiVersion;
+    }
+
+    public String getApiLifeCycleStatus() {
+        return apiLifeCycleStatus;
+    }
+
+    public void setApiLifeCycleStatus(String apiLifeCycleStatus) {
+        this.apiLifeCycleStatus = apiLifeCycleStatus;
+    }
+
+    public String getApiType() {
+        return apiType;
+    }
+
+    public void setApiType(String apiType) {
+        this.apiType = apiType;
     }
 
     public String getName() {
