@@ -16960,13 +16960,9 @@ public class ApiMgtDAO {
                     summary.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
                     summary.setApplicationId(rs.getString("APPLICATION_ID"));
                     summary.setApplicationName(rs.getString("APP_NAME"));
-
-                    try (InputStream mappingArtifactStream = rs.getBinaryStream("MAPPING_ARTIFACT")) {
-                        if (mappingArtifactStream != null) {
-                            String mappingArtifact = IOUtils.toString(mappingArtifactStream, StandardCharsets.UTF_8);
-                            summary.setSelectedOption(extractSelectedOptionFromArtifact(mappingArtifact));
-                        }
-                    }
+                    String mappingArtifact = readArtifactAsString(rs, "MAPPING_ARTIFACT");
+                    String credentialArtifact = readArtifactAsString(rs, "CREDENTIAL_ARTIFACT");
+                    summary.setSelectedOption(extractSelectedOptionFromArtifacts(mappingArtifact, credentialArtifact));
 
                     summaries.add(summary);
                 }
@@ -17005,13 +17001,9 @@ public class ApiMgtDAO {
                     summary.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
                     summary.setApplicationId(rs.getString("APPLICATION_ID"));
                     summary.setApplicationName(rs.getString("APP_NAME"));
-
-                    try (InputStream mappingArtifactStream = rs.getBinaryStream("MAPPING_ARTIFACT")) {
-                        if (mappingArtifactStream != null) {
-                            String mappingArtifact = IOUtils.toString(mappingArtifactStream, StandardCharsets.UTF_8);
-                            summary.setSelectedOption(extractSelectedOptionFromArtifact(mappingArtifact));
-                        }
-                    }
+                    String mappingArtifact = readArtifactAsString(rs, "MAPPING_ARTIFACT");
+                    String credentialArtifact = readArtifactAsString(rs, "CREDENTIAL_ARTIFACT");
+                    summary.setSelectedOption(extractSelectedOptionFromArtifacts(mappingArtifact, credentialArtifact));
                     summaries.add(summary);
                 }
             }
@@ -17332,6 +17324,23 @@ public class ApiMgtDAO {
             log.warn("Failed to parse mapping reference artifact for selectedOption extraction", e);
         }
         return null;
+    }
+
+    private String extractSelectedOptionFromArtifacts(String mappingArtifact, String credentialArtifact) {
+        String selectedOption = extractSelectedOptionFromArtifact(credentialArtifact);
+        if (selectedOption != null) {
+            return selectedOption;
+        }
+        return extractSelectedOptionFromArtifact(mappingArtifact);
+    }
+
+    private String readArtifactAsString(ResultSet rs, String columnName) throws SQLException, IOException {
+        try (InputStream artifactStream = rs.getBinaryStream(columnName)) {
+            if (artifactStream == null) {
+                return null;
+            }
+            return IOUtils.toString(artifactStream, StandardCharsets.UTF_8);
+        }
     }
 
     // ---- API Federation Config ----

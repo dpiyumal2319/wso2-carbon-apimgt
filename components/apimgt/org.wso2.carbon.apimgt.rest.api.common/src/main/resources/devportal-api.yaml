@@ -385,7 +385,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FederatedSubscriptionInfo'
+                $ref: '#/components/schemas/FederatedCredentialInfo'
         400:
           description: |
             Bad Request.
@@ -465,7 +465,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FederatedSubscriptionInfo'
+                $ref: '#/components/schemas/FederatedCredentialInfo'
         404:
           $ref: '#/components/responses/NotFound'
         500:
@@ -538,7 +538,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FederatedSubscriptionInfo'
+                $ref: '#/components/schemas/FederatedCredentialInfo'
         "400":
           $ref: '#/components/responses/BadRequest'
         "404":
@@ -6417,8 +6417,8 @@ components:
           description: A url and other parameters the subscriber can be redirected.
           readOnly: true
           example: ""
-    FederatedSubscriptionInfo:
-      title: Federated Subscription Information
+    FederatedCredentialInfo:
+      title: Federated Credential Information
       type: object
       description: Contains credential and invocation information for APIs deployed on external gateways
       properties:
@@ -6683,7 +6683,7 @@ components:
         list:
           type: array
           items:
-            $ref: '#/components/schemas/FederatedSubscriptionInfo'
+            $ref: '#/components/schemas/FederatedCredentialInfo'
     FederatedCredentialSummary:
       title: Federated Credential Summary
       type: object
