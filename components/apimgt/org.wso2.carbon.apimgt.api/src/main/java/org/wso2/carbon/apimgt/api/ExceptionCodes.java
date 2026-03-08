@@ -177,6 +177,8 @@ public enum ExceptionCodes implements ErrorHandler {
             400, "Virtual host with provided vhost name does not exist"),
     FEDERATED_GATEWAY_VALIDATION_FAILED(900513, "API Validation Failed with Federated Gateway",
             400, "API Validation Failed with %s Gateway. %s", false),
+    CREDENTIAL_RETRIEVAL_NOT_SUPPORTED(900514, "Credential Retrieval Not Supported",
+            400, "This gateway does not support credential retrieval"),
     GATEWAY_ENVIRONMENT_ACTIVE_DEPLOYMENTS_EXIST(900516, "Active Gateway Policy Deployments Exist", 409,
             "Cannot delete the environment with UUID %s as active gateway policy deployment exist"),
     GATEWAY_ENVIRONMENT_API_REVISIONS_EXIST(900515, "API Revisions Deployed to Gateway Environment Exist", 409,

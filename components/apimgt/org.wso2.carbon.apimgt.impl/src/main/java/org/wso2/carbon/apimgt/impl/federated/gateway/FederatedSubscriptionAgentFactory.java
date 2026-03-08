@@ -46,6 +46,7 @@ public class FederatedSubscriptionAgentFactory {
     
     // Cache for subscription agents per organization and environment
     private static final Map<String, FederatedSubscriptionAgent> subscriptionAgentCache = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Object> lockMap = new ConcurrentHashMap<>();
 
     /**
      * Loads and initializes the appropriate FederatedSubscriptionAgent for the given environment.
@@ -72,7 +73,8 @@ public class FederatedSubscriptionAgentFactory {
         }
 
         // Double-checked locking for thread safety
-        synchronized (cacheKey.intern()) {
+        Object lock = lockMap.computeIfAbsent(cacheKey, k -> new Object());
+        synchronized (lock) {
             // Check again after acquiring lock
             cachedAgent = subscriptionAgentCache.get(cacheKey);
             if (cachedAgent != null) {
@@ -136,6 +138,7 @@ public class FederatedSubscriptionAgentFactory {
     public static void clearSubscriptionAgentCache(String organization, String environmentId) {
         String cacheKey = organization + ":" + environmentId;
         subscriptionAgentCache.remove(cacheKey);
+        lockMap.remove(cacheKey);
         if (log.isDebugEnabled()) {
             log.debug("Cleared subscription agent cache for environment: " + environmentId 
                     + " in organization: " + organization);
@@ -148,6 +151,7 @@ public class FederatedSubscriptionAgentFactory {
      */
     public static void clearAllSubscriptionAgentCache() {
         subscriptionAgentCache.clear();
+        lockMap.clear();
         if (log.isDebugEnabled()) {
             log.debug("Cleared all subscription agent cache");
         }

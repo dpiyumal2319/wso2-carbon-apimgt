@@ -39,14 +39,7 @@ public class ExternalEnvironmentsApiServiceImpl implements ExternalEnvironmentsA
         
         try {
             Map<String, Environment> environments = APIUtil.getEnvironments(organization);
-            List<Environment> externalEnvList = new ArrayList<>();
-            
-            // Filter to only include environments with provider="external"
-            for (Environment env : environments.values()) {
-                if (APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(env.getProvider())) {
-                    externalEnvList.add(env);
-                }
-            }
+            List<Environment> externalEnvList = filterExternalEnvironments(environments);
             
             ExternalGatewayEnvironmentListDTO dto = 
                 ExternalGatewayEnvironmentMappingUtil.fromEnvListToEnvListDTO(externalEnvList);
@@ -68,13 +61,10 @@ public class ExternalEnvironmentsApiServiceImpl implements ExternalEnvironmentsA
             
             List<FederatedSubscriptionSupportDTO> supportList = new ArrayList<>();
             
-            // Process each external gateway environment
-            for (Environment env : environments.values()) {
-                if (APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(env.getProvider())) {
-                    FederatedSubscriptionSupportDTO support = buildFederatedSubscriptionSupport(env, catalog);
-                    if (support != null) {
-                        supportList.add(support);
-                    }
+            for (Environment env : filterExternalEnvironments(environments)) {
+                FederatedSubscriptionSupportDTO support = buildFederatedSubscriptionSupport(env, catalog);
+                if (support != null) {
+                    supportList.add(support);
                 }
             }
             
@@ -90,6 +80,16 @@ public class ExternalEnvironmentsApiServiceImpl implements ExternalEnvironmentsA
         }
     }
 
+    private List<Environment> filterExternalEnvironments(Map<String, Environment> environments) {
+        List<Environment> externalEnvList = new ArrayList<>();
+        for (Environment env : environments.values()) {
+            if (APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(env.getProvider())) {
+                externalEnvList.add(env);
+            }
+        }
+        return externalEnvList;
+    }
+
     private FederatedSubscriptionSupportDTO buildFederatedSubscriptionSupport(
             Environment env, GatewayFeatureCatalog catalog) {
         
@@ -99,39 +99,36 @@ public class ExternalEnvironmentsApiServiceImpl implements ExternalEnvironmentsA
         dto.setGatewayType(env.getGatewayType());
         dto.setSupported(false);
         
-        // Check if this gateway type has federated subscription support in catalog
         Map<String, Object> gatewayFeatures = catalog.getGatewayFeatures();
-        if (gatewayFeatures != null && gatewayFeatures.containsKey(env.getGatewayType())) {
-            Object features = gatewayFeatures.get(env.getGatewayType());
-            
-            // Parse the gateway features to extract federatedSubscription info
-            if (features instanceof Map) {
-                Map<String, Object> featureMap = (Map<String, Object>) features;
-                if (featureMap.containsKey("federatedSubscription")) {
-                    Object fedSubFeatures = featureMap.get("federatedSubscription");
-                    extractFederatedSubscriptionInfo(dto, fedSubFeatures);
-                }
+        if (gatewayFeatures == null || env.getGatewayType() == null) {
+            return dto;
+        }
+        Map<String, Object> featureMap = getNestedMap(gatewayFeatures, env.getGatewayType());
+        if (featureMap != null) {
+            Map<String, Object> fedSubFeatures = getNestedMap(featureMap, "federatedSubscription");
+            if (fedSubFeatures != null) {
+                extractFederatedSubscriptionInfo(dto, fedSubFeatures);
             }
         }
         
         return dto;
     }
 
-    private void extractFederatedSubscriptionInfo(FederatedSubscriptionSupportDTO dto, Object fedSubFeatures) {
+    private void extractFederatedSubscriptionInfo(FederatedSubscriptionSupportDTO dto,
+            Map<String, Object> capability) {
         List<String> credentialSchemas = new ArrayList<>();
         List<String> invocationSchemas = new ArrayList<>();
         
         try {
-            if (fedSubFeatures instanceof Map) {
-                Map<String, Object> capability = (Map<String, Object>) fedSubFeatures;
-                boolean supportsFederatedSubscriptions = Boolean.TRUE.equals(capability.get("subcriptionSupport"));
-                if (supportsFederatedSubscriptions) {
-                    if (capability.containsKey("credentialSchema") && capability.get("credentialSchema") instanceof String) {
-                        credentialSchemas.add((String) capability.get("credentialSchema"));
-                    }
-                    if (capability.containsKey("invocationSchema") && capability.get("invocationSchema") instanceof String) {
-                        invocationSchemas.add((String) capability.get("invocationSchema"));
-                    }
+            boolean supportsFederatedSubscriptions = Boolean.TRUE.equals(capability.get("subcriptionSupport"));
+            if (supportsFederatedSubscriptions) {
+                Object credSchema = capability.get("credentialSchema");
+                if (credSchema instanceof String) {
+                    credentialSchemas.add((String) credSchema);
+                }
+                Object invSchema = capability.get("invocationSchema");
+                if (invSchema instanceof String) {
+                    invocationSchemas.add((String) invSchema);
                 }
             }
             
@@ -143,5 +140,11 @@ public class ExternalEnvironmentsApiServiceImpl implements ExternalEnvironmentsA
         } catch (Exception e) {
             log.warn("Error parsing federated subscription features for gateway: " + dto.getGatewayType(), e);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getNestedMap(Map<String, Object> parent, String key) {
+        Object value = parent.get(key);
+        return (value instanceof Map) ? (Map<String, Object>) value : null;
     }
 }

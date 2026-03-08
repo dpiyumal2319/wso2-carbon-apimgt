@@ -59,7 +59,7 @@ import org.wso2.carbon.apimgt.api.model.webhooks.Topic;
 import org.wso2.carbon.apimgt.impl.APIClientGenerationException;
 import org.wso2.carbon.apimgt.impl.APIClientGenerationManager;
 import org.wso2.carbon.apimgt.impl.APIConstants;
-import org.wso2.carbon.apimgt.impl.dao.ApiMgtDAO;
+
 import org.wso2.carbon.apimgt.impl.dto.ai.ApiChatConfigurationDTO;
 import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
@@ -1407,12 +1407,6 @@ public class ApisApiServiceImpl implements ApisApiService {
                         "Credential creation is only supported for external gateway APIs", log);
                 return null;
             }
-            String environmentId = ApiMgtDAO.getInstance().getGatewayEnvironmentIdForExternalApi(apiId);
-            if (StringUtils.isBlank(environmentId)) {
-                RestApiUtil.handleBadRequest(
-                        "No federated gateway environment mapping found for API: " + apiId, log);
-                return null;
-            }
 
             if (body == null || StringUtils.isBlank(body.getApplicationId())) {
                 RestApiUtil.handleBadRequest("Application ID is required to create federated credentials", log);
@@ -1456,12 +1450,6 @@ public class ApisApiServiceImpl implements ApisApiService {
         try {
             String organization = RestApiUtil.getValidatedOrganization(messageContext);
             APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
-            String environmentId = ApiMgtDAO.getInstance().getGatewayEnvironmentIdForExternalApi(apiId);
-            if (StringUtils.isBlank(environmentId)) {
-                RestApiUtil.handleBadRequest(
-                        "No federated gateway environment mapping found for API: " + apiId, log);
-                return null;
-            }
 
             FederatedCredentialsResult result = apiConsumer.getFederatedCredentialByApi(
                     apiId, credentialId, organization, username, false);
@@ -1489,12 +1477,6 @@ public class ApisApiServiceImpl implements ApisApiService {
         try {
             String organization = RestApiUtil.getValidatedOrganization(messageContext);
             APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
-            String environmentId = ApiMgtDAO.getInstance().getGatewayEnvironmentIdForExternalApi(apiId);
-            if (StringUtils.isBlank(environmentId)) {
-                RestApiUtil.handleBadRequest(
-                        "No federated gateway environment mapping found for API: " + apiId, log);
-                return null;
-            }
 
             apiConsumer.deleteFederatedCredentialByApi(apiId, credentialId, organization, username);
             return Response.ok().build();
@@ -1520,12 +1502,6 @@ public class ApisApiServiceImpl implements ApisApiService {
         try {
             String organization = RestApiUtil.getValidatedOrganization(messageContext);
             APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
-            String environmentId = ApiMgtDAO.getInstance().getGatewayEnvironmentIdForExternalApi(apiId);
-            if (StringUtils.isBlank(environmentId)) {
-                RestApiUtil.handleBadRequest(
-                        "No federated gateway environment mapping found for API: " + apiId, log);
-                return null;
-            }
 
             FederatedCredentialsResult result = apiConsumer.getFederatedCredentialByApi(
                     apiId, credentialId, organization, username, true);
@@ -1538,7 +1514,9 @@ public class ApisApiServiceImpl implements ApisApiService {
             } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
                 RestApiUtil.handleAuthorizationFailure(
                         "Authorization failure while retrieving federated credential: " + credentialId, e, log);
-            } else if (e.getMessage() != null && e.getMessage().contains("does not support credential retrieval")) {
+            } else if (e.getErrorHandler() != null
+                    && ExceptionCodes.CREDENTIAL_RETRIEVAL_NOT_SUPPORTED.getErrorCode()
+                    == e.getErrorHandler().getErrorCode()) {
                 RestApiUtil.handleBadRequest(e.getMessage(), log);
             } else {
                 RestApiUtil.handleInternalServerError(
