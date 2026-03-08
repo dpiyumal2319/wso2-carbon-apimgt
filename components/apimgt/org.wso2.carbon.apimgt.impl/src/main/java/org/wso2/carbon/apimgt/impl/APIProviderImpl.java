@@ -9584,12 +9584,16 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
             throws APIManagementException {
 
         boolean isSubscriptionEnabled = subscriptionEnabled != null ? subscriptionEnabled : true;
+        String targetPolicy = isSubscriptionEnabled
+                ? APIConstants.DEFAULT_SUB_POLICY_UNLIMITED
+                : APIConstants.DEFAULT_SUB_POLICY_SUBSCRIPTIONLESS;
         String envId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(apiUuid);
         if (envId == null) {
             throw new APIManagementException(
                     "No external gateway environment mapping found for API: " + apiUuid,
                     ExceptionCodes.from(ExceptionCodes.API_NOT_FOUND, apiUuid));
         }
+        Set<String> originalPolicies = getAvailableTierNames(getAPIbyUUID(apiUuid, organization));
         if (!apiMgtDAO.apiFederationConfigExists(apiUuid, envId)) {
             ApiFederationConfig config = new ApiFederationConfig(apiUuid, envId);
             config.setSubscriptionEnabled(isSubscriptionEnabled);
@@ -9612,10 +9616,59 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
             log.warn("Failed to fetch live gateway config during update for API: " + apiUuid, e);
         }
 
-        apiMgtDAO.updateApiFederationConfigPublisherData(apiUuid, envId, isSubscriptionEnabled,
-                newCuratedConfig, snapshotHash,
-                new java.sql.Timestamp(System.currentTimeMillis()));
+        setApiPoliciesForFederatedSubscriptionState(apiUuid, organization, targetPolicy);
+        try {
+            apiMgtDAO.updateApiFederationConfigPublisherData(apiUuid, envId, isSubscriptionEnabled,
+                    newCuratedConfig, snapshotHash,
+                    new java.sql.Timestamp(System.currentTimeMillis()));
+        } catch (APIManagementException e) {
+            log.warn("Federation config update failed for API: " + apiUuid
+                    + ". Attempting to rollback API policies.", e);
+            rollbackApiPoliciesForFederatedSubscriptionUpdate(apiUuid, organization, originalPolicies);
+            throw e;
+        }
         return getApiFederationConfig(apiUuid, organization);
+    }
+
+    private void setApiPoliciesForFederatedSubscriptionState(String apiUuid, String organization, String targetPolicy)
+            throws APIManagementException {
+
+        API existingAPI = getAPIbyUUID(apiUuid, organization);
+        Set<String> existingPolicies = getAvailableTierNames(existingAPI);
+        if (existingPolicies.size() == 1 && existingPolicies.contains(targetPolicy)) {
+            return;
+        }
+
+        API apiToUpdate = getAPIbyUUID(apiUuid, organization);
+        apiToUpdate.removeAllTiers();
+        apiToUpdate.setAvailableTiers(Collections.singleton(new Tier(targetPolicy)));
+        updateAPI(apiToUpdate, existingAPI);
+    }
+
+    private void rollbackApiPoliciesForFederatedSubscriptionUpdate(String apiUuid, String organization,
+            Set<String> originalPolicies) {
+
+        try {
+            API existingAPI = getAPIbyUUID(apiUuid, organization);
+            API apiToRollback = getAPIbyUUID(apiUuid, organization);
+            apiToRollback.removeAllTiers();
+            Set<Tier> tiersToRestore = originalPolicies.stream()
+                    .map(Tier::new)
+                    .collect(Collectors.toSet());
+            apiToRollback.setAvailableTiers(tiersToRestore);
+            updateAPI(apiToRollback, existingAPI);
+        } catch (APIManagementException rollbackException) {
+            log.error("Failed to rollback API policies for API: " + apiUuid, rollbackException);
+        }
+    }
+
+    private Set<String> getAvailableTierNames(API api) {
+
+        Set<Tier> tiers = api.getAvailableTiers();
+        if (tiers == null || tiers.isEmpty()) {
+            return Collections.emptySet();
+        }
+        return tiers.stream().map(Tier::getName).collect(Collectors.toSet());
     }
 
     /**
