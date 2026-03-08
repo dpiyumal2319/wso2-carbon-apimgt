@@ -78,7 +78,8 @@ public interface FederatedSubscriptionAgent {
      * @throws APIManagementException If retrieval fails or is not supported
      */
     default AgentOperationResult retrieveSubscription(FederatedSubscriptionContext context, boolean includeFullCredentials) throws APIManagementException {
-        throw new APIManagementException("This gateway does not support credential retrieval");
+        throw new APIManagementException("This gateway does not support credential retrieval",
+                ExceptionCodes.CREDENTIAL_RETRIEVAL_NOT_SUPPORTED);
     }
 
     /**
