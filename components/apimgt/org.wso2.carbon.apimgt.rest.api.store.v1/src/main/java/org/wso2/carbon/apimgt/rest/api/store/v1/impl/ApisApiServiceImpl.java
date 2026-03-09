@@ -29,6 +29,8 @@ import org.wso2.carbon.apimgt.api.APIConstants.UnifiedSearchConstants;
 import org.wso2.carbon.apimgt.api.APIConsumer;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.ExceptionCodes;
+import org.wso2.carbon.apimgt.api.SubscriptionBlockedException;
+import org.wso2.carbon.apimgt.api.WorkflowStatus;
 import org.wso2.carbon.apimgt.api.model.API;
 import org.wso2.carbon.apimgt.api.model.APIChatAPISpec;
 import org.wso2.carbon.apimgt.api.model.APIChatExecutionResponse;
@@ -1306,10 +1308,43 @@ public class ApisApiServiceImpl implements ApisApiService {
             String organization = RestApiUtil.getValidatedOrganization(messageContext);
             String username = RestApiCommonUtil.getLoggedInUsername();
             APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+            String applicationId = body.getApplicationId();
+
+            if (StringUtils.isBlank(applicationId)) {
+                RestApiUtil.handleBadRequest("ApplicationId must be provided", log);
+                return null;
+            }
+
+            if (!RestAPIStoreUtils.isUserAccessAllowedForAPIByUUID(apiId, organization)) {
+                RestApiUtil.handleAuthorizationFailure(RestApiConstants.RESOURCE_API, apiId, log);
+            }
+
+            Application application = apiConsumer.getApplicationByUUID(applicationId);
+            if (application == null) {
+                RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_APPLICATION, applicationId, log);
+                return null;
+            }
+
+            if (application.getStatus().equals(WorkflowStatus.REJECTED.toString())
+                    || application.getStatus().equals(WorkflowStatus.CREATED.toString())) {
+                RestApiUtil.handleBadRequest("Workflow status is not Approved", log);
+                return null;
+            }
+            if (APIConstants.DEFAULT_SUB_POLICY_SUBSCRIPTIONLESS.equalsIgnoreCase(application.getTier())
+                    || APIConstants.DEFAULT_SUB_POLICY_ASYNC_SUBSCRIPTIONLESS.equalsIgnoreCase(application.getTier())
+                    || "DefaultSubscriptionLess".equalsIgnoreCase(application.getTier())) {
+                RestApiUtil.handleBadRequest("Federated subscription is not allowed for applications with "
+                        + "subscriptionless policy", log);
+                return null;
+            }
+
+            if (!RestAPIStoreUtils.isUserAccessAllowedForApplication(application)) {
+                RestApiUtil.handleAuthorizationFailure(RestApiConstants.RESOURCE_APPLICATION, applicationId, log);
+            }
 
             FederatedSubscriptionCreateResult result = apiConsumer.createFederatedSubscription(
                     apiId,
-                    body.getApplicationId(),
+                    applicationId,
                     organization,
                     username,
                     body.getSelectedOption());
@@ -1325,6 +1360,11 @@ public class ApisApiServiceImpl implements ApisApiService {
             } else if (RestApiUtil.isDueToResourceAlreadyExists(e)) {
                 RestApiUtil.handleResourceAlreadyExistsError(
                         "Subscription already exists for this API and application", e, log);
+            } else if (RestApiUtil.isDueToAuthorizationFailure(e)) {
+                RestApiUtil.handleAuthorizationFailure(e.getMessage(), e, log);
+            } else if (e instanceof SubscriptionBlockedException) {
+                RestApiUtil.handleOperationBlockedError("Subscription blocked. " + e.getMessage()
+                        + ". Please contact the API publisher.", e, log);
             } else {
                 RestApiUtil.handleInternalServerError(
                         "Error creating federated subscription for API: " + apiId, e, log);
