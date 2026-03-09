@@ -5991,6 +5991,37 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         if (application == null) {
             throw new APIManagementException("Application not found: " + applicationId);
         }
+        if (APIConstants.DEFAULT_SUB_POLICY_SUBSCRIPTIONLESS.equalsIgnoreCase(application.getTier())
+                || APIConstants.DEFAULT_SUB_POLICY_ASYNC_SUBSCRIPTIONLESS.equalsIgnoreCase(application.getTier())
+                || "DefaultSubscriptionLess".equalsIgnoreCase(application.getTier())) {
+            throw new APIMgtAuthorizationFailedException("Federated subscription is not allowed for applications "
+                    + "with subscriptionless policy");
+        }
+        if (WorkflowStatus.REJECTED.toString().equals(application.getStatus())
+                || WorkflowStatus.CREATED.toString().equals(application.getStatus())) {
+            throw new APIManagementException("Workflow status is not Approved", APPLICATION_INACTIVE);
+        }
+
+        String loggedInUser = (userNameWithoutChange != null) ? userNameWithoutChange : username;
+        if (!validateApplication(loggedInUser, application.getId(), application.getGroupId())) {
+            throw new APIMgtAuthorizationFailedException(
+                    "Application is not accessible to user  " + loggedInUser);
+        }
+
+        String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
+        if (StringUtils.isBlank(apiRefArtifact)) {
+            throw new APIManagementException("External API mapping not found for API: " + apiId,
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+
+        SubscriptionSupportInfo configSnapshot = (fedConfig != null) ? fedConfig.getPublisherCuratedConfig() : null;
+        String preflightSubscriptionUuid = UUID.randomUUID().toString();
+        FederatedSubscriptionContext validationContext = buildFederatedContext(preflightSubscriptionUuid, userId,
+                application, api, organization, envId, apiRefArtifact, null, null, APIConstants.UNLIMITED_TIER)
+                .toBuilder()
+                .federationConfigSnapshot(configSnapshot)
+                .build();
+        agent.validateSelectedOption(validationContext, selectedOption);
 
         // 2. Create WSO2 subscription with hardcoded "Unlimited" policy
         ApiTypeWrapper apiTypeWrapper = new ApiTypeWrapper(api);
@@ -6002,13 +6033,18 @@ APIConstants.AuditLogConstants.DELETED, this.username);
 
         // 3. Create mapping row with selectedOption embedded.
         //    No gateway call is made here — credentials are provisioned separately.
-        String mappingUuid = UUID.randomUUID().toString();
-        SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
-        mapping.setUuid(mappingUuid);
-        mapping.setSubscriptionUuid(subscriptionUuid);
-        mapping.setGatewayEnvironmentId(envId);
-        mapping.setReferenceArtifact(buildMappingArtifact(selectedOption));
-        apiMgtDAO.addSubscriptionExternalMapping(mapping);
+        try {
+            String mappingUuid = UUID.randomUUID().toString();
+            SubscriptionExternalMapping mapping = new SubscriptionExternalMapping();
+            mapping.setUuid(mappingUuid);
+            mapping.setSubscriptionUuid(subscriptionUuid);
+            mapping.setGatewayEnvironmentId(envId);
+            mapping.setReferenceArtifact(buildMappingArtifact(selectedOption));
+            apiMgtDAO.addSubscriptionExternalMapping(mapping);
+        } catch (APIManagementException e) {
+            rollbackFederatedSubscription(subscriptionUuid, organization, apiId);
+            throw e;
+        }
 
         // 4. Return status based on subscription approval status
         boolean isActive = APIConstants.SubscriptionStatus.UNBLOCKED.equals(subscriptionStatus);
@@ -6017,6 +6053,18 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                 : FederatedSubscriptionCreateResult.STATUS_PENDING_APPROVAL;
 
         return new FederatedSubscriptionCreateResult(subscriptionUuid, resultStatus);
+    }
+
+    private void rollbackFederatedSubscription(String subscriptionUuid, String organization, String apiId) {
+        try {
+            SubscribedAPI createdSubscription = getSubscriptionByUUID(subscriptionUuid);
+            if (createdSubscription != null) {
+                removeSubscription(createdSubscription, organization);
+            }
+        } catch (Exception rollbackError) {
+            log.warn("Failed to rollback federated subscription after mapping creation failure. API: " + apiId
+                    + ", subscription: " + subscriptionUuid, rollbackError);
+        }
     }
 
     @Override
