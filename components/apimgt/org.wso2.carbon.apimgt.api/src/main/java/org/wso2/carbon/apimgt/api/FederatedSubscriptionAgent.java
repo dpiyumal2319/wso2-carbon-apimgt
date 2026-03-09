@@ -61,6 +61,22 @@ public interface FederatedSubscriptionAgent {
             throws APIManagementException;
 
     /**
+     * Validates the selected subscription option against gateway-owned semantics.
+     * <p>
+     * Implementations should validate option shape and eligibility based on
+     * gateway capabilities and schema definitions.
+     * </p>
+     *
+     * @param context The subscription context
+     * @param selectedOption Developer's chosen subscription option
+     * @throws APIManagementException If the selected option is invalid
+     */
+    default void validateSelectedOption(FederatedSubscriptionContext context, String selectedOption)
+            throws APIManagementException {
+        // Backward-compatible default; connector implementations should override.
+    }
+
+    /**
      * Deletes a subscription from the external gateway.
      *
      * @param context The subscription context
