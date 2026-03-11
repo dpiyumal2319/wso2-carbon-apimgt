@@ -24,31 +24,12 @@ import javax.validation.Valid;
 
 public class ApiFederationConfigDTO   {
   
-    private Boolean subscriptionEnabled = null;
     private GatewaySupportSnapshotDTO gatewaySupportSnapshot = null;
     private GatewaySupportSnapshotDTO publisherCuratedConfig = null;
     private Boolean isStale = null;
     private String gatewaySnapshotHash = null;
     private String liveSnapshotHash = null;
     private String publisherReviewedTime = null;
-
-  /**
-   * Whether federation is enabled for this API
-   **/
-  public ApiFederationConfigDTO subscriptionEnabled(Boolean subscriptionEnabled) {
-    this.subscriptionEnabled = subscriptionEnabled;
-    return this;
-  }
-
-  
-  @ApiModelProperty(value = "Whether federation is enabled for this API")
-  @JsonProperty("subscriptionEnabled")
-  public Boolean isSubscriptionEnabled() {
-    return subscriptionEnabled;
-  }
-  public void setSubscriptionEnabled(Boolean subscriptionEnabled) {
-    this.subscriptionEnabled = subscriptionEnabled;
-  }
 
   /**
    **/
@@ -168,8 +149,7 @@ public class ApiFederationConfigDTO   {
       return false;
     }
     ApiFederationConfigDTO apiFederationConfig = (ApiFederationConfigDTO) o;
-    return Objects.equals(subscriptionEnabled, apiFederationConfig.subscriptionEnabled) &&
-        Objects.equals(gatewaySupportSnapshot, apiFederationConfig.gatewaySupportSnapshot) &&
+    return Objects.equals(gatewaySupportSnapshot, apiFederationConfig.gatewaySupportSnapshot) &&
         Objects.equals(publisherCuratedConfig, apiFederationConfig.publisherCuratedConfig) &&
         Objects.equals(isStale, apiFederationConfig.isStale) &&
         Objects.equals(gatewaySnapshotHash, apiFederationConfig.gatewaySnapshotHash) &&
@@ -179,7 +159,7 @@ public class ApiFederationConfigDTO   {
 
   @Override
   public int hashCode() {
-    return Objects.hash(subscriptionEnabled, gatewaySupportSnapshot, publisherCuratedConfig, isStale, gatewaySnapshotHash, liveSnapshotHash, publisherReviewedTime);
+    return Objects.hash(gatewaySupportSnapshot, publisherCuratedConfig, isStale, gatewaySnapshotHash, liveSnapshotHash, publisherReviewedTime);
   }
 
   @Override
@@ -187,7 +167,6 @@ public class ApiFederationConfigDTO   {
     StringBuilder sb = new StringBuilder();
     sb.append("class ApiFederationConfigDTO {\n");
     
-    sb.append("    subscriptionEnabled: ").append(toIndentedString(subscriptionEnabled)).append("\n");
     sb.append("    gatewaySupportSnapshot: ").append(toIndentedString(gatewaySupportSnapshot)).append("\n");
     sb.append("    publisherCuratedConfig: ").append(toIndentedString(publisherCuratedConfig)).append("\n");
     sb.append("    isStale: ").append(toIndentedString(isStale)).append("\n");

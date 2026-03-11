@@ -5097,7 +5097,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
 
         ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
         SubscriptionSupportInfo configSnapshot = (fedConfig != null) ? fedConfig.getPublisherCuratedConfig() : null;
-        boolean subscriptionEnabledByPublisher = fedConfig == null || fedConfig.isSubscriptionEnabled();
+        boolean subscriptionEnabledByPublisher = !isSubscriptionValidationDisabled(api);
         boolean subscriptionSupportedByGateway = agent.isSubscriptionSupport();
         boolean useSubscriptionMapping = subscriptionSupportedByGateway && subscriptionEnabledByPublisher;
 
@@ -5136,6 +5136,8 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         if (configSnapshot != null) {
             context = context.toBuilder().federationConfigSnapshot(configSnapshot).build();
         }
+        validateSelectedOptionAgainstCuratedConfig(
+                agent, context, configSnapshot, selectedOption, "credential generation");
 
         // Agent creates subscription on gateway and returns credential + artifact
         AgentOperationResult result = agent.createSubscription(context, agentSelectedOption);
@@ -5173,7 +5175,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
                 environment, organization);
         ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
-        boolean subscriptionEnabledByPublisher = fedConfig == null || fedConfig.isSubscriptionEnabled();
+        boolean subscriptionEnabledByPublisher = !isSubscriptionValidationDisabled(api);
         boolean subscriptionSupportedByGateway = agent.isSubscriptionSupport();
         boolean useSubscriptionMapping = subscriptionSupportedByGateway && subscriptionEnabledByPublisher;
 
@@ -5227,7 +5229,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         FederatedSubscriptionAgent agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(
                 environment, organization);
         ApiFederationConfig fedConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
-        boolean subscriptionEnabledByPublisher = fedConfig == null || fedConfig.isSubscriptionEnabled();
+        boolean subscriptionEnabledByPublisher = !isSubscriptionValidationDisabled(api);
         boolean subscriptionSupportedByGateway = agent.isSubscriptionSupport();
         if (!subscriptionSupportedByGateway || !subscriptionEnabledByPublisher) {
             throw new APIManagementException(
@@ -5270,7 +5272,8 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                 .toBuilder()
                 .federationConfigSnapshot(configSnapshot)
                 .build();
-        agent.validateSelectedOption(validationContext, selectedOption);
+        validateSelectedOptionAgainstCuratedConfig(
+                agent, validationContext, configSnapshot, selectedOption, "subscription creation");
 
         // 2. Create WSO2 subscription with hardcoded "Unlimited" policy
         ApiTypeWrapper apiTypeWrapper = new ApiTypeWrapper(api);
@@ -5739,6 +5742,8 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         if (configSnapshot != null) {
             context = context.toBuilder().federationConfigSnapshot(configSnapshot).build();
         }
+        validateSelectedOptionAgainstCuratedConfig(
+                agent, context, configSnapshot, selectedOption, "credential generation");
 
         AgentOperationResult result = agent.createSubscription(context, agentSelectedOption);
 
@@ -5875,6 +5880,21 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                 environment.getGatewayType(), envId);
     }
 
+    private void validateSelectedOptionAgainstCuratedConfig(FederatedSubscriptionAgent agent,
+            FederatedSubscriptionContext context, SubscriptionSupportInfo configSnapshot, String selectedOption,
+            String operationName) throws APIManagementException {
+        if (StringUtils.isBlank(selectedOption)) {
+            return;
+        }
+        if (configSnapshot == null) {
+            throw new APIManagementException(
+                    "Cannot proceed with " + operationName + " using selected options because federation "
+                            + "configuration is not available for this API yet. Please contact your administrator.",
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+        agent.validateSelectedOption(context, extractSelectedOptionBody(selectedOption));
+    }
+
     @Override
     public SubscriptionSupportInfo getSubscriptionSupportInfo(API api, String organization)
             throws APIManagementException {
@@ -5882,76 +5902,41 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             // Resolve gateway environment ID
             String envId = resolveGatewayEnvironmentId(api);
 
-            // Check federation config for publisher overrides
+            // Return null if the publisher has not saved federation config for this API yet.
+            // Dev portal must only serve data that was explicitly curated via the publisher portal.
             ApiFederationConfig federationConfig = apiMgtDAO.getApiFederationConfig(api.getUuid(), envId);
-            if (federationConfig != null && !federationConfig.isSubscriptionEnabled()) {
-                SubscriptionSupportInfo curatedConfig = federationConfig.getPublisherCuratedConfig();
-                if (curatedConfig != null) {
-                    SubscriptionSupportInfo result = SubscriptionSupportInfo.fromJson(curatedConfig.toJson());
-                    result.setSubscriptionSupport(false);
-                    result.filterDisabledPlans();
-                    return result;
-                }
-                // Publisher disabled subscription mapping and no curated snapshot exists.
-                return new SubscriptionSupportInfo.Builder()
-                        .status(SubscriptionSupportInfo.SubscriptionStatus.OPEN)
-                        .subscriptionSupport(false)
-                        .supportedAuthTypes(new String[]{})
-                        .subscriptionOptions(null)
-                        .invocationTemplate(null)
-                        .build();
+            if (federationConfig == null) {
+                return null;
             }
 
-            String apiRefArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
-            if (apiRefArtifact == null) {
-                throw new APIManagementException("No API reference artifact found for API: " + api.getUuid());
+            SubscriptionSupportInfo configSnapshot = federationConfig.getPublisherCuratedConfig();
+            if (configSnapshot == null) {
+                return null;
             }
 
-            Environment environment = apiMgtDAO.getEnvironment(organization, envId);
-            if (environment == null) {
-                throw new APIManagementException("Gateway environment not found: " + envId);
-            }
-
-            FederatedSubscriptionAgent agent;
-            try {
-                agent = FederatedSubscriptionAgentFactory.getSubscriptionAgent(environment, organization);
-            } catch (Exception e) {
-                log.warn("Failed to create subscription agent for gateway " + environment.getGatewayType() +
-                        ". Treating as OPEN (agent unavailable).", e);
-                return new SubscriptionSupportInfo.Builder()
-                        .status(SubscriptionSupportInfo.SubscriptionStatus.OPEN)
-                        .subscriptionSupport(false)
-                        .build();
-            }
-
-            // Pass publisher-curated config as snapshot so the agent can serve it without a gateway call
-            SubscriptionSupportInfo configSnapshot = (federationConfig != null)
-                    ? federationConfig.getPublisherCuratedConfig() : null;
-
-            FederatedSubscriptionContext context = FederatedSubscriptionContext.builder()
-                    .apiReferenceArtifact(apiRefArtifact)
-                    .apiName(api.getId().getApiName())
-                    .apiVersion(api.getId().getVersion())
-                    .apiContext(api.getContext())
-                    .apiUuid(api.getUuid())
-                    .organizationId(organization)
-                    .environmentId(envId)
-                    .federationConfigSnapshot(configSnapshot)
-                    .build();
-
-            SubscriptionSupportInfo result = agent.getFederationConfigConsumer(context);
-            if (result != null) {
-                result.setSubscriptionSupport(agent.isSubscriptionSupport());
-                return result;
-            }
-            return new SubscriptionSupportInfo.Builder()
-                    .status(SubscriptionSupportInfo.SubscriptionStatus.OPEN)
-                    .subscriptionSupport(agent.isSubscriptionSupport())
-                    .build();
+            configSnapshot.filterDisabledPlans();
+            return configSnapshot;
 
         } catch (APIManagementException e) {
             log.error("Error getting subscription support info for API: " + api.getUuid(), e);
             throw e;
         }
+    }
+
+    /**
+     * Checks whether subscription validation is disabled for the given API.
+     * An API has subscription validation disabled when its only available tier is the
+     * DefaultSubscriptionless policy.
+     */
+    private boolean isSubscriptionValidationDisabled(API api) {
+        Set<Tier> tiers = api.getAvailableTiers();
+        if (tiers == null || tiers.isEmpty()) {
+            return false;
+        }
+        if (tiers.size() == 1) {
+            String tierName = tiers.iterator().next().getName();
+            return APIConstants.DEFAULT_SUB_POLICY_SUBSCRIPTIONLESS.equalsIgnoreCase(tierName);
+        }
+        return false;
     }
 }
