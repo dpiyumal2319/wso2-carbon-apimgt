@@ -44,7 +44,6 @@ public class SubscriptionSupportMappingUtil {
         }
 
         SubscriptionSupportInfoDTO dto = new SubscriptionSupportInfoDTO();
-        dto.setSubscriptionSupport(info.isSubscriptionSupport());
 
         // Map status enum
         if (info.getStatus() != null) {

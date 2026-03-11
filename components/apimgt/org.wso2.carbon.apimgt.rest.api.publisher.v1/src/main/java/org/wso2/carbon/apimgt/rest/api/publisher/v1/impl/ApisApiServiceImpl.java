@@ -5214,7 +5214,6 @@ public class ApisApiServiceImpl implements ApisApiService {
             return new ApiFederationConfigDTO();
         }
         ApiFederationConfigDTO dto = new ApiFederationConfigDTO();
-        dto.setSubscriptionEnabled(config.isSubscriptionEnabled());
         dto.setIsStale(config.isStale());
         dto.setGatewaySnapshotHash(config.getGatewaySnapshotHash());
         dto.setLiveSnapshotHash(config.getLiveSnapshotHash());

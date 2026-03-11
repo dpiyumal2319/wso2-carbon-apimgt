@@ -269,24 +269,14 @@ public class FederatedAPIDiscoveryRunner implements FederatedAPIDiscoveryService
                         continue;
                     }
 
-                    // Discovered API with no gateway-side changes: check if tier migration needed
+                    // Discovered API with no gateway-side changes: skip
                     if (update && !discovery.isAPIUpdated(referenceArtifact, discoveredAPI.getReferenceArtifact())) {
-                        boolean tierMigrationNeeded = needsSubscriptionlessTierMigration(
-                            alreadyExistsWithEnvScope ? envScopedKey : apiKey,
-                            adminUsername, organization);
-                        if (!tierMigrationNeeded) {
-                            discoveredAPIsFromFederatedGW.add(alreadyExistsWithEnvScope ? envScopedKey : apiKey);
-                            if (log.isDebugEnabled()) {
-                                log.debug("API: " + api.getId().getName() + " is already deployed in environment: "
-                                        + environment.getName() + " and new changes are not available. Skipping...");
-                            }
-                            continue;
-                        }
-                        // Fall through to re-import — tier needs fixing
+                        discoveredAPIsFromFederatedGW.add(alreadyExistsWithEnvScope ? envScopedKey : apiKey);
                         if (log.isDebugEnabled()) {
-                            log.debug("API: " + api.getId().getName() 
-                                    + " needs tier migration from DefaultSubscriptionless to Unlimited");
+                            log.debug("API: " + api.getId().getName() + " is already deployed in environment: "
+                                    + environment.getName() + " and new changes are not available. Skipping...");
                         }
+                        continue;
                     }
                     // Adjust the name if needed
                     if (alreadyExistsWithEnvScope) {
@@ -519,34 +509,5 @@ public class FederatedAPIDiscoveryRunner implements FederatedAPIDiscoveryService
             log.debug("Retrieving reference object for API ID: " + apiResult.getId());
         }
         return APIUtil.getApiExternalApiMappingReferenceByApiId(apiResult.getId(), environment.getUuid());
-    }
-
-    /**
-     * Checks if an API needs tier migration from DefaultSubscriptionless to Unlimited.
-     *
-     * @param apiKey       The API key (name:version or name__env:version).
-     * @param adminUsername The admin username for the organization.
-     * @param organization The organization context.
-     * @return true if the API has only DefaultSubscriptionless tier and needs migration, false otherwise.
-     */
-    private boolean needsSubscriptionlessTierMigration(String apiKey, String adminUsername, String organization) {
-        try {
-            String apiUUID = FederatedGatewayUtil.getAPIUUID(apiKey, adminUsername, organization);
-            if (apiUUID == null) {
-                return false;
-            }
-
-            String subValidationStatus = ApiMgtDAO.getInstance().getSubscriptionValidationStatus(apiUUID);
-            if ("DISABLED".equals(subValidationStatus)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("API " + apiKey + " needs tier migration from DefaultSubscriptionless to Unlimited");
-                }
-                return true;
-            }
-            return false;
-        } catch (APIManagementException e) {
-            log.warn("Error checking tier migration need for API: " + apiKey, e);
-            return false;
-        }
     }
 }

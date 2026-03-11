@@ -17364,13 +17364,12 @@ public class ApiMgtDAO {
             connection.setAutoCommit(false);
             ps.setString(1, config.getApiUuid());
             ps.setString(2, config.getGatewayEnvId());
-            ps.setInt(3, config.isSubscriptionEnabled() ? 1 : 0);
             if (config.getPublisherCuratedConfig() != null) {
-                ps.setBytes(4, config.getPublisherCuratedConfig().toJson().getBytes(StandardCharsets.UTF_8));
+                ps.setBytes(3, config.getPublisherCuratedConfig().toJson().getBytes(StandardCharsets.UTF_8));
             } else {
-                ps.setNull(4, java.sql.Types.BLOB);
+                ps.setNull(3, java.sql.Types.BLOB);
             }
-            ps.setString(5, config.getGatewaySnapshotHash());
+            ps.setString(4, config.getGatewaySnapshotHash());
             ps.executeUpdate();
             connection.commit();
 
@@ -17393,7 +17392,6 @@ public class ApiMgtDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     config = new ApiFederationConfig(apiUuid, envId);
-                    config.setSubscriptionEnabled(rs.getInt("SUBSCRIPTION_ENABLED") == 1);
                     config.setGatewaySnapshotHash(rs.getString("GATEWAY_SNAPSHOT_HASH"));
                     config.setCreatedTime(rs.getTimestamp("CREATED_TIME"));
                     config.setLastUpdatedTime(rs.getTimestamp("LAST_UPDATED_TIME"));
@@ -17440,32 +17438,31 @@ public class ApiMgtDAO {
      * COALESCE'd — pass null to leave them unchanged.
      */
     public void updateApiFederationConfigPublisherData(String apiUuid, String envId,
-            boolean subscriptionEnabled, SubscriptionSupportInfo curatedConfig, String snapshotHash,
+            SubscriptionSupportInfo curatedConfig, String snapshotHash,
             Timestamp reviewedTime) throws APIManagementException {
         try (Connection connection = APIMgtDBUtil.getConnection();
              PreparedStatement ps = connection.prepareStatement(
                      SQLConstants.UPDATE_API_FEDERATION_CONFIG_PUBLISHER_SQL)) {
 
             connection.setAutoCommit(false);
-            ps.setInt(1, subscriptionEnabled ? 1 : 0);
             if (curatedConfig != null) {
-                ps.setBytes(2, curatedConfig.toJson().getBytes(StandardCharsets.UTF_8));
+                ps.setBytes(1, curatedConfig.toJson().getBytes(StandardCharsets.UTF_8));
             } else {
-                ps.setNull(2, java.sql.Types.BLOB);
+                ps.setNull(1, java.sql.Types.BLOB);
             }
             if (snapshotHash != null) {
-                ps.setString(3, snapshotHash);
+                ps.setString(2, snapshotHash);
             } else {
-                ps.setNull(3, java.sql.Types.VARCHAR);
+                ps.setNull(2, java.sql.Types.VARCHAR);
             }
             if (reviewedTime != null) {
-                ps.setTimestamp(4, reviewedTime);
+                ps.setTimestamp(3, reviewedTime);
             } else {
-                ps.setNull(4, java.sql.Types.TIMESTAMP);
+                ps.setNull(3, java.sql.Types.TIMESTAMP);
             }
-            ps.setTimestamp(5, new Timestamp(System.currentTimeMillis()));
-            ps.setString(6, apiUuid);
-            ps.setString(7, envId);
+            ps.setTimestamp(4, new Timestamp(System.currentTimeMillis()));
+            ps.setString(5, apiUuid);
+            ps.setString(6, envId);
             ps.executeUpdate();
             connection.commit();
 
