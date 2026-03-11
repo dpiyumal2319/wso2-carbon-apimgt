@@ -1621,6 +1621,13 @@ public class ApisApiServiceImpl implements ApisApiService {
             // Get subscription support info from service layer
             SubscriptionSupportInfo info = apiConsumer.getSubscriptionSupportInfo(api, organization);
 
+            // Return 404 when the publisher has not saved any federation config for this API yet
+            if (info == null) {
+                RestApiUtil.handleResourceNotFoundError(
+                        "No federation configuration found for API: " + apiId, log);
+                return null;
+            }
+
             // Map to DTO
             SubscriptionSupportInfoDTO dto = SubscriptionSupportMappingUtil.toDTO(info);
 

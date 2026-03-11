@@ -29,7 +29,6 @@ public class ApiFederationConfig {
 
     private String apiUuid;
     private String gatewayEnvId;
-    private boolean subscriptionEnabled;
     private SubscriptionSupportInfo publisherCuratedConfig;
     private String gatewaySnapshotHash;
     private Timestamp createdTime;
@@ -64,14 +63,6 @@ public class ApiFederationConfig {
 
     public void setGatewayEnvId(String gatewayEnvId) {
         this.gatewayEnvId = gatewayEnvId;
-    }
-
-    public boolean isSubscriptionEnabled() {
-        return subscriptionEnabled;
-    }
-
-    public void setSubscriptionEnabled(boolean subscriptionEnabled) {
-        this.subscriptionEnabled = subscriptionEnabled;
     }
 
     public SubscriptionSupportInfo getLiveGatewaySnapshot() {

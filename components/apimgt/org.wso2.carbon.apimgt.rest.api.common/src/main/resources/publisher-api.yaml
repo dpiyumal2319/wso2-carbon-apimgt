@@ -18847,9 +18847,6 @@ components:
         Federation configuration for an externally-discovered API.
         Contains the live gateway snapshot, publisher curation, and staleness status.
       properties:
-        subscriptionEnabled:
-          type: boolean
-          description: Whether federation is enabled for this API
         gatewaySupportSnapshot:
           $ref: '#/components/schemas/GatewaySupportSnapshot'
         publisherCuratedConfig:

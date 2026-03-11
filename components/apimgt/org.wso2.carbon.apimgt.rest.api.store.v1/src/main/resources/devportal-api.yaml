@@ -7193,10 +7193,6 @@ components:
             * OPEN - No credentials needed, invoke directly
             * SECURED - Credentials required, subscription management available
           example: SECURED
-        subscriptionSupport:
-          type: boolean
-          description: Whether this API supports subscription operations for credential lifecycle
-          example: true
         supportedAuthTypes:
           type: array
           items:

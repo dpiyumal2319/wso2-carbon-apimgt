@@ -9552,7 +9552,6 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
         ApiFederationConfig config = apiMgtDAO.getApiFederationConfig(apiUuid, envId);
         if (config == null) {
             config = new ApiFederationConfig(apiUuid, envId);
-            config.setSubscriptionEnabled(false);
         }
 
         // Fetch live snapshot and populate transient staleness fields
@@ -9583,10 +9582,6 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
             Boolean subscriptionEnabled, String curatedPlanSelectionsJson)
             throws APIManagementException {
 
-        boolean isSubscriptionEnabled = subscriptionEnabled != null ? subscriptionEnabled : true;
-        String targetPolicy = isSubscriptionEnabled
-                ? APIConstants.DEFAULT_SUB_POLICY_UNLIMITED
-                : APIConstants.DEFAULT_SUB_POLICY_SUBSCRIPTIONLESS;
         String envId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(apiUuid);
         if (envId == null) {
             throw new APIManagementException(
@@ -9596,15 +9591,18 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
         Set<String> originalPolicies = getAvailableTierNames(getAPIbyUUID(apiUuid, organization));
         if (!apiMgtDAO.apiFederationConfigExists(apiUuid, envId)) {
             ApiFederationConfig config = new ApiFederationConfig(apiUuid, envId);
-            config.setSubscriptionEnabled(isSubscriptionEnabled);
             apiMgtDAO.addApiFederationConfig(config);
         }
 
         SubscriptionSupportInfo newCuratedConfig = null;
         String snapshotHash = null;
+        boolean supportsSubscriptions = false;
+        boolean supportKnown = false;
         try {
             FederatedSubscriptionAgent agent = resolveAgent(apiUuid, envId, organization);
             if (agent != null) {
+                supportsSubscriptions = agent.isSubscriptionSupport();
+                supportKnown = true;
                 SubscriptionSupportInfo liveInfo = fetchLiveGatewayConfig(apiUuid, envId, organization, agent);
                 if (liveInfo != null) {
                     snapshotHash = liveInfo.computeGatewayHash();
@@ -9616,9 +9614,23 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
             log.warn("Failed to fetch live gateway config during update for API: " + apiUuid, e);
         }
 
+        boolean isSubscriptionEnabled;
+        if (supportKnown && !supportsSubscriptions) {
+            // Gateways without subscription support must always run in subscriptionless mode.
+            isSubscriptionEnabled = false;
+        } else if (subscriptionEnabled != null) {
+            isSubscriptionEnabled = subscriptionEnabled;
+        } else {
+            // Preserve current API policy state when request omits subscriptionEnabled.
+            isSubscriptionEnabled = !isSubscriptionValidationDisabled(apiUuid);
+        }
+        String targetPolicy = isSubscriptionEnabled
+                ? APIConstants.DEFAULT_SUB_POLICY_UNLIMITED
+                : APIConstants.DEFAULT_SUB_POLICY_SUBSCRIPTIONLESS;
+
         setApiPoliciesForFederatedSubscriptionState(apiUuid, organization, targetPolicy);
         try {
-            apiMgtDAO.updateApiFederationConfigPublisherData(apiUuid, envId, isSubscriptionEnabled,
+            apiMgtDAO.updateApiFederationConfigPublisherData(apiUuid, envId,
                     newCuratedConfig, snapshotHash,
                     new java.sql.Timestamp(System.currentTimeMillis()));
         } catch (APIManagementException e) {
