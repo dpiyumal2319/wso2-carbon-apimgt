@@ -46,6 +46,7 @@ import org.wso2.carbon.apimgt.api.model.Application;
 import org.wso2.carbon.apimgt.api.model.ApplicationConstants;
 import org.wso2.carbon.apimgt.api.model.ConsumerSecretInfo;
 import org.wso2.carbon.apimgt.api.model.ConsumerSecretRequest;
+import org.wso2.carbon.apimgt.api.model.FederatedCredentialSummary;
 import org.wso2.carbon.apimgt.api.model.OAuthApplicationInfo;
 import org.wso2.carbon.apimgt.api.model.OrganizationInfo;
 import org.wso2.carbon.apimgt.api.model.Scope;
@@ -89,9 +90,11 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ConsumerSecretCreationReques
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ConsumerSecretDeletionRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ConsumerSecretDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ConsumerSecretListDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialSummaryListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.APIInfoMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.ApplicationKeyMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.ApplicationMappingUtil;
+import org.wso2.carbon.apimgt.rest.api.store.v1.mappings.FederatedSubscriptionMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.store.v1.models.ExportedApplication;
 import org.wso2.carbon.apimgt.rest.api.store.v1.utils.ExportUtils;
 import org.wso2.carbon.apimgt.rest.api.store.v1.utils.ImportUtils;
@@ -1083,6 +1086,31 @@ public class ApplicationsApiServiceImpl implements ApplicationsApiService {
         } catch (APIManagementException e) {
             RestApiUtil.handleInternalServerError("Error while retrieving APIs with API Keys for application " +
                     applicationId, e, log);
+        }
+        return null;
+    }
+
+    @Override
+    public Response getApplicationCredentialSummaries(String applicationId, MessageContext messageContext)
+            throws APIManagementException {
+        try {
+            String organization = RestApiUtil.getValidatedOrganization(messageContext);
+            String username = RestApiCommonUtil.getLoggedInUsername();
+            APIConsumer apiConsumer = RestApiCommonUtil.getConsumer(username);
+
+            List<FederatedCredentialSummary> summaries =
+                    apiConsumer.getApplicationCredentialSummaries(applicationId, organization);
+            FederatedCredentialSummaryListDTO listDTO =
+                    FederatedSubscriptionMappingUtil.fromSummaryListToDTO(summaries);
+
+            return Response.ok().entity(listDTO).build();
+        } catch (APIManagementException e) {
+            if (RestApiUtil.isDueToResourceNotFound(e)) {
+                RestApiUtil.handleResourceNotFoundError(RestApiConstants.RESOURCE_APPLICATION, applicationId, e, log);
+            } else {
+                RestApiUtil.handleInternalServerError(
+                        "Error retrieving credential summaries for application: " + applicationId, e, log);
+            }
         }
         return null;
     }

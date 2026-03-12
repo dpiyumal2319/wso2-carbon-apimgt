@@ -26,6 +26,8 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.CommentListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DocumentDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.DocumentListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialInfoDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialSummaryListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionCreateRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedSubscriptionCreateResponseDTO;
@@ -70,7 +72,9 @@ public interface ApisApiService {
       public Response apisApiIdUserRatingPut(String apiId, RatingDTO ratingDTO, String xWSO2Tenant, MessageContext messageContext) throws APIManagementException;
       public Response apisGet(Integer limit, Integer offset, String xWSO2Tenant, String query, String ifNoneMatch, MessageContext messageContext) throws APIManagementException;
       public Response associateAPIKey(String apiId, APIAPIKeyAssociateRequestDTO apIAPIKeyAssociateRequestDTO, String ifMatch, MessageContext messageContext) throws APIManagementException;
+      public Response createApiFederatedCredential(String apiId, FederatedCredentialRequestDTO federatedCredentialRequestDTO, MessageContext messageContext) throws APIManagementException;
       public Response createFederatedSubscription(String apiId, FederatedSubscriptionCreateRequestDTO federatedSubscriptionCreateRequestDTO, MessageContext messageContext) throws APIManagementException;
+      public Response deleteApiFederatedCredential(String apiId, String credentialId, MessageContext messageContext) throws APIManagementException;
       public Response deleteComment(String commentId, String apiId, String ifMatch, MessageContext messageContext) throws APIManagementException;
       public Response dissociateAPIKey(String apiId, APIKeyDissociateRequestDTO apIKeyDissociateRequestDTO, String ifMatch, MessageContext messageContext) throws APIManagementException;
       public Response editCommentOfAPI(String commentId, String apiId, PatchRequestBodyDTO patchRequestBodyDTO, MessageContext messageContext) throws APIManagementException;
@@ -79,11 +83,13 @@ public interface ApisApiService {
       public Response getAPIBoundAPIKeys(String apiId, String ifNoneMatch, MessageContext messageContext) throws APIManagementException;
       public Response getAllCommentsOfAPI(String apiId, String xWSO2Tenant, Integer limit, Integer offset, Boolean includeCommenterInfo, MessageContext messageContext) throws APIManagementException;
       public Response getApiCredentialSummaries(String apiId, MessageContext messageContext) throws APIManagementException;
+      public Response getApiFederatedCredential(String apiId, String credentialId, MessageContext messageContext) throws APIManagementException;
       public Response getApiSubscriptionSummaries(String apiId, MessageContext messageContext) throws APIManagementException;
       public Response getApiSubscriptionSupport(String apiId, MessageContext messageContext) throws APIManagementException;
       public Response getCommentOfAPI(String commentId, String apiId, String xWSO2Tenant, String ifNoneMatch, Boolean includeCommenterInfo, Integer replyLimit, Integer replyOffset, MessageContext messageContext) throws APIManagementException;
       public Response getRepliesOfComment(String commentId, String apiId, String xWSO2Tenant, Integer limit, Integer offset, String ifNoneMatch, Boolean includeCommenterInfo, MessageContext messageContext) throws APIManagementException;
       public Response getWSDLOfAPI(String apiId, String format, String environmentName, String ifNoneMatch, String xWSO2Tenant, Long exp, String sig, String xWSO2TenantQ, MessageContext messageContext) throws APIManagementException;
       public Response regenerateAPIBoundAPIKey(String apiId, APIKeyRenewRequestDTO apIKeyRenewRequestDTO, String ifMatch, MessageContext messageContext) throws APIManagementException;
+      public Response retrieveApiFederatedCredential(String apiId, String credentialId, MessageContext messageContext) throws APIManagementException;
       public Response revokeAPIBoundAPIKey(String apiId, APIAPIKeyRevokeRequestDTO apIAPIKeyRevokeRequestDTO, String ifMatch, MessageContext messageContext) throws APIManagementException;
 }

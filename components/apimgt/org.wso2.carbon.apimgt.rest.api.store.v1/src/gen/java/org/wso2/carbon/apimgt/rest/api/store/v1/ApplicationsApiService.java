@@ -35,6 +35,7 @@ import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ConsumerSecretDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ConsumerSecretDeletionRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ConsumerSecretListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.ErrorDTO;
+import org.wso2.carbon.apimgt.rest.api.store.v1.dto.FederatedCredentialSummaryListDTO;
 import java.io.File;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.SubscribedAPIWithApiKeyListDTO;
 import org.wso2.carbon.apimgt.rest.api.store.v1.dto.WorkflowResponseDTO;
@@ -78,6 +79,7 @@ public interface ApplicationsApiService {
       public Response generateConsumerSecret(String applicationId, String keyMappingId, ConsumerSecretCreationRequestDTO consumerSecretCreationRequestDTO, MessageContext messageContext) throws APIManagementException;
       public Response getAPIKeyAssociationsForApp(String applicationId, String keyType, String ifNoneMatch, MessageContext messageContext) throws APIManagementException;
       public Response getAppBoundAPIKeys(String applicationId, String keyType, String ifNoneMatch, MessageContext messageContext) throws APIManagementException;
+      public Response getApplicationCredentialSummaries(String applicationId, MessageContext messageContext) throws APIManagementException;
       public Response getConsumerSecrets(String applicationId, String keyMappingId, MessageContext messageContext) throws APIManagementException;
       public Response getSubscribedAPIsWithAPIKeys(String applicationId, String keyType, String ifNoneMatch, MessageContext messageContext) throws APIManagementException;
       public Response regenerateAppBoundAPIKey(String applicationId, String keyType, APIKeyRenewRequestDTO apIKeyRenewRequestDTO, String ifMatch, MessageContext messageContext) throws APIManagementException;
