@@ -24,7 +24,11 @@ import org.wso2.carbon.apimgt.api.model.AgentOperationResult;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionContext;
 import org.wso2.carbon.apimgt.api.model.FederatedSubscriptionOptions;
+import org.wso2.carbon.apimgt.api.model.RemotePlan;
 import org.wso2.carbon.apimgt.api.model.SubscriptionSupportInfo;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Interface for managing subscriptions in external gateways.
@@ -124,6 +128,22 @@ public interface FederatedSubscriptionAgent {
      */
     default boolean isSubscriptionSupport() {
         return false;
+    }
+
+    /**
+     * Lists all available plans on the remote gateway for admin-level plan mapping.
+     * Used by the Admin Portal to populate the plan mapping section when onboarding a gateway.
+     * <p>
+     * Returns all plans available in the gateway account, independent of any specific API or stage.
+     * Implementations should override this to perform a live call to the remote gateway.
+     * </p>
+     *
+     * @param environment The gateway environment configuration (contains credentials/config)
+     * @return List of available remote plans; empty list if not supported
+     * @throws APIManagementException if the remote call fails
+     */
+    default List<RemotePlan> listRemotePlans(Environment environment) throws APIManagementException {
+        return Collections.emptyList();
     }
 
     /**

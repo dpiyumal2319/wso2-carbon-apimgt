@@ -78,6 +78,7 @@ import org.wso2.carbon.apimgt.api.model.Comment;
 import org.wso2.carbon.apimgt.api.model.CommentList;
 import org.wso2.carbon.apimgt.api.model.DeployedAPIRevision;
 import org.wso2.carbon.apimgt.api.model.Environment;
+import org.wso2.carbon.apimgt.api.model.GatewayTierMapping;
 import org.wso2.carbon.apimgt.api.model.GatewayMode;
 import org.wso2.carbon.apimgt.api.model.GatewayPolicyData;
 import org.wso2.carbon.apimgt.api.model.GatewayPolicyDeployment;
@@ -15863,6 +15864,7 @@ public class ApiMgtDAO {
                     env.setVhosts(getVhostGatewayEnvironments(connection, id));
                     env.setPermissions(getGatewayVisibilityPermissions(uuid));
                     env.setAdditionalProperties(additionalProperties);
+                    env.setTierMappings(getGatewayTierMappings(connection, uuid));
                     envList.add(env);
                 }
             }
@@ -15939,6 +15941,7 @@ public class ApiMgtDAO {
                     env.setVhosts(getVhostGatewayEnvironments(connection, id));
                     env.setPermissions(getGatewayVisibilityPermissions(uuid));
                     env.setAdditionalProperties(additionalProperties);
+                    env.setTierMappings(getGatewayTierMappings(connection, uuid));
 
                     List<Environment> environments = envMap.computeIfAbsent(organization, k -> new ArrayList<>());
                     environments.add(env);
@@ -16004,6 +16007,7 @@ public class ApiMgtDAO {
                     env.setVhosts(getVhostGatewayEnvironments(connection, id));
                     env.setPermissions(getGatewayVisibilityPermissions(uuid));
                     env.setAdditionalProperties(additionalProperties);
+                    env.setTierMappings(getGatewayTierMappings(connection, uuid));
                 }
             }
         } catch (SQLException e) {
@@ -16068,6 +16072,7 @@ public class ApiMgtDAO {
                     id = rs.getInt(1);
                 }
                 addGatewayVhosts(conn, id, environment.getVhosts());
+                saveGatewayTierMappings(conn, uuid, environment.getTierMappings());
                 conn.commit();
             } catch (SQLException e) {
                 conn.rollback();
@@ -16197,6 +16202,58 @@ public class ApiMgtDAO {
     }
 
     /**
+     * Saves tier mappings for a gateway environment (replaces any existing mappings for the same gateway).
+     */
+    private void saveGatewayTierMappings(Connection connection, String gatewayUuid,
+            List<GatewayTierMapping> tierMappings) throws APIManagementException {
+        // Delete existing mappings first, then re-insert
+        try (PreparedStatement delStmt = connection.prepareStatement(
+                SQLConstants.DELETE_GATEWAY_TIER_MAPPINGS_SQL)) {
+            delStmt.setString(1, gatewayUuid);
+            delStmt.executeUpdate();
+        } catch (SQLException e) {
+            handleException("Failed to delete existing tier mappings for gateway: " + gatewayUuid, e);
+        }
+        if (tierMappings == null || tierMappings.isEmpty()) {
+            return;
+        }
+        try (PreparedStatement insertStmt = connection.prepareStatement(
+                SQLConstants.INSERT_GATEWAY_TIER_MAPPING_SQL)) {
+            for (GatewayTierMapping mapping : tierMappings) {
+                insertStmt.setString(1, gatewayUuid);
+                insertStmt.setString(2, mapping.getLocalTierName());
+                insertStmt.setString(3, mapping.getRemotePlanReference());
+                insertStmt.addBatch();
+            }
+            insertStmt.executeBatch();
+        } catch (SQLException e) {
+            handleException("Failed to save tier mappings for gateway: " + gatewayUuid, e);
+        }
+    }
+
+    /**
+     * Loads tier mappings for a gateway environment.
+     */
+    private List<GatewayTierMapping> getGatewayTierMappings(Connection connection, String gatewayUuid)
+            throws APIManagementException {
+        List<GatewayTierMapping> mappings = new ArrayList<>();
+        try (PreparedStatement prepStmt = connection.prepareStatement(
+                SQLConstants.GET_GATEWAY_TIER_MAPPINGS_SQL)) {
+            prepStmt.setString(1, gatewayUuid);
+            try (ResultSet rs = prepStmt.executeQuery()) {
+                while (rs.next()) {
+                    mappings.add(new GatewayTierMapping(
+                            rs.getString("LOCAL_TIER_NAME"),
+                            rs.getString("REMOTE_PLAN_REFERENCE")));
+                }
+            }
+        } catch (SQLException e) {
+            handleException("Failed to get tier mappings for gateway: " + gatewayUuid, e);
+        }
+        return mappings;
+    }
+
+    /**
      * Delete an Environment
      *
      * @param uuid UUID of the environment
@@ -16279,6 +16336,7 @@ public class ApiMgtDAO {
                 prepStmt.executeUpdate();
                 deleteGatewayVhosts(connection, environment.getId());
                 addGatewayVhosts(connection, environment.getId(), environment.getVhosts());
+                saveGatewayTierMappings(connection, environment.getUuid(), environment.getTierMappings());
                 connection.commit();
                 try (PreparedStatement deletePermissionsStatement = connection.prepareStatement(
                         SQLConstants.DELETE_ALL_GATEWAY_VISIBILITY_PERMISSION_SQL)) {
