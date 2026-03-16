@@ -4568,6 +4568,9 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         if (StringUtils.isBlank(localTierName)) {
             throw new APIManagementException("Local application tier is required for usage plan mapping");
         }
+        if (environment.getTierMappings() == null || environment.getTierMappings().isEmpty()) {
+            throw new APIManagementException("No usage plan mappings configured for gateway environment: " + envId);
+        }
         for (GatewayTierMapping tierMapping : environment.getTierMappings()) {
             if (tierMapping != null && StringUtils.equalsIgnoreCase(localTierName, tierMapping.getLocalTierName())) {
                 String remotePlanId = extractRemotePlanId(tierMapping.getRemotePlanReference());
