@@ -4979,6 +4979,30 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         return value;
     }
 
+    private SubscribedAPI findSubscribedApiForScope(String apiUuid, Application application)
+            throws APIManagementException {
+        int apiId = apiMgtDAO.getAPIID(apiUuid);
+        String subscriptionUuid = apiMgtDAO.getSubscriptionUuid(apiId, application.getId());
+        if (StringUtils.isBlank(subscriptionUuid)) {
+            return null;
+        }
+        SubscribedAPI subscribedAPI = getSubscriptionByUUID(subscriptionUuid);
+        if (subscribedAPI == null) {
+            throw new APIManagementException("Subscription not found: " + subscriptionUuid,
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+        return subscribedAPI;
+    }
+
+    private String resolveGatewayEnvironmentId(API api) throws APIManagementException {
+        String envId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(api.getUuid());
+        if (envId == null) {
+            throw new APIManagementException(
+                    "No external gateway environment mapping found for federated API: " + api.getUuid());
+        }
+        return envId;
+    }
+
     /**
      * Get server URL updated Open API definition for given synapse gateway environment
      *

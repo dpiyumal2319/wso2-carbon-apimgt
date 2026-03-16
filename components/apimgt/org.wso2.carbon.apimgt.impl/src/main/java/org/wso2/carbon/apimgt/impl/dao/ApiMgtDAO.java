@@ -690,6 +690,32 @@ public class ApiMgtDAO {
         return subscriptionId;
     }
 
+    /**
+     * Returns the subscription UUID for the given API integer ID and application integer ID.
+     *
+     * @param apiId integer API ID
+     * @param applicationId integer application ID
+     * @return subscription UUID, or null if not found
+     * @throws APIManagementException on DAO errors
+     */
+    public String getSubscriptionUuid(int apiId, int applicationId) throws APIManagementException {
+
+        try (Connection conn = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(SQLConstants.GET_SUBSCRIPTION_UUID_SQL)) {
+            ps.setInt(1, apiId);
+            ps.setInt(2, applicationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("UUID");
+                }
+            }
+        } catch (SQLException e) {
+            handleException("Error while retrieving subscription UUID for apiId: " + apiId
+                    + " and applicationId: " + applicationId, e);
+        }
+        return null;
+    }
+
     public int updateSubscription(ApiTypeWrapper apiTypeWrapper, String inputSubscriptionUUId, String status,
                                   String requestedThrottlingTier) throws APIManagementException {
 
@@ -24010,6 +24036,31 @@ public class ApiMgtDAO {
             handleException("Failed to fetch API - External API mapping for the API ID: " + apiId, e);
         }
         return references;
+    }
+
+    /**
+     * Get the gateway environment UUID for a federated API from AM_API_EXTERNAL_API_MAPPING.
+     *
+     * @param apiId UUID of the API
+     * @return gateway environment UUID, or null if no mapping found
+     * @throws APIManagementException on DAO errors
+     */
+    public String getGatewayEnvironmentIdForExternalApi(String apiId) throws APIManagementException {
+        String gatewayEnvId = null;
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement statement =
+                     connection.prepareStatement(SQLConstants.GET_GATEWAY_ENV_ID_FROM_EXTERNAL_MAPPING_SQL)) {
+            statement.setString(1, apiId);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    gatewayEnvId = resultSet.getString("GATEWAY_ENV_ID");
+                }
+            }
+        } catch (SQLException e) {
+            handleException("Failed to fetch gateway environment ID for external API: " + apiId, e);
+        }
+        return gatewayEnvId;
     }
 
     /**
