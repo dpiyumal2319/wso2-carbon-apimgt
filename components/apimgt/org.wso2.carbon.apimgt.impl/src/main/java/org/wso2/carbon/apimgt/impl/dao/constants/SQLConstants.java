@@ -4000,8 +4000,12 @@ public class SQLConstants {
                     "JOIN AM_API API ON KM.API_UUID = API.API_UUID " +
                     "WHERE KM.API_UUID = ? AND K.AUTHZ_USER = ? AND K.STATUS = 'ACTIVE'";
     public static final String GET_API_KEY_DETAILS_FROM_KEY_UUID_SQL =
-            "SELECT K.API_KEY_UUID, K.NAME, K.API_KEY_HASH, K.KEY_TYPE, K.API_KEY_PROPERTIES, K.AUTHZ_USER, K.VALIDITY_PERIOD, K.LAST_USED " +
-                    "FROM AM_API_KEY K WHERE K.API_KEY_UUID = ? AND K.STATUS = 'ACTIVE' " +
+            "SELECT K.API_KEY_UUID, K.NAME, K.API_KEY_HASH, K.KEY_TYPE, K.API_KEY_PROPERTIES, K.AUTHZ_USER, " +
+                    "K.VALIDITY_PERIOD, K.LAST_USED, KM.API_UUID, API.ORGANIZATION " +
+                    "FROM AM_API_KEY K " +
+                    "LEFT JOIN AM_API_KEY_API_MAPPING KM ON K.API_KEY_UUID = KM.API_KEY_UUID " +
+                    "LEFT JOIN AM_API API ON KM.API_UUID = API.API_UUID " +
+                    "WHERE K.API_KEY_UUID = ? AND K.STATUS = 'ACTIVE' " +
                     "AND ( EXISTS ( " +
                     "        SELECT 1 FROM AM_API_KEY_APPLICATION_MAPPING AKAM " +
                     "        JOIN AM_APPLICATION A " +
@@ -4010,13 +4014,14 @@ public class SQLConstants {
                     "        AND A.ORGANIZATION = ? " +
                     "    ) OR EXISTS ( " +
                     "        SELECT 1 FROM AM_API_KEY_API_MAPPING AKAP " +
-                    "        JOIN AM_API API " +
-                    "        ON AKAP.API_UUID = API.API_UUID " +
+                    "        JOIN AM_API API2 " +
+                    "        ON AKAP.API_UUID = API2.API_UUID " +
                     "        WHERE AKAP.API_KEY_UUID = K.API_KEY_UUID " +
-                    "        AND API.ORGANIZATION = ? " +
+                    "        AND API2.ORGANIZATION = ? " +
                     "    ) )";
     public static final String GET_API_KEY_DETAILS_FROM_KEY_UUID_WITHOUT_TENANT_SQL =
-            "SELECT K.API_KEY_UUID, K.NAME, K.API_KEY_HASH, K.KEY_TYPE, K.API_KEY_PROPERTIES, K.AUTHZ_USER, K.VALIDITY_PERIOD, K.LAST_USED " +
+            "SELECT K.API_KEY_UUID, K.NAME, K.API_KEY_HASH, K.KEY_TYPE, K.API_KEY_PROPERTIES, K.AUTHZ_USER, " +
+                    "K.VALIDITY_PERIOD, K.LAST_USED " +
                     "FROM AM_API_KEY K WHERE K.API_KEY_UUID = ? AND K.STATUS = 'ACTIVE' AND K.AUTHZ_USER = ?";
     public static final String GET_API_API_KEY_DETAILS_FROM_KEY_UUID_SQL =
             "SELECT AM.APPLICATION_UUID, K.API_KEY_UUID, K.NAME, K.API_KEY_HASH, K.KEY_TYPE, K.API_KEY_PROPERTIES, K.AUTHZ_USER, K.VALIDITY_PERIOD, K.LAST_USED " +
@@ -4061,14 +4066,16 @@ public class SQLConstants {
                     "WHERE AM.APPLICATION_UUID = ? AND K.KEY_TYPE = ? AND K.AUTHZ_USER = ? AND K.STATUS = 'ACTIVE' AND " +
                     "(APP.ORGANIZATION IS NOT NULL AND APP.ORGANIZATION = ?)";
     public static final String GET_API_UUID_AND_TYPE_FOR_ASSOCIATION_VIA_APP_SQL =
-            "SELECT KM.API_UUID, K.NAME, K.KEY_TYPE, K.AUTHZ_USER, K.API_KEY_HASH, APP.APPLICATION_ID AS APPLICATION_ID " +
+            "SELECT KM.API_UUID, K.NAME, K.KEY_TYPE, K.AUTHZ_USER, K.API_KEY_HASH, K.API_KEY_PROPERTIES, " +
+                    "APP.APPLICATION_ID AS APPLICATION_ID " +
                     "FROM AM_API_KEY K " +
                     "JOIN AM_API_KEY_API_MAPPING KM ON K.API_KEY_UUID = KM.API_KEY_UUID " +
                     "JOIN AM_API_KEY_APPLICATION_MAPPING AM ON K.API_KEY_UUID = AM.API_KEY_UUID " +
                     "JOIN AM_APPLICATION APP ON AM.APPLICATION_UUID = APP.UUID " +
                     "WHERE AM.APPLICATION_UUID = ? AND K.API_KEY_UUID = ? AND K.AUTHZ_USER = ?";
     public static final String GET_KEY_DETAILS_FOR_ASSOCIATION_SQL =
-            "SELECT K.NAME, K.KEY_TYPE, K.API_KEY_HASH, K.AUTHZ_USER, COALESCE(APP.APPLICATION_ID, APP_PROVIDED.APPLICATION_ID) AS APPLICATION_ID, " +
+            "SELECT K.NAME, K.KEY_TYPE, K.API_KEY_HASH, K.AUTHZ_USER, K.API_KEY_PROPERTIES, " +
+                    "COALESCE(APP.APPLICATION_ID, APP_PROVIDED.APPLICATION_ID) AS APPLICATION_ID, " +
                     "COALESCE(APP.NAME, APP_PROVIDED.NAME) AS APPLICATION_NAME, A.API_NAME FROM AM_API_KEY K " +
                     "LEFT JOIN AM_API_KEY_APPLICATION_MAPPING AM ON K.API_KEY_UUID = AM.API_KEY_UUID " +
                     "LEFT JOIN AM_APPLICATION APP ON AM.APPLICATION_UUID = APP.UUID " +
@@ -4077,7 +4084,7 @@ public class SQLConstants {
                     "LEFT JOIN AM_APPLICATION APP_PROVIDED ON APP_PROVIDED.UUID = ? " +
                     "WHERE KM.API_UUID = ? AND K.API_KEY_UUID = ? AND K.AUTHZ_USER = ?";
     public static final String GET_KEY_TYPE_ONLY_FOR_ASSOCIATION_SQL =
-            "SELECT K.NAME, K.AUTHZ_USER, K.KEY_TYPE, K.API_KEY_HASH " +
+            "SELECT K.NAME, K.AUTHZ_USER, K.KEY_TYPE, K.API_KEY_HASH, K.API_KEY_PROPERTIES " +
                     "FROM AM_API_KEY K " +
                     "JOIN AM_API_KEY_API_MAPPING KM ON K.API_KEY_UUID = KM.API_KEY_UUID " +
                     "JOIN AM_API A ON KM.API_UUID = A.API_UUID " +

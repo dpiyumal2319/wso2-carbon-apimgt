@@ -48,6 +48,7 @@ import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.APIMgtAuthorizationFailedException;
 import org.wso2.carbon.apimgt.api.APIMgtResourceNotFoundException;
 import org.wso2.carbon.apimgt.api.ExceptionCodes;
+import org.wso2.carbon.apimgt.api.FederatedApiKeyAgent;
 import org.wso2.carbon.apimgt.api.WorkflowResponse;
 import org.wso2.carbon.apimgt.api.dto.KeyManagerConfigurationDTO;
 import org.wso2.carbon.apimgt.api.dto.KeyManagerPermissionConfigurationDTO;
@@ -78,8 +79,10 @@ import org.wso2.carbon.apimgt.api.model.Documentation.DocumentVisibility;
 import org.wso2.carbon.apimgt.api.model.DocumentationContent;
 import org.wso2.carbon.apimgt.api.model.DocumentationType;
 import org.wso2.carbon.apimgt.api.model.Environment;
+import org.wso2.carbon.apimgt.api.model.FederatedApiKeyContext;
 import org.wso2.carbon.apimgt.api.model.GatewayAgentConfiguration;
 import org.wso2.carbon.apimgt.api.model.GatewayDeployer;
+import org.wso2.carbon.apimgt.api.model.GatewayTierMapping;
 import org.wso2.carbon.apimgt.api.model.Identifier;
 import org.wso2.carbon.apimgt.api.model.KeyManager;
 import org.wso2.carbon.apimgt.api.model.KeyManagerApplicationInfo;
@@ -127,6 +130,7 @@ import org.wso2.carbon.apimgt.impl.recommendationmgt.RecommendationEnvironment;
 import org.wso2.carbon.apimgt.impl.recommendationmgt.RecommenderDetailsExtractor;
 import org.wso2.carbon.apimgt.impl.recommendationmgt.RecommenderEventPublisher;
 import org.wso2.carbon.apimgt.impl.token.ApiKeyGenerator;
+import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedApiKeyAgentFactory;
 import org.wso2.carbon.apimgt.impl.utils.*;
 import org.wso2.carbon.apimgt.impl.workflow.*;
 import org.wso2.carbon.apimgt.impl.wsdl.WSDLProcessor;
@@ -226,6 +230,7 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
     private volatile long lastUpdatedTime;
     private final Object tagCacheMutex = new Object();
     private static final SecureRandom secureRandom = new SecureRandom();
+    private static final String FEDERATED_API_KEY_REMOTE_ID = "federated.remoteApiKeyId";
     protected String userNameWithoutChange;
 
     boolean orgWideAppUpdateEnabled = Boolean.getBoolean(APIConstants.ORGANIZATION_WIDE_APPLICATION_UPDATE_ENABLED);
@@ -613,55 +618,71 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
         if (StringUtils.isBlank(keyName)) {
             throw new APIManagementException("Key name is required for API-bound API keys");
         }
-        String apiKey;
-        // Generate API key in opaque format
-        apiKey = generateOpaqueKey();
+        String apiKey = generateOpaqueKey();
         String apiKeyHash = APIUtil.sha256Hash(apiKey);
         Map<String, String> props = new HashMap<>();
         props.put(APIConstants.JwtTokenConstants.PERMITTED_IP,
                 permittedIP != null ? permittedIP : "");
         props.put(APIConstants.JwtTokenConstants.PERMITTED_REFERER,
                 permittedReferer != null ? permittedReferer : "");
-        APIKeyDTO apiKeyInfoDTO = generateAPIKeyInfoDTO(userName, validityPeriod, keyName, keyType, permittedIP,
-                permittedReferer, props);
-        apiKeyInfoDTO.setApiId(api.getUUID());
-        apiKeyInfoDTO.setKeyId(UUID.randomUUID().toString());
-        apiKeyMgtDAO.addAPIKey(apiKeyHash, apiKeyInfoDTO);
-        sendAPIKeyInfoEvent(apiKeyHash,null, api, calculateExpiresAt(apiKeyInfoDTO.getCreatedTime(),
-                validityPeriod), keyType, keyName, props);
+        String apiKeyUuid = UUID.randomUUID().toString();
 
-        // Notify connected platform gateways. Use apikey.updated so the platform upserts (create if missing, update if exists).
-        PlatformGatewayAPIKeyEventService eventService =
-                ServiceReferenceHolder.getInstance().getPlatformGatewayAPIKeyEventService();
-        if (eventService != null) {
-            try {
-                String apiIdForGateway = api.getUUID();
-                if (log.isDebugEnabled()) {
-                    log.debug("Broadcasting API-bound opaque API key update to platform gateways for API: "
-                            + apiIdForGateway);
-                }
-                String keyNameForGateway = keyName.toLowerCase(java.util.Locale.ROOT);
-                String expiresAtIso = null;
-                if (validityPeriod > 0) {
-                    long expMs = calculateExpiresAt(apiKeyInfoDTO.getCreatedTime(), validityPeriod);
-                    if (expMs > 0) {
-                        expiresAtIso = java.time.Instant.ofEpochMilli(expMs).toString();
+        String organization = resolveApiOrganization(api);
+        FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(api, organization);
+        if (federatedApiKeyAgent != null) {
+            String envId = resolveGatewayEnvironmentId(api);
+            String apiReferenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
+            FederatedApiKeyContext context = buildFederatedApiKeyContext(api, organization, envId, apiReferenceArtifact,
+                    apiKeyUuid, keyName, apiKey, null, userName, null);
+            String remoteApiKeyId = federatedApiKeyAgent.createApiKey(context);
+            if (StringUtils.isNotBlank(remoteApiKeyId)) {
+                props.put(FEDERATED_API_KEY_REMOTE_ID, remoteApiKeyId);
+            }
+        }
+
+        APIKeyDTO apiKeyInfoDTO = generateAPIKeyInfoDTO(userName, validityPeriod, keyName, keyType,
+                permittedIP, permittedReferer, props);
+        apiKeyInfoDTO.setApiId(api.getUUID());
+        apiKeyInfoDTO.setKeyId(apiKeyUuid);
+        apiKeyMgtDAO.addAPIKey(apiKeyHash, apiKeyInfoDTO);
+        if (federatedApiKeyAgent == null) {
+            sendAPIKeyInfoEvent(apiKeyHash, null, api, calculateExpiresAt(apiKeyInfoDTO.getCreatedTime(),
+                    validityPeriod), keyType, keyName, props);
+
+            // Notify connected platform gateways. Use apikey.updated so the platform upserts
+            // (create if missing, update if exists).
+            PlatformGatewayAPIKeyEventService eventService =
+                    ServiceReferenceHolder.getInstance().getPlatformGatewayAPIKeyEventService();
+            if (eventService != null) {
+                try {
+                    String apiIdForGateway = api.getUUID();
+                    if (log.isDebugEnabled()) {
+                        log.debug("Broadcasting API-bound opaque API key update to platform gateways for API: "
+                                + apiIdForGateway);
                     }
-                }
-                eventService.broadcastAPIKeyUpdated(
-                        apiIdForGateway,
-                        keyNameForGateway,
-                        apiKey,
-                        null,
-                        "*",
-                        keyNameForGateway,
-                        expiresAtIso,
-                        null,
-                        null,
-                        userName);
-            } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Failed to broadcast apikey to platform gateways: " + e.getMessage());
+                    String keyNameForGateway = keyName.toLowerCase(java.util.Locale.ROOT);
+                    String expiresAtIso = null;
+                    if (validityPeriod > 0) {
+                        long expMs = calculateExpiresAt(apiKeyInfoDTO.getCreatedTime(), validityPeriod);
+                        if (expMs > 0) {
+                            expiresAtIso = java.time.Instant.ofEpochMilli(expMs).toString();
+                        }
+                    }
+                    eventService.broadcastAPIKeyUpdated(
+                            apiIdForGateway,
+                            keyNameForGateway,
+                            apiKey,
+                            null,
+                            "*",
+                            keyNameForGateway,
+                            expiresAtIso,
+                            null,
+                            null,
+                            userName);
+                } catch (Exception e) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Failed to broadcast apikey to platform gateways: " + e.getMessage());
+                    }
                 }
             }
         }
@@ -4194,6 +4215,33 @@ APIConstants.AuditLogConstants.DELETED, this.username);
     public void revokeApiKey(String keyUUID, String tenantDomain, String username)
             throws APIManagementException {
 
+        APIKeyInfo apiKeyInfo = apiKeyMgtDAO.getAPIKey(keyUUID);
+        if (apiKeyInfo == null || apiKeyInfo.getApiKeyHash() == null) {
+            throw new APIMgtResourceNotFoundException("API key not found for UUID: " + keyUUID);
+        }
+
+        String apiUuid = apiKeyInfo.getApiUUId();
+        if (StringUtils.isNotBlank(apiUuid)) {
+            String organization = StringUtils.isNotBlank(apiKeyInfo.getOrigin())
+                    ? apiKeyInfo.getOrigin()
+                    : apiMgtDAO.getOrganizationByAPIUUID(apiUuid);
+            if (StringUtils.isNotBlank(organization)) {
+                API api = getLightweightAPIByUUID(apiUuid, organization);
+                FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(api, organization);
+                if (federatedApiKeyAgent != null) {
+                    Map<String, String> props = deserializeApiKeyProperties(apiKeyInfo.getProperties());
+                    String remoteApiKeyId = props.get(FEDERATED_API_KEY_REMOTE_ID);
+                    String envId = resolveGatewayEnvironmentId(api);
+                    FederatedApiKeyContext context = buildFederatedApiKeyContext(api, organization, envId, null,
+                            keyUUID, apiKeyInfo.getKeyName(), null, remoteApiKeyId, apiKeyInfo.getAuthUser(),
+                            apiKeyInfo.getApplicationId());
+                    federatedApiKeyAgent.revokeApiKey(context);
+                    apiKeyMgtDAO.revokeAPIKey(keyUUID, tenantDomain);
+                    return;
+                }
+            }
+        }
+
         RevocationRequestPublisher revocationRequestPublisher = RevocationRequestPublisher.getInstance();
         Properties properties = new Properties();
         int tenantId = APIUtil.getTenantIdFromTenantDomain(tenantDomain);
@@ -4204,10 +4252,6 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         properties.put(APIConstants.NotificationEvent.TENANT_ID, tenantId);
         properties.put(APIConstants.NotificationEvent.TENANT_DOMAIN, tenantDomain);
         properties.put(APIConstants.NotificationEvent.STREAM_ID, APIConstants.TOKEN_REVOCATION_STREAM_ID);
-        APIKeyInfo apiKeyInfo = apiKeyMgtDAO.getAPIKey(keyUUID, username);
-        if (apiKeyInfo == null || apiKeyInfo.getKeyUUID() == null) {
-            throw new APIMgtResourceNotFoundException("Active API key not found for UUID: " + keyUUID);
-        }
         if (!isAuthorizedApiKeyUser(username, apiKeyInfo.getAuthUser())) {
             throw new APIMgtAuthorizationFailedException("User is not authorized to revoke the API key for UUID: " + keyUUID);
         }
@@ -4489,6 +4533,14 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         if (!isAuthorizedApiKeyUser(username, apiKeyInfo.getAuthUser())) {
             throw new APIMgtAuthorizationFailedException("User is not authorized to regenerate the API key for UUID: " + keyUUId);
         }
+        API api = getLightweightAPIByUUID(apiUUId, organization);
+        FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(api, organization);
+        String envId = null;
+        String apiReferenceArtifact = null;
+        if (federatedApiKeyAgent != null) {
+            envId = resolveGatewayEnvironmentId(api);
+            apiReferenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
+        }
         // Revoke the existing key
         revokeApiKey(keyUUId, tenantDomain, username);
         // Generate a new key with the same name and other additional properties
@@ -4520,54 +4572,95 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         apiKeyInfoDTO.setValidityPeriod(apiKeyInfo.getValidityPeriod());
         apiKeyInfoDTO.setLastUsedTime(apiKeyInfo.getLastUsedTime());
         String apiKey = generateOpaqueKey();
-        apiKeyInfoDTO.setApiKey(apiKey);
         apiKeyInfoDTO.setCreatedTime(System.currentTimeMillis());
         String apiKeyHash = APIUtil.sha256Hash(apiKey);
-        apiKeyInfoDTO.setKeyId(UUID.randomUUID().toString());
+        String apiKeyUuid = UUID.randomUUID().toString();
+        apiKeyInfoDTO.setKeyId(apiKeyUuid);
+        String remoteApiKeyId = null;
+        if (federatedApiKeyAgent != null) {
+            FederatedApiKeyContext createContext = buildFederatedApiKeyContext(api, organization, envId,
+                    apiReferenceArtifact, apiKeyUuid, apiKeyInfo.getKeyName(), apiKey, null, username,
+                    apiKeyInfo.getApplicationId());
+            remoteApiKeyId = federatedApiKeyAgent.createApiKey(createContext);
+            if (StringUtils.isNotBlank(remoteApiKeyId)) {
+                props.put(FEDERATED_API_KEY_REMOTE_ID, remoteApiKeyId);
+            }
+            String remoteUsagePlanId = resolveRemoteUsagePlanIdForAssociatedSubscription(
+                    apiUUId, organization, envId, apiKeyInfo.getApplicationId());
+            if (StringUtils.isNotBlank(remoteUsagePlanId)) {
+                FederatedApiKeyContext associationContext = buildFederatedApiKeyContext(api, organization, envId,
+                        apiReferenceArtifact, apiKeyUuid, apiKeyInfo.getKeyName(), null, remoteApiKeyId, username,
+                        apiKeyInfo.getApplicationId());
+                federatedApiKeyAgent.associateApiKeyWithUsagePlan(associationContext, remoteUsagePlanId);
+            }
+        }
+        try {
+            apiKeyInfoDTO.setApiKeyProperties(new ObjectMapper().writeValueAsBytes(props));
+        } catch (JsonProcessingException e) {
+            throw new APIManagementException("Error while generating api key properties: ", e);
+        }
+        apiKeyInfoDTO.setApiKey(apiKey);
         Application application = null;
         if (StringUtils.isNotBlank(apiKeyInfo.getApplicationId())) {
             application = getLightweightApplicationByUUID(apiKeyInfo.getApplicationId());
         }
-        API api = getLightweightAPIByUUID(apiUUId, organization);
-        apiKeyMgtDAO.addAPIKey(apiKeyHash, apiKeyInfoDTO);
+        try {
+            apiKeyMgtDAO.addAPIKey(apiKeyHash, apiKeyInfoDTO);
+        } catch (APIManagementException e) {
+            if (federatedApiKeyAgent != null && StringUtils.isNotBlank(remoteApiKeyId)) {
+                FederatedApiKeyContext rollbackContext = buildFederatedApiKeyContext(api, organization, envId,
+                        apiReferenceArtifact, apiKeyUuid, apiKeyInfo.getKeyName(), null, remoteApiKeyId, username,
+                        apiKeyInfo.getApplicationId());
+                try {
+                    federatedApiKeyAgent.revokeApiKey(rollbackContext);
+                } catch (Exception rollbackError) {
+                    log.error("Failed to rollback remote API key after local persistence failure: " + apiKeyUuid,
+                            rollbackError);
+                }
+            }
+            throw e;
+        }
         APIKeyInfo regeneratedApiKeyInfo = new APIKeyInfo();
         regeneratedApiKeyInfo.setKeyName(apiKeyInfo.getKeyName());
         regeneratedApiKeyInfo.setApiKey(apiKey);
         regeneratedApiKeyInfo.setValidityPeriod(apiKeyInfo.getValidityPeriod());
-        sendAPIKeyInfoEvent(apiKeyHash, application, api, calculateExpiresAt(apiKeyInfoDTO.getCreatedTime(),
-                        apiKeyInfo.getValidityPeriod()), apiKeyInfo.getKeyType(), apiKeyInfo.getKeyName(), props);
+        if (federatedApiKeyAgent == null) {
+            sendAPIKeyInfoEvent(apiKeyHash, application, api, calculateExpiresAt(apiKeyInfoDTO.getCreatedTime(),
+                    apiKeyInfo.getValidityPeriod()), apiKeyInfo.getKeyType(), apiKeyInfo.getKeyName(), props);
 
-        // Regenerate = same key name, new value: send apikey.updated so platform updates in place (avoids "name already exists")
-        PlatformGatewayAPIKeyEventService eventService =
-                ServiceReferenceHolder.getInstance().getPlatformGatewayAPIKeyEventService();
-        if (eventService != null && api != null) {
-            try {
-                String apiIdForGateway = PlatformGatewayAPIYamlConverter.getPlatformGatewayHandleForAPI(api);
-                if (apiIdForGateway == null) {
-                    apiIdForGateway = apiUUId;
-                }
-                String keyNameForGateway = apiKeyInfo.getKeyName().toLowerCase(java.util.Locale.ROOT);
-                String expiresAtIso = null;
-                if (apiKeyInfo.getValidityPeriod() > 0) {
-                    long expMs = calculateExpiresAt(apiKeyInfoDTO.getCreatedTime(), apiKeyInfo.getValidityPeriod());
-                    if (expMs > 0) {
-                        expiresAtIso = Instant.ofEpochMilli(expMs).toString();
+            // Regenerate = same key name, new value: send apikey.updated so platform updates in place
+            // (avoids "name already exists").
+            PlatformGatewayAPIKeyEventService eventService =
+                    ServiceReferenceHolder.getInstance().getPlatformGatewayAPIKeyEventService();
+            if (eventService != null && api != null) {
+                try {
+                    String apiIdForGateway = PlatformGatewayAPIYamlConverter.getPlatformGatewayHandleForAPI(api);
+                    if (apiIdForGateway == null) {
+                        apiIdForGateway = apiUUId;
                     }
-                }
-                eventService.broadcastAPIKeyUpdated(
-                        apiIdForGateway,
-                        keyNameForGateway,
-                        apiKey,
-                        null,
-                        "*",
-                        keyNameForGateway,
-                        expiresAtIso,
-                        null,
-                        null,
-                        username);
-            } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Failed to broadcast apikey.updated to platform gateways: " + e.getMessage());
+                    String keyNameForGateway = apiKeyInfo.getKeyName().toLowerCase(java.util.Locale.ROOT);
+                    String expiresAtIso = null;
+                    if (apiKeyInfo.getValidityPeriod() > 0) {
+                        long expMs = calculateExpiresAt(apiKeyInfoDTO.getCreatedTime(), apiKeyInfo.getValidityPeriod());
+                        if (expMs > 0) {
+                            expiresAtIso = Instant.ofEpochMilli(expMs).toString();
+                        }
+                    }
+                    eventService.broadcastAPIKeyUpdated(
+                            apiIdForGateway,
+                            keyNameForGateway,
+                            apiKey,
+                            null,
+                            "*",
+                            keyNameForGateway,
+                            expiresAtIso,
+                            null,
+                            null,
+                            username);
+                } catch (Exception e) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Failed to broadcast apikey.updated to platform gateways: " + e.getMessage());
+                    }
                 }
             }
         }
@@ -4601,10 +4694,63 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         if (!isAuthorizedApiKeyUser(username, apiKeyInfo.getAuthUser())) {
             throw new APIMgtAuthorizationFailedException("User is not authorized to create association of the API key for UUID: " + keyUUId);
         }
-        apiKeyMgtDAO.createAssociationToApiKey(keyUUId, appUUId);
-        sendAPIKeyAssociationInfoEvent(tenantDomain, apiKeyInfo.getKeyName(), apiKeyInfo.getKeyType(), apiKeyInfo.getApiKeyHash(),
-                apiUUId, appUUId, apiKeyInfo.getAppId(), "CREATE_ASSOCIATION");
         Application application = apiMgtDAO.getApplicationByUUID(appUUId);
+        if (application == null) {
+            throw new APIMgtResourceNotFoundException("Application not found for UUID: " + appUUId);
+        }
+
+        String organization = apiMgtDAO.getOrganizationByAPIUUID(apiUUId);
+        API api = StringUtils.isNotBlank(organization) ? getLightweightAPIByUUID(apiUUId, organization) : null;
+        FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(api, organization);
+        String envId = null;
+        String apiReferenceArtifact = null;
+        String remoteApiKeyId = null;
+
+        if (federatedApiKeyAgent != null) {
+            SubscribedAPI subscribedAPI = findSubscribedApiForScope(apiUUId, application);
+            if (subscribedAPI == null || !APIConstants.SubscriptionStatus.UNBLOCKED.equals(subscribedAPI.getSubStatus())) {
+                throw new APIManagementException("API key association requires an active subscription for the selected "
+                        + "application and API", ExceptionCodes.SUBSCRIPTION_STATE_INVALID);
+            }
+            String subscriptionTierName = subscribedAPI.getTier() != null ? subscribedAPI.getTier().getName() : null;
+            if (StringUtils.isBlank(subscriptionTierName)) {
+                throw new APIManagementException("Subscription tier is required for federated usage plan mapping",
+                        ExceptionCodes.SUBSCRIPTION_STATE_INVALID);
+            }
+            envId = resolveGatewayEnvironmentId(api);
+            apiReferenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(apiUUId, envId);
+            Map<String, String> props = deserializeApiKeyProperties(apiKeyInfo.getProperties());
+            remoteApiKeyId = props.get(FEDERATED_API_KEY_REMOTE_ID);
+            if (StringUtils.isBlank(remoteApiKeyId)) {
+                throw new APIManagementException("Remote API key ID is missing for federated API key: " + keyUUId);
+            }
+            String remoteUsagePlanId = resolveMappedRemoteUsagePlanId(organization, envId, subscriptionTierName);
+            FederatedApiKeyContext associationContext = buildFederatedApiKeyContext(api, organization, envId,
+                    apiReferenceArtifact, keyUUId, apiKeyInfo.getKeyName(), null, remoteApiKeyId,
+                    null, appUUId);
+            federatedApiKeyAgent.associateApiKeyWithUsagePlan(associationContext, remoteUsagePlanId);
+        }
+
+        try {
+            apiKeyMgtDAO.createAssociationToApiKey(keyUUId, appUUId);
+        } catch (APIManagementException e) {
+            if (federatedApiKeyAgent != null) {
+                try {
+                    FederatedApiKeyContext rollbackContext = buildFederatedApiKeyContext(api, organization, envId,
+                            apiReferenceArtifact, keyUUId, apiKeyInfo.getKeyName(), null, remoteApiKeyId,
+                            null, appUUId);
+                    federatedApiKeyAgent.removeApiKeyAssociations(rollbackContext);
+                } catch (Exception rollbackError) {
+                    log.error("Failed to rollback remote API key association for key: " + keyUUId, rollbackError);
+                }
+            }
+            throw e;
+        }
+
+        if (federatedApiKeyAgent == null) {
+            sendAPIKeyAssociationInfoEvent(tenantDomain, apiKeyInfo.getKeyName(), apiKeyInfo.getKeyType(), apiKeyInfo.getApiKeyHash(),
+                    apiUUId, appUUId, apiKeyInfo.getAppId(), "CREATE_ASSOCIATION");
+        }
         apiKeyInfo.setApplicationName(application.getName());
         return apiKeyInfo;
     }
@@ -4625,9 +4771,24 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         if (!isAuthorizedApiKeyUser(username, apiKeyInfo.getAuthUser())) {
             throw new APIMgtAuthorizationFailedException("User is not authorized to remove association of the API key for UUID: " + keyUUId);
         }
+        String organization = apiMgtDAO.getOrganizationByAPIUUID(apiKeyInfo.getApiUUId());
+        API api = StringUtils.isNotBlank(organization)
+                ? getLightweightAPIByUUID(apiKeyInfo.getApiUUId(), organization) : null;
+        FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(api, organization);
+        if (federatedApiKeyAgent != null) {
+            String envId = resolveGatewayEnvironmentId(api);
+            Map<String, String> props = deserializeApiKeyProperties(apiKeyInfo.getProperties());
+            String remoteApiKeyId = props.get(FEDERATED_API_KEY_REMOTE_ID);
+            FederatedApiKeyContext context = buildFederatedApiKeyContext(api, organization, envId, null,
+                    keyUUId, apiKeyInfo.getKeyName(), null, remoteApiKeyId, null, appUUId);
+            federatedApiKeyAgent.removeApiKeyAssociations(context);
+        }
         apiKeyMgtDAO.removeAssociationOfAPIKeyViaApp(appUUId, keyUUId, tenantDomain);
-        sendAPIKeyAssociationInfoEvent(tenantDomain, apiKeyInfo.getKeyName(), apiKeyInfo.getKeyType(), apiKeyInfo.getApiKeyHash(),
-                apiKeyInfo.getApiUUId(), appUUId, apiKeyInfo.getAppId(), "REMOVE_ASSOCIATION");
+        if (federatedApiKeyAgent == null) {
+            sendAPIKeyAssociationInfoEvent(tenantDomain, apiKeyInfo.getKeyName(), apiKeyInfo.getKeyType(),
+                    apiKeyInfo.getApiKeyHash(),
+                    apiKeyInfo.getApiUUId(), appUUId, apiKeyInfo.getAppId(), "REMOVE_ASSOCIATION");
+        }
     }
 
     /**
@@ -4646,9 +4807,22 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         if (!isAuthorizedApiKeyUser(username, apiKeyInfo.getAuthUser())) {
             throw new APIMgtAuthorizationFailedException("User is not authorized to remove association of the API key for UUID: " + keyUUId);
         }
+        String organization = apiMgtDAO.getOrganizationByAPIUUID(apiUUId);
+        API api = StringUtils.isNotBlank(organization) ? getLightweightAPIByUUID(apiUUId, organization) : null;
+        FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(api, organization);
+        if (federatedApiKeyAgent != null) {
+            String envId = resolveGatewayEnvironmentId(api);
+            Map<String, String> props = deserializeApiKeyProperties(apiKeyInfo.getProperties());
+            String remoteApiKeyId = props.get(FEDERATED_API_KEY_REMOTE_ID);
+            FederatedApiKeyContext context = buildFederatedApiKeyContext(api, organization, envId, null,
+                    keyUUId, apiKeyInfo.getKeyName(), null, remoteApiKeyId, null, null);
+            federatedApiKeyAgent.removeApiKeyAssociations(context);
+        }
         apiKeyMgtDAO.removeAssociationOfAPIKey(keyUUId, tenantDomain);
-        sendAPIKeyAssociationInfoEvent(tenantDomain, apiKeyInfo.getKeyName(), apiKeyInfo.getKeyType(), apiKeyInfo.getApiKeyHash(), apiUUId,
-                null, 0, "REMOVE_ASSOCIATION");
+        if (federatedApiKeyAgent == null) {
+            sendAPIKeyAssociationInfoEvent(tenantDomain, apiKeyInfo.getKeyName(), apiKeyInfo.getKeyType(),
+                    apiKeyInfo.getApiKeyHash(), apiUUId, null, 0, "REMOVE_ASSOCIATION");
+        }
     }
 
     private void sendAPIKeyAssociationInfoEvent(String tenantDomain, String keyName, String keyType, String apiKeyHash, String apiUUId,
@@ -4669,6 +4843,140 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         properties.put(APIConstants.NotificationEvent.APPLICATION_ID, Objects.requireNonNullElse(appId, 0));
         properties.put(APIConstants.NotificationEvent.ASSOCIATION_TYPE, type);
         apiKeyInfoPublisher.publishApiKeyAssociationInfoEvents(properties);
+    }
+
+    private String resolveApiOrganization(API api) throws APIManagementException {
+        if (api == null) {
+            return null;
+        }
+        if (StringUtils.isNotBlank(api.getOrganization())) {
+            return api.getOrganization();
+        }
+        return apiMgtDAO.getOrganizationByAPIUUID(api.getUuid());
+    }
+
+    private boolean isFederatedGatewayApi(API api) {
+        return api != null && APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor());
+    }
+
+    private FederatedApiKeyAgent resolveFederatedApiKeyAgent(API api, String organization)
+            throws APIManagementException {
+        if (!isFederatedGatewayApi(api) || StringUtils.isBlank(organization)) {
+            return null;
+        }
+        String envId = resolveGatewayEnvironmentId(api);
+        Environment environment = apiMgtDAO.getEnvironment(organization, envId);
+        if (environment == null) {
+            throw new APIManagementException("Gateway environment not found: " + envId);
+        }
+        GatewayAgentConfiguration agentConfiguration = ServiceReferenceHolder.getInstance()
+                .getExternalGatewayConnectorConfiguration(environment.getGatewayType());
+        if (agentConfiguration == null || StringUtils.isBlank(agentConfiguration.getApiKeyAgentImplementation())) {
+            return null;
+        }
+        FederatedApiKeyAgent federatedApiKeyAgent = FederatedApiKeyAgentFactory.getApiKeyAgent(environment,
+                organization);
+        if (federatedApiKeyAgent == null || !federatedApiKeyAgent.isApiKeySupport()) {
+            return null;
+        }
+        return federatedApiKeyAgent;
+    }
+
+    private FederatedApiKeyContext buildFederatedApiKeyContext(API api, String organization, String envId,
+            String apiReferenceArtifact, String apiKeyUuid, String apiKeyName, String apiKeyValue,
+            String remoteApiKeyId, String authzUser, String applicationUuid) {
+        return FederatedApiKeyContext.builder()
+                .apiUuid(api != null ? api.getUuid() : null)
+                .apiName(api != null && api.getId() != null ? api.getId().getApiName() : null)
+                .apiReferenceArtifact(apiReferenceArtifact)
+                .apiKeyUuid(apiKeyUuid)
+                .apiKeyName(apiKeyName)
+                .apiKeyValue(apiKeyValue)
+                .remoteApiKeyId(remoteApiKeyId)
+                .authzUser(authzUser)
+                .applicationUuid(applicationUuid)
+                .organizationId(organization)
+                .environmentId(envId)
+                .build();
+    }
+
+    private Map<String, String> deserializeApiKeyProperties(byte[] serializedProperties)
+            throws APIManagementException {
+        if (serializedProperties == null || serializedProperties.length == 0) {
+            return new HashMap<>();
+        }
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.readValue(serializedProperties, new TypeReference<Map<String, String>>() {});
+        } catch (IOException e) {
+            throw new APIManagementException("Error while deserializing API key properties", e);
+        }
+    }
+
+    private String resolveRemoteUsagePlanIdForAssociatedSubscription(String apiUuid, String organization,
+            String envId, String applicationUuid) throws APIManagementException {
+        if (StringUtils.isBlank(applicationUuid)) {
+            return null;
+        }
+        Application application = apiMgtDAO.getApplicationByUUID(applicationUuid);
+        if (application == null) {
+            throw new APIManagementException("Application not found for UUID: " + applicationUuid,
+                    ExceptionCodes.RESOURCE_NOT_FOUND);
+        }
+        SubscribedAPI subscribedAPI = findSubscribedApiForScope(apiUuid, application);
+        if (subscribedAPI == null || !APIConstants.SubscriptionStatus.UNBLOCKED.equals(subscribedAPI.getSubStatus())) {
+            return null;
+        }
+        Tier subscriptionTier = subscribedAPI.getTier();
+        String subscriptionTierName = subscriptionTier != null ? subscriptionTier.getName() : null;
+        if (StringUtils.isBlank(subscriptionTierName)) {
+            return null;
+        }
+        return resolveMappedRemoteUsagePlanId(organization, envId, subscriptionTierName);
+    }
+
+    private String resolveMappedRemoteUsagePlanId(String organization, String envId, String localTierName)
+            throws APIManagementException {
+        Environment environment = apiMgtDAO.getEnvironment(organization, envId);
+        if (environment == null) {
+            throw new APIManagementException("Gateway environment not found: " + envId);
+        }
+        if (StringUtils.isBlank(localTierName)) {
+            throw new APIManagementException("Local application tier is required for usage plan mapping");
+        }
+        for (GatewayTierMapping tierMapping : environment.getTierMappings()) {
+            if (tierMapping != null && StringUtils.equalsIgnoreCase(localTierName, tierMapping.getLocalTierName())) {
+                String remotePlanId = extractRemotePlanId(tierMapping.getRemotePlanReference());
+                if (StringUtils.isBlank(remotePlanId)) {
+                    throw new APIManagementException("Remote usage plan is not configured for local tier: "
+                            + localTierName);
+                }
+                return remotePlanId;
+            }
+        }
+        throw new APIManagementException("No usage plan mapping found for local tier: " + localTierName);
+    }
+
+    private String extractRemotePlanId(String remotePlanReference) {
+        if (StringUtils.isBlank(remotePlanReference)) {
+            return null;
+        }
+        String value = remotePlanReference.trim();
+        try {
+            JsonObject planJson = JsonParser.parseString(value).getAsJsonObject();
+            if (planJson.has("id") && !planJson.get("id").isJsonNull()) {
+                return planJson.get("id").getAsString();
+            }
+            if (planJson.has("planId") && !planJson.get("planId").isJsonNull()) {
+                return planJson.get("planId").getAsString();
+            }
+            if (planJson.has("raw") && !planJson.get("raw").isJsonNull()) {
+                return planJson.get("raw").getAsString();
+            }
+        } catch (Exception ignored) {
+            // Fall back to raw text format.
+        }
+        return value;
     }
 
     /**
