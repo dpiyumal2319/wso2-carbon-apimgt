@@ -20,6 +20,7 @@ package org.wso2.carbon.apimgt.rest.api.admin.v1.utils.mappings;
 import org.wso2.carbon.apimgt.api.dto.GatewayVisibilityPermissionConfigurationDTO;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.PlatformGateway;
+import org.wso2.carbon.apimgt.api.model.GatewayTierMapping;
 import org.wso2.carbon.apimgt.api.model.VHost;
 import org.wso2.carbon.apimgt.impl.dto.PlatformGatewayConnectConfig;
 import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
@@ -27,9 +28,15 @@ import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.AdditionalPropertyDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentListDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentPermissionsDTO;
+import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.GatewayTierMappingDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.VHostDTO;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +46,8 @@ import java.util.stream.Collectors;
  * This class manage Environment mapping to EnvironmentDTO
  */
 public class EnvironmentMappingUtil {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
      * Convert list of Environment to EnvironmentListDTO
@@ -75,6 +84,7 @@ public class EnvironmentMappingUtil {
                 .collect(Collectors.toList()));
         envDTO.setAdditionalProperties(fromAdditionalPropertiesToAdditionalPropertiesDTO
                 (env.getAdditionalProperties()));
+        envDTO.setTierMappings(fromTierMappingsToTierMappingDTOs(env.getTierMappings()));
         envDTO.setPermissions(mapPermissionsToDTO(env.getPermissions()));
         envDTO.setUniversalGatewayVersion(resolveUniversalGatewayVersion());
         return envDTO;
@@ -247,6 +257,7 @@ public class EnvironmentMappingUtil {
                 .collect(Collectors.toList()));
         env.setAdditionalProperties(fromAdditionalPropertiesDTOToAdditionalProperties
                 (envDTO.getAdditionalProperties()));
+        env.setTierMappings(fromTierMappingDTOsToTierMappings(envDTO.getTierMappings()));
         EnvironmentPermissionsDTO permissions = envDTO.getPermissions();
         if (permissions != null && permissions.getPermissionType() != null) {
             GatewayVisibilityPermissionConfigurationDTO permissionsConfiguration = new GatewayVisibilityPermissionConfigurationDTO();
@@ -299,6 +310,63 @@ public class EnvironmentMappingUtil {
             additionalProperties.putIfAbsent(entry.getKey(),entry.getValue());
         }
         return additionalProperties;
+    }
+
+    /**
+     * Converts a list of GatewayTierMapping model objects to GatewayTierMappingDTOs.
+     * The remotePlanReference JSON string is deserialized to a Map for the DTO.
+     */
+    public static List<GatewayTierMappingDTO> fromTierMappingsToTierMappingDTOs(
+            List<GatewayTierMapping> tierMappings) {
+        List<GatewayTierMappingDTO> dtos = new ArrayList<>();
+        if (tierMappings == null) {
+            return dtos;
+        }
+        for (GatewayTierMapping mapping : tierMappings) {
+            GatewayTierMappingDTO dto = new GatewayTierMappingDTO();
+            dto.setLocalTierName(mapping.getLocalTierName());
+            Map<String, Object> refMap = Collections.emptyMap();
+            if (mapping.getRemotePlanReference() != null) {
+                try {
+                    refMap = OBJECT_MAPPER.readValue(mapping.getRemotePlanReference(),
+                            new TypeReference<Map<String, Object>>() {});
+                } catch (JsonProcessingException e) {
+                    // Stored value is not valid JSON; expose as-is under "raw" key
+                    refMap = new HashMap<>();
+                    refMap.put("raw", mapping.getRemotePlanReference());
+                }
+            }
+            dto.setRemotePlanReference(refMap);
+            dtos.add(dto);
+        }
+        return dtos;
+    }
+
+    /**
+     * Converts a list of GatewayTierMappingDTOs to GatewayTierMapping model objects.
+     * The remotePlanReference Map is serialized to a JSON string for storage.
+     */
+    public static List<GatewayTierMapping> fromTierMappingDTOsToTierMappings(
+            List<GatewayTierMappingDTO> dtos) {
+        List<GatewayTierMapping> mappings = new ArrayList<>();
+        if (dtos == null) {
+            return mappings;
+        }
+        for (GatewayTierMappingDTO dto : dtos) {
+            String refJson = null;
+            if (dto.getRemotePlanReference() != null) {
+                try {
+                    refJson = OBJECT_MAPPER.writeValueAsString(dto.getRemotePlanReference());
+                } catch (JsonProcessingException e) {
+                    refJson = "{}";
+                }
+            }
+            GatewayTierMapping mapping = new GatewayTierMapping();
+            mapping.setLocalTierName(dto.getLocalTierName());
+            mapping.setRemotePlanReference(refJson);
+            mappings.add(mapping);
+        }
+        return mappings;
     }
 
 }

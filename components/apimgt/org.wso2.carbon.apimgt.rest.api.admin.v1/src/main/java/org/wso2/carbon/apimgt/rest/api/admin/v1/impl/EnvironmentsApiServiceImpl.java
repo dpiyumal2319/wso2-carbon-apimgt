@@ -10,9 +10,11 @@ import org.wso2.carbon.apimgt.api.dto.GatewayVisibilityPermissionConfigurationDT
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.PlatformGatewayService;
 import org.wso2.carbon.apimgt.api.model.PlatformGateway;
+import org.wso2.carbon.apimgt.api.model.RemotePlan;
 import org.wso2.carbon.apimgt.impl.APIConstants;
 import org.wso2.carbon.apimgt.impl.APIAdminImpl;
 import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
+import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedApiKeyAgentFactory;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.EnvironmentsApiService;
 
@@ -20,6 +22,8 @@ import org.apache.cxf.jaxrs.ext.MessageContext;
 
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentListDTO;
+import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.RemotePlanDTO;
+import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.RemotePlanListDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.VHostDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.utils.mappings.EnvironmentMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.common.RestApiConstants;
@@ -233,6 +237,35 @@ public class EnvironmentsApiServiceImpl implements EnvironmentsApiService {
             throw new APIManagementException(error, e, ExceptionCodes.ROLE_DOES_NOT_EXIST);
         }
         return null;
+    }
+
+    @Override
+    public Response getEnvironmentRemotePlans(String environmentId, MessageContext messageContext)
+            throws APIManagementException {
+        String organization = RestApiUtil.getValidatedOrganization(messageContext);
+        APIAdminImpl apiAdmin = new APIAdminImpl();
+        Environment environment = apiAdmin.getEnvironmentWithoutPropertyMasking(organization, environmentId);
+        if (environment == null) {
+            throw new APIManagementException("Requested Gateway Environment not found",
+                    ExceptionCodes.GATEWAY_ENVIRONMENT_NOT_FOUND);
+        }
+        environment = apiAdmin.decryptGatewayConfigurationValues(environment);
+        List<RemotePlan> remotePlans = FederatedApiKeyAgentFactory
+                .getApiKeyAgent(environment, organization)
+                .listRemotePlans(environment);
+        List<RemotePlanDTO> planDTOs = new ArrayList<>();
+        for (RemotePlan plan : remotePlans) {
+            RemotePlanDTO dto = new RemotePlanDTO();
+            dto.setId(plan.getId());
+            dto.setName(plan.getName());
+            dto.setDescription(plan.getDescription());
+            dto.setLimits(plan.getLimits());
+            planDTOs.add(dto);
+        }
+        RemotePlanListDTO listDTO = new RemotePlanListDTO();
+        listDTO.setCount(planDTOs.size());
+        listDTO.setList(planDTOs);
+        return Response.ok().entity(listDTO).build();
     }
 
     private void validatePermissions(GatewayVisibilityPermissionConfigurationDTO permissionDTO)

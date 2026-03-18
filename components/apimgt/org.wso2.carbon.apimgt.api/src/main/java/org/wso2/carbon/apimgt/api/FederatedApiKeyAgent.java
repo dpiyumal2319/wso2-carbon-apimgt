@@ -20,6 +20,10 @@ package org.wso2.carbon.apimgt.api;
 
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.FederatedApiKeyContext;
+import org.wso2.carbon.apimgt.api.model.RemotePlan;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Interface for managing API-bound API keys in external gateways.
@@ -84,5 +88,16 @@ public interface FederatedApiKeyAgent {
      */
     default boolean isApiKeySupport() {
         return false;
+    }
+
+    /**
+     * Lists available remote plans from gateway for environment onboarding and local tier mapping.
+     *
+     * @param environment gateway environment configuration
+     * @return list of remote plans
+     * @throws APIManagementException if remote plan retrieval fails
+     */
+    default List<RemotePlan> listRemotePlans(Environment environment) throws APIManagementException {
+        return Collections.emptyList();
     }
 }
