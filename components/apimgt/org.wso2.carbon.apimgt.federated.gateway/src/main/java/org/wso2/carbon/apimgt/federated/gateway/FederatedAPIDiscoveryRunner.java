@@ -212,7 +212,6 @@ public class FederatedAPIDiscoveryRunner implements FederatedAPIDiscoveryService
                     continue;
                 }
                 APIDTO apidto = fromAPItoDTO(discoveredAPI.getApi());
-                applyDiscoveredSecurityToDto(apidto, discoveredAPI.getApi());
                 if (apidto.getPolicies() == null || apidto.getPolicies().isEmpty()) {
                     apidto.setPolicies(Collections.singletonList(DEFAULT_SUB_POLICY_SUBSCRIPTIONLESS));
                 }
@@ -529,26 +528,4 @@ public class FederatedAPIDiscoveryRunner implements FederatedAPIDiscoveryService
         return APIUtil.getApiExternalApiMappingReferenceByApiId(apiResult.getId(), environment.getUuid());
     }
 
-    private void applyDiscoveredSecurityToDto(APIDTO apiDto, API discoveredApi) {
-        if (apiDto == null || discoveredApi == null) {
-            return;
-        }
-
-        String discoveredSecurity = discoveredApi.getApiSecurity();
-        if (StringUtils.isNotBlank(discoveredSecurity)) {
-            List<String> securitySchemes = new ArrayList<>();
-            for (String scheme : discoveredSecurity.split(",")) {
-                if (StringUtils.isNotBlank(scheme)) {
-                    securitySchemes.add(scheme.trim());
-                }
-            }
-            apiDto.setSecurityScheme(securitySchemes);
-        }
-
-        if (StringUtils.isNotBlank(discoveredApi.getApiKeyHeader())) {
-            apiDto.setApiKeyHeader(discoveredApi.getApiKeyHeader());
-        } else {
-            apiDto.setApiKeyHeader(null);
-        }
-    }
 }
