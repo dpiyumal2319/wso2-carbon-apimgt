@@ -21,20 +21,25 @@ package org.wso2.carbon.apimgt.api.model;
 import java.util.Map;
 
 /**
- * Represents an available plan on a remote external gateway (for example, AWS usage plan).
+ * Represents a subscription policy available on a remote external gateway.
+ * Different gateways use different terminology:
+ * - AWS: Usage Plan
+ * - Kong: Consumer Group
+ * - Azure: Subscription Tier
+ * - Apigee: API Product
  */
-public class RemotePlan {
+public class ExternalSubscriptionPolicy {
 
     private String id;
     private String name;
     private String description;
     private Map<String, String> limits;
 
-    public RemotePlan() {
+    public ExternalSubscriptionPolicy() {
 
     }
 
-    public RemotePlan(String id, String name, String description, Map<String, String> limits) {
+    public ExternalSubscriptionPolicy(String id, String name, String description, Map<String, String> limits) {
 
         this.id = id;
         this.name = name;

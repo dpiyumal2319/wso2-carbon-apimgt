@@ -78,6 +78,7 @@ import org.wso2.carbon.apimgt.api.model.Documentation.DocumentSourceType;
 import org.wso2.carbon.apimgt.api.model.Documentation.DocumentVisibility;
 import org.wso2.carbon.apimgt.api.model.DocumentationContent;
 import org.wso2.carbon.apimgt.api.model.DocumentationType;
+import org.wso2.carbon.apimgt.api.model.CredentialCreationResult;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.FederatedApiKeyContext;
 import org.wso2.carbon.apimgt.api.model.GatewayAgentConfiguration;
@@ -634,9 +635,9 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
             String apiReferenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
             FederatedApiKeyContext context = buildFederatedApiKeyContext(api, organization, envId, apiReferenceArtifact,
                     apiKeyUuid, keyName, apiKey, null, userName, null);
-            String remoteApiKeyId = federatedApiKeyAgent.createApiKey(context);
-            if (StringUtils.isNotBlank(remoteApiKeyId)) {
-                props.put(FEDERATED_API_KEY_REMOTE_ID, remoteApiKeyId);
+            CredentialCreationResult result = federatedApiKeyAgent.createApiKey(context);
+            if (result != null && StringUtils.isNotBlank(result.getRemoteCredentialId())) {
+                props.put(FEDERATED_API_KEY_REMOTE_ID, result.getRemoteCredentialId());
             }
         }
 
@@ -4581,17 +4582,18 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             FederatedApiKeyContext createContext = buildFederatedApiKeyContext(api, organization, envId,
                     apiReferenceArtifact, apiKeyUuid, apiKeyInfo.getKeyName(), apiKey, null, username,
                     apiKeyInfo.getApplicationId());
-            remoteApiKeyId = federatedApiKeyAgent.createApiKey(createContext);
-            if (StringUtils.isNotBlank(remoteApiKeyId)) {
+            CredentialCreationResult result = federatedApiKeyAgent.createApiKey(createContext);
+            if (result != null && StringUtils.isNotBlank(result.getRemoteCredentialId())) {
+                remoteApiKeyId = result.getRemoteCredentialId();
                 props.put(FEDERATED_API_KEY_REMOTE_ID, remoteApiKeyId);
             }
-            String remoteUsagePlanId = resolveRemoteUsagePlanIdForAssociatedSubscription(
-                    apiUUId, organization, envId, apiKeyInfo.getApplicationId());
-            if (StringUtils.isNotBlank(remoteUsagePlanId)) {
+            String remotePolicyId = resolveRemotePolicyIdForAssociatedSubscription(
+                    apiUUId, organization, envId, apiKeyInfo.getApplicationId(), federatedApiKeyAgent);
+            if (StringUtils.isNotBlank(remotePolicyId)) {
                 FederatedApiKeyContext associationContext = buildFederatedApiKeyContext(api, organization, envId,
                         apiReferenceArtifact, apiKeyUuid, apiKeyInfo.getKeyName(), null, remoteApiKeyId, username,
                         apiKeyInfo.getApplicationId());
-                federatedApiKeyAgent.associateApiKeyWithUsagePlan(associationContext, remoteUsagePlanId);
+                federatedApiKeyAgent.applyRateLimitPolicy(associationContext, remotePolicyId);
             }
         }
         try {
@@ -4724,11 +4726,11 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             if (StringUtils.isBlank(remoteApiKeyId)) {
                 throw new APIManagementException("Remote API key ID is missing for federated API key: " + keyUUId);
             }
-            String remoteUsagePlanId = resolveMappedRemoteUsagePlanId(organization, envId, subscriptionTierName);
+            String remotePolicyId = resolveRemotePolicyId(organization, envId, subscriptionTierName, federatedApiKeyAgent);
             FederatedApiKeyContext associationContext = buildFederatedApiKeyContext(api, organization, envId,
                     apiReferenceArtifact, keyUUId, apiKeyInfo.getKeyName(), null, remoteApiKeyId,
                     null, appUUId);
-            federatedApiKeyAgent.associateApiKeyWithUsagePlan(associationContext, remoteUsagePlanId);
+            federatedApiKeyAgent.applyRateLimitPolicy(associationContext, remotePolicyId);
         }
 
         try {
@@ -4739,7 +4741,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                     FederatedApiKeyContext rollbackContext = buildFederatedApiKeyContext(api, organization, envId,
                             apiReferenceArtifact, keyUUId, apiKeyInfo.getKeyName(), null, remoteApiKeyId,
                             null, appUUId);
-                    federatedApiKeyAgent.removeApiKeyAssociations(rollbackContext);
+                    federatedApiKeyAgent.removeRateLimitPolicy(rollbackContext);
                 } catch (Exception rollbackError) {
                     log.error("Failed to rollback remote API key association for key: " + keyUUId, rollbackError);
                 }
@@ -4781,7 +4783,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             String remoteApiKeyId = props.get(FEDERATED_API_KEY_REMOTE_ID);
             FederatedApiKeyContext context = buildFederatedApiKeyContext(api, organization, envId, null,
                     keyUUId, apiKeyInfo.getKeyName(), null, remoteApiKeyId, null, appUUId);
-            federatedApiKeyAgent.removeApiKeyAssociations(context);
+            federatedApiKeyAgent.removeRateLimitPolicy(context);
         }
         apiKeyMgtDAO.removeAssociationOfAPIKeyViaApp(appUUId, keyUUId, tenantDomain);
         if (federatedApiKeyAgent == null) {
@@ -4816,7 +4818,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             String remoteApiKeyId = props.get(FEDERATED_API_KEY_REMOTE_ID);
             FederatedApiKeyContext context = buildFederatedApiKeyContext(api, organization, envId, null,
                     keyUUId, apiKeyInfo.getKeyName(), null, remoteApiKeyId, null, null);
-            federatedApiKeyAgent.removeApiKeyAssociations(context);
+            federatedApiKeyAgent.removeRateLimitPolicy(context);
         }
         apiKeyMgtDAO.removeAssociationOfAPIKey(keyUUId, tenantDomain);
         if (federatedApiKeyAgent == null) {
@@ -4913,8 +4915,8 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         }
     }
 
-    private String resolveRemoteUsagePlanIdForAssociatedSubscription(String apiUuid, String organization,
-            String envId, String applicationUuid) throws APIManagementException {
+    private String resolveRemotePolicyIdForAssociatedSubscription(String apiUuid, String organization,
+            String envId, String applicationUuid, FederatedApiKeyAgent agent) throws APIManagementException {
         if (StringUtils.isBlank(applicationUuid)) {
             return null;
         }
@@ -4932,11 +4934,11 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         if (StringUtils.isBlank(subscriptionTierName)) {
             return null;
         }
-        return resolveMappedRemoteUsagePlanId(organization, envId, subscriptionTierName);
+        return resolveRemotePolicyId(organization, envId, subscriptionTierName, agent);
     }
 
-    private String resolveMappedRemoteUsagePlanId(String organization, String envId, String localTierName)
-            throws APIManagementException {
+    private String resolveRemotePolicyId(String organization, String envId, String localTierName,
+            FederatedApiKeyAgent agent) throws APIManagementException {
         Environment environment = apiMgtDAO.getEnvironment(organization, envId);
         if (environment == null) {
             throw new APIManagementException("Gateway environment not found: " + envId);
@@ -4946,37 +4948,15 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         }
         for (GatewayTierMapping tierMapping : environment.getTierMappings()) {
             if (tierMapping != null && StringUtils.equalsIgnoreCase(localTierName, tierMapping.getLocalTierName())) {
-                String remotePlanId = extractRemotePlanId(tierMapping.getRemotePlanReference());
-                if (StringUtils.isBlank(remotePlanId)) {
+                String remotePolicyId = agent.resolveRemotePolicyId(tierMapping.getRemotePlanReference());
+                if (StringUtils.isBlank(remotePolicyId)) {
                     throw new APIManagementException("Remote usage plan is not configured for local tier: "
                             + localTierName);
                 }
-                return remotePlanId;
+                return remotePolicyId;
             }
         }
         throw new APIManagementException("No usage plan mapping found for local tier: " + localTierName);
-    }
-
-    private String extractRemotePlanId(String remotePlanReference) {
-        if (StringUtils.isBlank(remotePlanReference)) {
-            return null;
-        }
-        String value = remotePlanReference.trim();
-        try {
-            JsonObject planJson = JsonParser.parseString(value).getAsJsonObject();
-            if (planJson.has("id") && !planJson.get("id").isJsonNull()) {
-                return planJson.get("id").getAsString();
-            }
-            if (planJson.has("planId") && !planJson.get("planId").isJsonNull()) {
-                return planJson.get("planId").getAsString();
-            }
-            if (planJson.has("raw") && !planJson.get("raw").isJsonNull()) {
-                return planJson.get("raw").getAsString();
-            }
-        } catch (Exception ignored) {
-            // Fall back to raw text format.
-        }
-        return value;
     }
 
     private SubscribedAPI findSubscribedApiForScope(String apiUuid, Application application)

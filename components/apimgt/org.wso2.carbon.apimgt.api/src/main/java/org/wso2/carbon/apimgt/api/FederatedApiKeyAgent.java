@@ -18,9 +18,10 @@
 
 package org.wso2.carbon.apimgt.api;
 
+import org.wso2.carbon.apimgt.api.model.CredentialCreationResult;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.FederatedApiKeyContext;
-import org.wso2.carbon.apimgt.api.model.RemotePlan;
+import org.wso2.carbon.apimgt.api.model.ExternalSubscriptionPolicy;
 
 import java.util.Collections;
 import java.util.List;
@@ -43,10 +44,10 @@ public interface FederatedApiKeyAgent {
      * Creates/pushes an API key in the external gateway.
      *
      * @param context API key operation context
-     * @return remote API key identifier
+     * @return credential creation result containing remote identifier and metadata
      * @throws APIManagementException if operation fails
      */
-    String createApiKey(FederatedApiKeyContext context) throws APIManagementException;
+    CredentialCreationResult createApiKey(FederatedApiKeyContext context) throws APIManagementException;
 
     /**
      * Revokes/deletes an API key in the external gateway.
@@ -57,22 +58,36 @@ public interface FederatedApiKeyAgent {
     void revokeApiKey(FederatedApiKeyContext context) throws APIManagementException;
 
     /**
-     * Associates an API key with a remote usage plan.
+     * Applies a rate limiting policy to an API key.
+     * Different gateways implement this differently:
+     * - AWS: Associates key with usage plan
+     * - Kong: Adds consumer to consumer group and ACL
+     * - Azure: Associates subscription with tier
      *
      * @param context API key operation context
-     * @param remoteUsagePlanId remote usage plan identifier
+     * @param policyId remote rate limit policy identifier
      * @throws APIManagementException if operation fails
      */
-    void associateApiKeyWithUsagePlan(FederatedApiKeyContext context, String remoteUsagePlanId)
+    void applyRateLimitPolicy(FederatedApiKeyContext context, String policyId)
             throws APIManagementException;
 
     /**
-     * Removes API key associations from remote usage plans.
+     * Removes rate limiting policy from an API key.
      *
      * @param context API key operation context
      * @throws APIManagementException if operation fails
      */
-    void removeApiKeyAssociations(FederatedApiKeyContext context) throws APIManagementException;
+    void removeRateLimitPolicy(FederatedApiKeyContext context) throws APIManagementException;
+
+    /**
+     * Resolves the remote rate limit policy ID from the stored policy reference.
+     * Each gateway implementation parses its own format (JSON, raw ID, etc.).
+     *
+     * @param remotePolicyReference the stored policy reference (may be JSON or raw ID)
+     * @return the resolved policy ID, or null if not resolvable
+     * @throws APIManagementException if parsing fails
+     */
+    String resolveRemotePolicyId(String remotePolicyReference) throws APIManagementException;
 
     /**
      * Gets gateway type identifier.
@@ -91,13 +106,14 @@ public interface FederatedApiKeyAgent {
     }
 
     /**
-     * Lists available remote plans from gateway for environment onboarding and local tier mapping.
+     * Lists available rate limiting policies from gateway for environment onboarding and local tier mapping.
+     * Different gateways call these different things (usage plans, consumer groups, subscription tiers, etc.).
      *
      * @param environment gateway environment configuration
-     * @return list of remote plans
-     * @throws APIManagementException if remote plan retrieval fails
+     * @return list of rate limit policies
+     * @throws APIManagementException if policy retrieval fails
      */
-    default List<RemotePlan> listRemotePlans(Environment environment) throws APIManagementException {
+    default List<ExternalSubscriptionPolicy> listRateLimitPolicies(Environment environment) throws APIManagementException {
         return Collections.emptyList();
     }
 }

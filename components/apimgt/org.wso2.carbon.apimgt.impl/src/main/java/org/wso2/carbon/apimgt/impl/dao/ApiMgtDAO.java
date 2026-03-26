@@ -204,6 +204,10 @@ import static org.wso2.carbon.apimgt.impl.dao.constants.SQLConstants.APIRevision
 public class ApiMgtDAO {
 
     private static final Log log = LogFactory.getLog(ApiMgtDAO.class);
+    private static final Gson GSON = new Gson();
+    private static final String ENV_CONFIG_TIER_MAPPINGS_KEY = "__wso2_gateway_tier_mappings";
+    private static final Type ENV_CONFIG_MAP_TYPE = new TypeToken<Map<String, Object>>() { }.getType();
+    private static final Type ENV_TIER_MAPPINGS_TYPE = new TypeToken<List<GatewayTierMapping>>() { }.getType();
     private static ApiMgtDAO INSTANCE = null;
     private final Object scopeMutex = new Object();
     private boolean forceCaseInsensitiveComparisons = false;
@@ -15971,13 +15975,12 @@ public class ApiMgtDAO {
                     if (rs.wasNull()) {
                         scheduledTime = 0;
                     }
-                    String configurationContent = null;
-                    Map<String, String> additionalProperties = new HashMap();
+                    Map<String, String> additionalProperties = new HashMap<>();
+                    List<GatewayTierMapping> tierMappings = new ArrayList<>();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        if (configuration != null) {
-                            configurationContent = APIMgtDBUtil.getStringFromInputStream(configuration);
-                            additionalProperties = new Gson().fromJson(configurationContent, Map.class);
-                        }
+                        EnvironmentConfiguration envConfig = readEnvironmentConfiguration(configuration, uuid);
+                        additionalProperties = envConfig.getAdditionalProperties();
+                        tierMappings = envConfig.getTierMappings();
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -16003,7 +16006,7 @@ public class ApiMgtDAO {
                     env.setVhosts(getVhostGatewayEnvironments(connection, id));
                     env.setPermissions(getGatewayVisibilityPermissions(uuid));
                     env.setAdditionalProperties(additionalProperties);
-                    env.setTierMappings(getGatewayTierMappings(connection, uuid));
+                    env.setTierMappings(tierMappings);
                     envList.add(env);
                 }
             }
@@ -16048,21 +16051,12 @@ public class ApiMgtDAO {
                     if (rs.wasNull()) {
                         scheduledTime = 0;
                     }
-                    String configurationContent = null;
                     Map<String, String> additionalProperties = new HashMap<>();
+                    List<GatewayTierMapping> tierMappings = new ArrayList<>();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        if (configuration != null) {
-                            configurationContent = APIMgtDBUtil.getStringFromInputStream(configuration);
-                            Type mapType =
-                                    new TypeToken<Map<String, Object>>() {}.getType();
-                            Map<String, Object> parsedMap = new Gson().fromJson(configurationContent, mapType);
-                            if (parsedMap != null) {
-                                for (Map.Entry<String, Object> entry : parsedMap.entrySet()) {
-                                    additionalProperties.put(entry.getKey(),
-                                            entry.getValue() != null ? entry.getValue().toString() : null);
-                                }
-                            }
-                        }
+                        EnvironmentConfiguration envConfig = readEnvironmentConfiguration(configuration, uuid);
+                        additionalProperties = envConfig.getAdditionalProperties();
+                        tierMappings = envConfig.getTierMappings();
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -16081,7 +16075,7 @@ public class ApiMgtDAO {
                     env.setVhosts(getVhostGatewayEnvironments(connection, id));
                     env.setPermissions(getGatewayVisibilityPermissions(uuid));
                     env.setAdditionalProperties(additionalProperties);
-                    env.setTierMappings(getGatewayTierMappings(connection, uuid));
+                    env.setTierMappings(tierMappings);
 
                     List<Environment> environments = envMap.computeIfAbsent(organization, k -> new ArrayList<>());
                     environments.add(env);
@@ -16124,13 +16118,12 @@ public class ApiMgtDAO {
                     if (rs.wasNull()) {
                         scheduledTime = 0;
                     }
-                    String configurationContent = null;
-                    Map<String, String> additionalProperties = new HashMap();
+                    Map<String, String> additionalProperties = new HashMap<>();
+                    List<GatewayTierMapping> tierMappings = new ArrayList<>();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        if (configuration != null) {
-                            configurationContent = APIMgtDBUtil.getStringFromInputStream(configuration);
-                            additionalProperties = new Gson().fromJson(configurationContent, Map.class);
-                        }
+                        EnvironmentConfiguration envConfig = readEnvironmentConfiguration(configuration, uuid);
+                        additionalProperties = envConfig.getAdditionalProperties();
+                        tierMappings = envConfig.getTierMappings();
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -16152,7 +16145,7 @@ public class ApiMgtDAO {
                     env.setVhosts(getVhostGatewayEnvironments(connection, id));
                     env.setPermissions(getGatewayVisibilityPermissions(uuid));
                     env.setAdditionalProperties(additionalProperties);
-                    env.setTierMappings(getGatewayTierMappings(connection, uuid));
+                    env.setTierMappings(tierMappings);
                 }
             }
         } catch (SQLException e) {
@@ -16259,8 +16252,8 @@ public class ApiMgtDAO {
                 prepStmt.setString(5, environment.getDescription());
                 prepStmt.setString(6, environment.getProvider());
                 prepStmt.setString(7, environment.getGatewayType());
-                String configurationJson = new Gson().toJson(environment.getAdditionalProperties());
-                prepStmt.setBinaryStream(8, new ByteArrayInputStream(configurationJson.getBytes()));
+                byte[] configurationJson = buildEnvironmentConfiguration(environment);
+                prepStmt.setBinaryStream(8, new ByteArrayInputStream(configurationJson));
                 prepStmt.setString(9, tenantDomain);
                 prepStmt.setString(10, (StringUtils.isEmpty(environment.getMode()) ?
                         GatewayMode.WRITE_ONLY.getMode() :
@@ -16290,7 +16283,6 @@ public class ApiMgtDAO {
                     id = rs.getInt(1);
                 }
                 addGatewayVhosts(conn, id, environment.getVhosts());
-                saveGatewayTierMappings(conn, uuid, environment.getTierMappings());
                 conn.commit();
             } catch (SQLException e) {
                 conn.rollback();
@@ -16419,53 +16411,76 @@ public class ApiMgtDAO {
         return vhosts;
     }
 
-    /**
-     * Saves tier mappings for a gateway environment (replaces existing mappings).
-     */
-    private void saveGatewayTierMappings(Connection connection, String gatewayUuid,
-            List<GatewayTierMapping> tierMappings) throws APIManagementException {
-        try (PreparedStatement delStmt = connection.prepareStatement(SQLConstants.DELETE_GATEWAY_TIER_MAPPINGS_SQL)) {
-            delStmt.setString(1, gatewayUuid);
-            delStmt.executeUpdate();
-        } catch (SQLException e) {
-            handleException("Failed to delete existing tier mappings for gateway: " + gatewayUuid, e);
+    private EnvironmentConfiguration readEnvironmentConfiguration(InputStream configuration, String environmentUuid)
+            throws IOException {
+        Map<String, String> additionalProperties = new HashMap<>();
+        List<GatewayTierMapping> tierMappings = new ArrayList<>();
+        if (configuration == null) {
+            return new EnvironmentConfiguration(additionalProperties, tierMappings);
         }
-        if (tierMappings == null || tierMappings.isEmpty()) {
-            return;
-        }
-        try (PreparedStatement insertStmt = connection.prepareStatement(SQLConstants.INSERT_GATEWAY_TIER_MAPPING_SQL)) {
-            for (GatewayTierMapping mapping : tierMappings) {
-                insertStmt.setString(1, gatewayUuid);
-                insertStmt.setString(2, mapping.getLocalTierName());
-                insertStmt.setString(3, mapping.getRemotePlanReference());
-                insertStmt.addBatch();
-            }
-            insertStmt.executeBatch();
-        } catch (SQLException e) {
-            handleException("Failed to save tier mappings for gateway: " + gatewayUuid, e);
-        }
-    }
 
-    /**
-     * Loads tier mappings for a gateway environment.
-     */
-    private List<GatewayTierMapping> getGatewayTierMappings(Connection connection, String gatewayUuid)
-            throws APIManagementException {
-        List<GatewayTierMapping> mappings = new ArrayList<>();
-        try (PreparedStatement prepStmt = connection.prepareStatement(SQLConstants.GET_GATEWAY_TIER_MAPPINGS_SQL)) {
-            prepStmt.setString(1, gatewayUuid);
-            try (ResultSet rs = prepStmt.executeQuery()) {
-                while (rs.next()) {
-                    GatewayTierMapping mapping = new GatewayTierMapping();
-                    mapping.setLocalTierName(rs.getString("LOCAL_TIER_NAME"));
-                    mapping.setRemotePlanReference(rs.getString("REMOTE_PLAN_REFERENCE"));
-                    mappings.add(mapping);
+        String configurationContent = APIMgtDBUtil.getStringFromInputStream(configuration);
+        if (StringUtils.isBlank(configurationContent)) {
+            return new EnvironmentConfiguration(additionalProperties, tierMappings);
+        }
+
+        try {
+            Map<String, Object> parsedMap = GSON.fromJson(configurationContent, ENV_CONFIG_MAP_TYPE);
+            if (parsedMap == null) {
+                return new EnvironmentConfiguration(additionalProperties, tierMappings);
+            }
+
+            Object tierMappingsObject = parsedMap.remove(ENV_CONFIG_TIER_MAPPINGS_KEY);
+            if (tierMappingsObject != null) {
+                List<GatewayTierMapping> parsedTierMappings = GSON.fromJson(GSON.toJson(tierMappingsObject),
+                        ENV_TIER_MAPPINGS_TYPE);
+                if (parsedTierMappings != null) {
+                    tierMappings = parsedTierMappings;
                 }
             }
-        } catch (SQLException e) {
-            handleException("Failed to get tier mappings for gateway: " + gatewayUuid, e);
+
+            for (Map.Entry<String, Object> entry : parsedMap.entrySet()) {
+                additionalProperties.put(entry.getKey(), entry.getValue() != null ? entry.getValue().toString() : null);
+            }
+        } catch (RuntimeException e) {
+            log.error("Error while converting configurations in " + environmentUuid, e);
         }
-        return mappings;
+
+        return new EnvironmentConfiguration(additionalProperties, tierMappings);
+    }
+
+    private byte[] buildEnvironmentConfiguration(Environment environment) {
+        Map<String, Object> configurationMap = new HashMap<>();
+        if (environment.getAdditionalProperties() != null) {
+            configurationMap.putAll(environment.getAdditionalProperties());
+        }
+
+        List<GatewayTierMapping> tierMappings = environment.getTierMappings();
+        if (tierMappings != null && !tierMappings.isEmpty()) {
+            configurationMap.put(ENV_CONFIG_TIER_MAPPINGS_KEY, tierMappings);
+        } else {
+            configurationMap.remove(ENV_CONFIG_TIER_MAPPINGS_KEY);
+        }
+        return GSON.toJson(configurationMap).getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static class EnvironmentConfiguration {
+        private final Map<String, String> additionalProperties;
+        private final List<GatewayTierMapping> tierMappings;
+
+        private EnvironmentConfiguration(Map<String, String> additionalProperties,
+                List<GatewayTierMapping> tierMappings) {
+            this.additionalProperties = additionalProperties;
+            this.tierMappings = tierMappings;
+        }
+
+        private Map<String, String> getAdditionalProperties() {
+            return additionalProperties;
+        }
+
+        private List<GatewayTierMapping> getTierMappings() {
+            return tierMappings;
+        }
     }
 
     /**
@@ -16544,14 +16559,13 @@ public class ApiMgtDAO {
             try (PreparedStatement prepStmt = connection.prepareStatement(SQLConstants.UPDATE_ENVIRONMENT_SQL)) {
                 prepStmt.setString(1, environment.getDisplayName());
                 prepStmt.setString(2, environment.getDescription());
-                String configurationJson = new Gson().toJson(environment.getAdditionalProperties());
-                prepStmt.setBinaryStream(3, new ByteArrayInputStream(configurationJson.getBytes()));
+                byte[] configurationJson = buildEnvironmentConfiguration(environment);
+                prepStmt.setBinaryStream(3, new ByteArrayInputStream(configurationJson));
                 prepStmt.setInt(4, environment.getApiDiscoveryScheduledWindow());
                 prepStmt.setString(5, environment.getUuid());
                 prepStmt.executeUpdate();
                 deleteGatewayVhosts(connection, environment.getId());
                 addGatewayVhosts(connection, environment.getId(), environment.getVhosts());
-                saveGatewayTierMappings(connection, environment.getUuid(), environment.getTierMappings());
                 connection.commit();
                 try (PreparedStatement deletePermissionsStatement = connection.prepareStatement(
                         SQLConstants.DELETE_ALL_GATEWAY_VISIBILITY_PERMISSION_SQL)) {
