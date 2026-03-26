@@ -8,7 +8,7 @@ import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.ExceptionCodes;
 import org.wso2.carbon.apimgt.api.dto.GatewayVisibilityPermissionConfigurationDTO;
 import org.wso2.carbon.apimgt.api.model.Environment;
-import org.wso2.carbon.apimgt.api.model.RemotePlan;
+import org.wso2.carbon.apimgt.api.model.ExternalSubscriptionPolicy;
 import org.wso2.carbon.apimgt.impl.APIAdminImpl;
 import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedApiKeyAgentFactory;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
@@ -213,16 +213,16 @@ public class EnvironmentsApiServiceImpl implements EnvironmentsApiService {
                     ExceptionCodes.GATEWAY_ENVIRONMENT_NOT_FOUND);
         }
         environment = apiAdmin.decryptGatewayConfigurationValues(environment);
-        List<RemotePlan> remotePlans = FederatedApiKeyAgentFactory
+        List<ExternalSubscriptionPolicy> rateLimitPolicies = FederatedApiKeyAgentFactory
                 .getApiKeyAgent(environment, organization)
-                .listRemotePlans(environment);
+                .listRateLimitPolicies(environment);
         List<RemotePlanDTO> planDTOs = new ArrayList<>();
-        for (RemotePlan plan : remotePlans) {
+        for (ExternalSubscriptionPolicy policy : rateLimitPolicies) {
             RemotePlanDTO dto = new RemotePlanDTO();
-            dto.setId(plan.getId());
-            dto.setName(plan.getName());
-            dto.setDescription(plan.getDescription());
-            dto.setLimits(plan.getLimits());
+            dto.setId(policy.getId());
+            dto.setName(policy.getName());
+            dto.setDescription(policy.getDescription());
+            dto.setLimits(policy.getLimits());
             planDTOs.add(dto);
         }
         RemotePlanListDTO listDTO = new RemotePlanListDTO();
