@@ -85,18 +85,59 @@ public class FederatedApiKeyAgentFactory {
                 Environment resolvedEnvironment = apiAdmin.getEnvironmentWithoutPropertyMasking(
                         organization, environment.getUuid());
                 resolvedEnvironment = apiAdmin.decryptGatewayConfigurationValues(resolvedEnvironment);
-
-                Class<?> clazz = Class.forName(implementationClassName);
-                FederatedApiKeyAgent agent = (FederatedApiKeyAgent) clazz.newInstance();
-                agent.init(resolvedEnvironment, organization);
+                FederatedApiKeyAgent agent = instantiateApiKeyAgent(implementationClassName, resolvedEnvironment,
+                        organization);
                 apiKeyAgentCache.put(cacheKey, agent);
                 return agent;
-            } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+            } catch (ReflectiveOperationException e) {
                 String msg = "Error while initializing Federated API Key Agent for type: "
                         + environment.getGatewayType();
                 log.error(msg, e);
                 throw new APIManagementException(msg, e);
             }
         }
+    }
+
+    /**
+     * Creates a non-cached API key agent initialized with the provided environment object.
+     * This is used for pre-save onboarding flows where environment configuration is not persisted yet.
+     *
+     * @param environment  environment configuration payload
+     * @param organization organization name
+     * @return initialized non-cached agent
+     * @throws APIManagementException if initialization fails
+     */
+    public static FederatedApiKeyAgent getTransientApiKeyAgent(Environment environment, String organization)
+            throws APIManagementException {
+
+        GatewayAgentConfiguration agentConfiguration = ServiceReferenceHolder.getInstance()
+                .getExternalGatewayConnectorConfiguration(environment.getGatewayType());
+        if (agentConfiguration == null) {
+            throw new APIManagementException("Gateway Agent Configuration not found for type: "
+                    + environment.getGatewayType());
+        }
+        String implementationClassName = agentConfiguration.getApiKeyAgentImplementation();
+        if (implementationClassName == null || implementationClassName.isEmpty()) {
+            throw new APIManagementException("API Key Agent Implementation class not found for gateway type: "
+                    + environment.getGatewayType());
+        }
+        try {
+            return instantiateApiKeyAgent(implementationClassName, environment, organization);
+        } catch (ReflectiveOperationException e) {
+            String msg = "Error while initializing transient Federated API Key Agent for type: "
+                    + environment.getGatewayType();
+            log.error(msg, e);
+            throw new APIManagementException(msg, e);
+        }
+    }
+
+    private static FederatedApiKeyAgent instantiateApiKeyAgent(String implementationClassName,
+                                                                Environment environment, String organization)
+            throws ReflectiveOperationException, APIManagementException {
+
+        Class<?> clazz = Class.forName(implementationClassName);
+        FederatedApiKeyAgent agent = (FederatedApiKeyAgent) clazz.getDeclaredConstructor().newInstance();
+        agent.init(environment, organization);
+        return agent;
     }
 }

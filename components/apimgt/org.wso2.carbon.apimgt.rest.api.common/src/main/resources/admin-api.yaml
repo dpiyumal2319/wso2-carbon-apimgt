@@ -2297,18 +2297,25 @@ paths:
           source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
           "https://127.0.0.1:9443/api/am/admin/v4/environments/8d263942-a6df-4cc2-a804-7a2525501450/gateways"'
 
-  /environments/{environmentId}/remote-plans:
-    get:
+  /environments/remote-plans:
+    post:
       tags:
         - Environments
       summary: List Available Remote Plans for a Gateway Environment
       description: |
         Retrieve the list of plans available on the remote external gateway (e.g., AWS Usage Plans).
-        Used by the Admin Portal to populate the plan mapping section during gateway onboarding.
+        Used by the Admin Portal to populate the plan mapping section during gateway onboarding
+        using either a persisted environment id or a draft environment configuration.
         Only supported for gateway environments with federated subscription support.
       operationId: getEnvironmentRemotePlans
-      parameters:
-        - $ref: '#/components/parameters/environmentId'
+      requestBody:
+        description: |
+          Remote plan lookup request. Provide either a persisted environmentId or a draft environment object.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemotePlanLookupRequest'
+        required: true
       responses:
         200:
           description: |
@@ -2336,8 +2343,8 @@ paths:
             - apim:environment_read
       x-code-samples:
         - lang: Curl
-          source: 'curl -k -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
-          "https://127.0.0.1:9443/api/am/admin/v4/environments/8d263942-a6df-4cc2-a804-7a2525501450/remote-plans"'
+          source: 'curl -k -X POST -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
+          -H "Content-Type: application/json" -d @data.json "https://127.0.0.1:9443/api/am/admin/v4/environments/remote-plans"'
 
   ######################################################
   # The "Platform Gateways" resource API (platform / self-hosted gateway registration)
@@ -6548,6 +6555,16 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RemotePlan'
+    RemotePlanLookupRequest:
+      title: Remote Plan Lookup Request
+      type: object
+      properties:
+        environmentId:
+          type: string
+          description: Persisted environment UUID.
+          example: 8d263942-a6df-4cc2-a804-7a2525501450
+        environment:
+          $ref: '#/components/schemas/Environment'
     GatewayEnvironmentProtocolURI:
       title: Gateway Environment protocols and URIs
       required:

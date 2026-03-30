@@ -634,7 +634,7 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
             String envId = resolveGatewayEnvironmentId(api);
             String apiReferenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
             FederatedApiKeyContext context = buildFederatedApiKeyContext(api, organization, envId, apiReferenceArtifact,
-                    apiKeyUuid, keyName, apiKey, null, userName, null);
+                    apiKeyUuid, keyName, apiKey, null, userName, null, validityPeriod, permittedIP, permittedReferer);
             CredentialCreationResult result = federatedApiKeyAgent.createApiKey(context);
             if (result != null && StringUtils.isNotBlank(result.getRemoteCredentialId())) {
                 props.put(FEDERATED_API_KEY_REMOTE_ID, result.getRemoteCredentialId());
@@ -4579,9 +4579,11 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         apiKeyInfoDTO.setKeyId(apiKeyUuid);
         String remoteApiKeyId = null;
         if (federatedApiKeyAgent != null) {
+            String permittedIP = oldProps.get(APIConstants.JwtTokenConstants.PERMITTED_IP);
+            String permittedReferer = oldProps.get(APIConstants.JwtTokenConstants.PERMITTED_REFERER);
             FederatedApiKeyContext createContext = buildFederatedApiKeyContext(api, organization, envId,
                     apiReferenceArtifact, apiKeyUuid, apiKeyInfo.getKeyName(), apiKey, null, username,
-                    apiKeyInfo.getApplicationId());
+                    apiKeyInfo.getApplicationId(), apiKeyInfo.getValidityPeriod(), permittedIP, permittedReferer);
             CredentialCreationResult result = federatedApiKeyAgent.createApiKey(createContext);
             if (result != null && StringUtils.isNotBlank(result.getRemoteCredentialId())) {
                 remoteApiKeyId = result.getRemoteCredentialId();
@@ -4887,6 +4889,14 @@ APIConstants.AuditLogConstants.DELETED, this.username);
     private FederatedApiKeyContext buildFederatedApiKeyContext(API api, String organization, String envId,
             String apiReferenceArtifact, String apiKeyUuid, String apiKeyName, String apiKeyValue,
             String remoteApiKeyId, String authzUser, String applicationUuid) {
+        return buildFederatedApiKeyContext(api, organization, envId, apiReferenceArtifact, apiKeyUuid, apiKeyName,
+                apiKeyValue, remoteApiKeyId, authzUser, applicationUuid, null, null, null);
+    }
+
+    private FederatedApiKeyContext buildFederatedApiKeyContext(API api, String organization, String envId,
+            String apiReferenceArtifact, String apiKeyUuid, String apiKeyName, String apiKeyValue,
+            String remoteApiKeyId, String authzUser, String applicationUuid, Long validityPeriod,
+            String permittedIP, String permittedReferer) {
         return FederatedApiKeyContext.builder()
                 .apiUuid(api != null ? api.getUuid() : null)
                 .apiName(api != null && api.getId() != null ? api.getId().getApiName() : null)
@@ -4899,6 +4909,9 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                 .applicationUuid(applicationUuid)
                 .organizationId(organization)
                 .environmentId(envId)
+                .validityPeriod(validityPeriod)
+                .permittedIP(permittedIP)
+                .permittedReferer(permittedReferer)
                 .build();
     }
 

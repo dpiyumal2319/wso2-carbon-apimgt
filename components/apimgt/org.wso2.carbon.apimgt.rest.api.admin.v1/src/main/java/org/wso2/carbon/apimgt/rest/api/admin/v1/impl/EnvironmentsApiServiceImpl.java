@@ -1,6 +1,7 @@
 package org.wso2.carbon.apimgt.rest.api.admin.v1.impl;
 
 import com.google.gson.Gson;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.apimgt.api.APIAdmin;
@@ -24,6 +25,7 @@ import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentListDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.RemotePlanDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.RemotePlanListDTO;
+import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.RemotePlanLookupRequestDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.VHostDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.utils.mappings.EnvironmentMappingUtil;
 import org.wso2.carbon.apimgt.rest.api.common.RestApiConstants;
@@ -240,19 +242,56 @@ public class EnvironmentsApiServiceImpl implements EnvironmentsApiService {
     }
 
     @Override
-    public Response getEnvironmentRemotePlans(String environmentId, MessageContext messageContext)
+    public Response getEnvironmentRemotePlans(RemotePlanLookupRequestDTO request, MessageContext messageContext)
             throws APIManagementException {
         String organization = RestApiUtil.getValidatedOrganization(messageContext);
-        APIAdminImpl apiAdmin = new APIAdminImpl();
-        Environment environment = apiAdmin.getEnvironmentWithoutPropertyMasking(organization, environmentId);
-        if (environment == null) {
-            throw new APIManagementException("Requested Gateway Environment not found",
-                    ExceptionCodes.GATEWAY_ENVIRONMENT_NOT_FOUND);
+        if (request == null) {
+            throw new APIManagementException("Remote plan lookup request is required",
+                    ExceptionCodes.PARAMETER_NOT_PROVIDED);
         }
-        environment = apiAdmin.decryptGatewayConfigurationValues(environment);
-        List<ExternalSubscriptionPolicy> rateLimitPolicies = FederatedApiKeyAgentFactory
-                .getApiKeyAgent(environment, organization)
-                .listRateLimitPolicies(environment);
+
+        final boolean hasEnvironmentId = StringUtils.isNotBlank(request.getEnvironmentId());
+        final boolean hasEnvironmentPayload = request.getEnvironment() != null;
+        if (hasEnvironmentId == hasEnvironmentPayload) {
+            throw new APIManagementException("Provide either environmentId or environment payload for remote plan lookup",
+                    ExceptionCodes.PARAMETER_NOT_PROVIDED);
+        }
+
+        Environment environment;
+        boolean transientLookup = false;
+        APIAdminImpl apiAdmin = new APIAdminImpl();
+        if (hasEnvironmentId) {
+            environment = apiAdmin.getEnvironmentWithoutPropertyMasking(organization, request.getEnvironmentId());
+            if (environment == null) {
+                throw new APIManagementException("Requested Gateway Environment not found",
+                        ExceptionCodes.GATEWAY_ENVIRONMENT_NOT_FOUND);
+            }
+            environment = apiAdmin.decryptGatewayConfigurationValues(environment);
+        } else {
+            EnvironmentDTO environmentDTO = request.getEnvironment();
+            environment = EnvironmentMappingUtil.fromEnvDtoToEnv(environmentDTO);
+            transientLookup = true;
+
+            List<String> gatewayTypes = APIUtil.getGatewayTypes();
+            if (!gatewayTypes.contains(environment.getGatewayType())) {
+                throw new APIManagementException("Invalid gateway type: " + environment.getGatewayType());
+            }
+            if (APIConstants.API_GATEWAY_TYPE_APK.equals(environment.getGatewayType())
+                    && hasUnsupportedVhostConfiguration(environmentDTO.getVhosts())) {
+                throw new APIManagementException("Unsupported Vhost Configuration for gateway type: "
+                        + environment.getGatewayType());
+            }
+        }
+
+        List<ExternalSubscriptionPolicy> rateLimitPolicies = transientLookup
+                ? FederatedApiKeyAgentFactory.getTransientApiKeyAgent(environment, organization)
+                        .listRateLimitPolicies(environment)
+                : FederatedApiKeyAgentFactory.getApiKeyAgent(environment, organization)
+                        .listRateLimitPolicies(environment);
+        return Response.ok().entity(buildRemotePlanListDTO(rateLimitPolicies)).build();
+    }
+
+    private RemotePlanListDTO buildRemotePlanListDTO(List<ExternalSubscriptionPolicy> rateLimitPolicies) {
         List<RemotePlanDTO> planDTOs = new ArrayList<>();
         for (ExternalSubscriptionPolicy policy : rateLimitPolicies) {
             RemotePlanDTO dto = new RemotePlanDTO();
@@ -265,7 +304,7 @@ public class EnvironmentsApiServiceImpl implements EnvironmentsApiService {
         RemotePlanListDTO listDTO = new RemotePlanListDTO();
         listDTO.setCount(planDTOs.size());
         listDTO.setList(planDTOs);
-        return Response.ok().entity(listDTO).build();
+        return listDTO;
     }
 
     private void validatePermissions(GatewayVisibilityPermissionConfigurationDTO permissionDTO)
