@@ -34,6 +34,9 @@ public class FederatedApiKeyContext {
     private final String applicationUuid;
     private final String organizationId;
     private final String environmentId;
+    private final Long validityPeriod;
+    private final String permittedIP;
+    private final String permittedReferer;
 
     private FederatedApiKeyContext(Builder builder) {
         this.apiUuid = builder.apiUuid;
@@ -47,6 +50,9 @@ public class FederatedApiKeyContext {
         this.applicationUuid = builder.applicationUuid;
         this.organizationId = builder.organizationId;
         this.environmentId = builder.environmentId;
+        this.validityPeriod = builder.validityPeriod;
+        this.permittedIP = builder.permittedIP;
+        this.permittedReferer = builder.permittedReferer;
     }
 
     public static Builder builder() {
@@ -97,6 +103,18 @@ public class FederatedApiKeyContext {
         return environmentId;
     }
 
+    public Long getValidityPeriod() {
+        return validityPeriod;
+    }
+
+    public String getPermittedIP() {
+        return permittedIP;
+    }
+
+    public String getPermittedReferer() {
+        return permittedReferer;
+    }
+
     public static class Builder {
 
         private String apiUuid;
@@ -110,6 +128,9 @@ public class FederatedApiKeyContext {
         private String applicationUuid;
         private String organizationId;
         private String environmentId;
+        private Long validityPeriod;
+        private String permittedIP;
+        private String permittedReferer;
 
         public Builder apiUuid(String apiUuid) {
             this.apiUuid = apiUuid;
@@ -163,6 +184,21 @@ public class FederatedApiKeyContext {
 
         public Builder environmentId(String environmentId) {
             this.environmentId = environmentId;
+            return this;
+        }
+
+        public Builder validityPeriod(Long validityPeriod) {
+            this.validityPeriod = validityPeriod;
+            return this;
+        }
+
+        public Builder permittedIP(String permittedIP) {
+            this.permittedIP = permittedIP;
+            return this;
+        }
+
+        public Builder permittedReferer(String permittedReferer) {
+            this.permittedReferer = permittedReferer;
             return this;
         }
 
