@@ -15,7 +15,7 @@ import org.wso2.carbon.apimgt.api.model.ExternalSubscriptionPolicy;
 import org.wso2.carbon.apimgt.impl.APIConstants;
 import org.wso2.carbon.apimgt.impl.APIAdminImpl;
 import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
-import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedApiKeyAgentFactory;
+import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedApiKeyConnectorFactory;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.EnvironmentsApiService;
 
@@ -284,9 +284,9 @@ public class EnvironmentsApiServiceImpl implements EnvironmentsApiService {
         }
 
         List<ExternalSubscriptionPolicy> rateLimitPolicies = transientLookup
-                ? FederatedApiKeyAgentFactory.getTransientApiKeyAgent(environment, organization)
+                ? FederatedApiKeyConnectorFactory.getTransientApiKeyConnector(environment, organization)
                         .listRateLimitPolicies(environment)
-                : FederatedApiKeyAgentFactory.getApiKeyAgent(environment, organization)
+                : FederatedApiKeyConnectorFactory.getApiKeyConnector(environment, organization)
                         .listRateLimitPolicies(environment);
         return Response.ok().entity(buildRemotePlanListDTO(rateLimitPolicies)).build();
     }

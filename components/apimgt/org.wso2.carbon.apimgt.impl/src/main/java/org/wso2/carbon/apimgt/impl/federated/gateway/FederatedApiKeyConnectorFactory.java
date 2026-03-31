@@ -21,7 +21,7 @@ package org.wso2.carbon.apimgt.impl.federated.gateway;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.apimgt.api.APIManagementException;
-import org.wso2.carbon.apimgt.api.FederatedApiKeyAgent;
+import org.wso2.carbon.apimgt.api.FederatedApiKeyConnector;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.GatewayAgentConfiguration;
 import org.wso2.carbon.apimgt.impl.APIAdminImpl;
@@ -31,40 +31,40 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Factory class to instantiate FederatedApiKeyAgent instances based on environment configuration.
+ * Factory class to instantiate FederatedApiKeyConnector instances based on environment configuration.
  */
-public class FederatedApiKeyAgentFactory {
+public class FederatedApiKeyConnectorFactory {
 
-    private static final Log log = LogFactory.getLog(FederatedApiKeyAgentFactory.class);
-    private static final Map<String, FederatedApiKeyAgent> apiKeyAgentCache = new ConcurrentHashMap<>();
+    private static final Log log = LogFactory.getLog(FederatedApiKeyConnectorFactory.class);
+    private static final Map<String, FederatedApiKeyConnector> apiKeyConnectorCache = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Object> lockMap = new ConcurrentHashMap<>();
 
-    private FederatedApiKeyAgentFactory() {
+    private FederatedApiKeyConnectorFactory() {
 
     }
 
     /**
-     * Loads and initializes the appropriate FederatedApiKeyAgent for the given environment.
+     * Loads and initializes the appropriate FederatedApiKeyConnector for the given environment.
      *
-     * @param environment  The environment for which api key agent is requested.
+     * @param environment  The environment for which api key connector is requested.
      * @param organization The organization of the request.
-     * @return An initialized FederatedApiKeyAgent.
+     * @return An initialized FederatedApiKeyConnector.
      * @throws APIManagementException If error occurs during instantiation or initialization.
      */
-    public static FederatedApiKeyAgent getApiKeyAgent(Environment environment, String organization)
+    public static FederatedApiKeyConnector getApiKeyConnector(Environment environment, String organization)
             throws APIManagementException {
 
         String cacheKey = organization + ":" + environment.getUuid();
-        FederatedApiKeyAgent cachedAgent = apiKeyAgentCache.get(cacheKey);
-        if (cachedAgent != null) {
-            return cachedAgent;
+        FederatedApiKeyConnector cachedConnector = apiKeyConnectorCache.get(cacheKey);
+        if (cachedConnector != null) {
+            return cachedConnector;
         }
 
         Object lock = lockMap.computeIfAbsent(cacheKey, k -> new Object());
         synchronized (lock) {
-            cachedAgent = apiKeyAgentCache.get(cacheKey);
-            if (cachedAgent != null) {
-                return cachedAgent;
+            cachedConnector = apiKeyConnectorCache.get(cacheKey);
+            if (cachedConnector != null) {
+                return cachedConnector;
             }
 
             GatewayAgentConfiguration agentConfiguration = ServiceReferenceHolder.getInstance()
@@ -74,9 +74,9 @@ public class FederatedApiKeyAgentFactory {
                         + environment.getGatewayType());
             }
 
-            String implementationClassName = agentConfiguration.getApiKeyAgentImplementation();
+            String implementationClassName = agentConfiguration.getApiKeyConnectorImplementation();
             if (implementationClassName == null || implementationClassName.isEmpty()) {
-                throw new APIManagementException("API Key Agent Implementation class not found for gateway type: "
+                throw new APIManagementException("API Key Connector Implementation class not found for gateway type: "
                         + environment.getGatewayType());
             }
 
@@ -85,12 +85,12 @@ public class FederatedApiKeyAgentFactory {
                 Environment resolvedEnvironment = apiAdmin.getEnvironmentWithoutPropertyMasking(
                         organization, environment.getUuid());
                 resolvedEnvironment = apiAdmin.decryptGatewayConfigurationValues(resolvedEnvironment);
-                FederatedApiKeyAgent agent = instantiateApiKeyAgent(implementationClassName, resolvedEnvironment,
+                FederatedApiKeyConnector agent = instantiateApiKeyConnector(implementationClassName, resolvedEnvironment,
                         organization);
-                apiKeyAgentCache.put(cacheKey, agent);
+                apiKeyConnectorCache.put(cacheKey, agent);
                 return agent;
             } catch (ReflectiveOperationException e) {
-                String msg = "Error while initializing Federated API Key Agent for type: "
+                String msg = "Error while initializing Federated API Key Connector for type: "
                         + environment.getGatewayType();
                 log.error(msg, e);
                 throw new APIManagementException(msg, e);
@@ -104,10 +104,10 @@ public class FederatedApiKeyAgentFactory {
      *
      * @param environment  environment configuration payload
      * @param organization organization name
-     * @return initialized non-cached agent
+     * @return initialized non-cached connector
      * @throws APIManagementException if initialization fails
      */
-    public static FederatedApiKeyAgent getTransientApiKeyAgent(Environment environment, String organization)
+    public static FederatedApiKeyConnector getTransientApiKeyConnector(Environment environment, String organization)
             throws APIManagementException {
 
         GatewayAgentConfiguration agentConfiguration = ServiceReferenceHolder.getInstance()
@@ -116,27 +116,27 @@ public class FederatedApiKeyAgentFactory {
             throw new APIManagementException("Gateway Agent Configuration not found for type: "
                     + environment.getGatewayType());
         }
-        String implementationClassName = agentConfiguration.getApiKeyAgentImplementation();
+        String implementationClassName = agentConfiguration.getApiKeyConnectorImplementation();
         if (implementationClassName == null || implementationClassName.isEmpty()) {
-            throw new APIManagementException("API Key Agent Implementation class not found for gateway type: "
+            throw new APIManagementException("API Key Connector Implementation class not found for gateway type: "
                     + environment.getGatewayType());
         }
         try {
-            return instantiateApiKeyAgent(implementationClassName, environment, organization);
+            return instantiateApiKeyConnector(implementationClassName, environment, organization);
         } catch (ReflectiveOperationException e) {
-            String msg = "Error while initializing transient Federated API Key Agent for type: "
+            String msg = "Error while initializing transient Federated API Key Connector for type: "
                     + environment.getGatewayType();
             log.error(msg, e);
             throw new APIManagementException(msg, e);
         }
     }
 
-    private static FederatedApiKeyAgent instantiateApiKeyAgent(String implementationClassName,
+    private static FederatedApiKeyConnector instantiateApiKeyConnector(String implementationClassName,
                                                                 Environment environment, String organization)
             throws ReflectiveOperationException, APIManagementException {
 
         Class<?> clazz = Class.forName(implementationClassName);
-        FederatedApiKeyAgent agent = (FederatedApiKeyAgent) clazz.getDeclaredConstructor().newInstance();
+        FederatedApiKeyConnector agent = (FederatedApiKeyConnector) clazz.getDeclaredConstructor().newInstance();
         agent.init(environment, organization);
         return agent;
     }

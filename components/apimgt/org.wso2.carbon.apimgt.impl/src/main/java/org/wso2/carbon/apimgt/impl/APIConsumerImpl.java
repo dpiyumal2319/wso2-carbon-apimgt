@@ -48,7 +48,7 @@ import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.APIMgtAuthorizationFailedException;
 import org.wso2.carbon.apimgt.api.APIMgtResourceNotFoundException;
 import org.wso2.carbon.apimgt.api.ExceptionCodes;
-import org.wso2.carbon.apimgt.api.FederatedApiKeyAgent;
+import org.wso2.carbon.apimgt.api.FederatedApiKeyConnector;
 import org.wso2.carbon.apimgt.api.WorkflowResponse;
 import org.wso2.carbon.apimgt.api.dto.KeyManagerConfigurationDTO;
 import org.wso2.carbon.apimgt.api.dto.KeyManagerPermissionConfigurationDTO;
@@ -131,7 +131,7 @@ import org.wso2.carbon.apimgt.impl.recommendationmgt.RecommendationEnvironment;
 import org.wso2.carbon.apimgt.impl.recommendationmgt.RecommenderDetailsExtractor;
 import org.wso2.carbon.apimgt.impl.recommendationmgt.RecommenderEventPublisher;
 import org.wso2.carbon.apimgt.impl.token.ApiKeyGenerator;
-import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedApiKeyAgentFactory;
+import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedApiKeyConnectorFactory;
 import org.wso2.carbon.apimgt.impl.utils.*;
 import org.wso2.carbon.apimgt.impl.workflow.*;
 import org.wso2.carbon.apimgt.impl.wsdl.WSDLProcessor;
@@ -629,9 +629,9 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
         String apiKeyUuid = UUID.randomUUID().toString();
 
         String organization = resolveApiOrganization(api);
-        FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(api, organization);
+        FederatedApiKeyConnector federatedApiKeyConnector = resolveFederatedApiKeyConnector(api, organization);
         // --- Federated gateway: create remote key first ---
-        if (federatedApiKeyAgent != null) {
+        if (federatedApiKeyConnector != null) {
             String envId = resolveGatewayEnvironmentId(api);
             String apiReferenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
             FederatedApiKeyContext context = FederatedApiKeyContext.builder()
@@ -650,7 +650,7 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
                     .permittedIP(permittedIP)
                     .permittedReferer(permittedReferer)
                     .build();
-            CredentialCreationResult result = federatedApiKeyAgent.createApiKey(context);
+            CredentialCreationResult result = federatedApiKeyConnector.createApiKey(context);
             if (result != null && StringUtils.isNotBlank(result.getRemoteCredentialId())) {
                 props.put(FEDERATED_API_KEY_REMOTE_ID, result.getRemoteCredentialId());
             }
@@ -662,7 +662,7 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
         apiKeyInfoDTO.setKeyId(apiKeyUuid);
         apiKeyMgtDAO.addAPIKey(apiKeyHash, apiKeyInfoDTO);
         // --- Normal gateway: publish events to platform ---
-        if (federatedApiKeyAgent == null) {
+        if (federatedApiKeyConnector == null) {
             sendAPIKeyInfoEvent(apiKeyHash, null, api, calculateExpiresAt(apiKeyInfoDTO.getCreatedTime(),
                     validityPeriod), keyType, keyName, props);
 
@@ -4244,9 +4244,9 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                     : apiMgtDAO.getOrganizationByAPIUUID(apiUuid);
             if (StringUtils.isNotBlank(organization)) {
                 API api = getLightweightAPIByUUID(apiUuid, organization);
-                FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(api, organization);
+                FederatedApiKeyConnector federatedApiKeyConnector = resolveFederatedApiKeyConnector(api, organization);
                 // --- Federated gateway: revoke remote key and return early ---
-                if (federatedApiKeyAgent != null) {
+                if (federatedApiKeyConnector != null) {
                     Map<String, String> props = deserializeApiKeyProperties(apiKeyInfo.getProperties());
                     String remoteApiKeyId = props.get(FEDERATED_API_KEY_REMOTE_ID);
                     String envId = resolveGatewayEnvironmentId(api);
@@ -4263,7 +4263,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                             .organizationId(organization)
                             .environmentId(envId)
                             .build();
-                    federatedApiKeyAgent.revokeApiKey(context);
+                    federatedApiKeyConnector.revokeApiKey(context);
                     apiKeyMgtDAO.revokeAPIKey(keyUUID, tenantDomain);
                     return;
                 }
@@ -4562,11 +4562,11 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             throw new APIMgtAuthorizationFailedException("User is not authorized to regenerate the API key for UUID: " + keyUUId);
         }
         API api = getLightweightAPIByUUID(apiUUId, organization);
-        FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(api, organization);
+        FederatedApiKeyConnector federatedApiKeyConnector = resolveFederatedApiKeyConnector(api, organization);
         String envId = null;
         String apiReferenceArtifact = null;
         // --- Federated gateway: prepare environment context ---
-        if (federatedApiKeyAgent != null) {
+        if (federatedApiKeyConnector != null) {
             envId = resolveGatewayEnvironmentId(api);
             apiReferenceArtifact = apiMgtDAO.getApiExternalApiMappingReference(api.getUuid(), envId);
         }
@@ -4607,7 +4607,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         apiKeyInfoDTO.setKeyId(apiKeyUuid);
         String remoteApiKeyId = null;
         // --- Federated gateway: create remote key and apply rate limit ---
-        if (federatedApiKeyAgent != null) {
+        if (federatedApiKeyConnector != null) {
             String permittedIP = oldProps.get(APIConstants.JwtTokenConstants.PERMITTED_IP);
             String permittedReferer = oldProps.get(APIConstants.JwtTokenConstants.PERMITTED_REFERER);
             FederatedApiKeyContext createContext = FederatedApiKeyContext.builder()
@@ -4626,13 +4626,13 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                     .permittedIP(permittedIP)
                     .permittedReferer(permittedReferer)
                     .build();
-            CredentialCreationResult result = federatedApiKeyAgent.createApiKey(createContext);
+            CredentialCreationResult result = federatedApiKeyConnector.createApiKey(createContext);
             if (result != null && StringUtils.isNotBlank(result.getRemoteCredentialId())) {
                 remoteApiKeyId = result.getRemoteCredentialId();
                 props.put(FEDERATED_API_KEY_REMOTE_ID, remoteApiKeyId);
             }
             String remotePolicyId = resolveRemotePolicyIdForAssociatedSubscription(
-                    apiUUId, organization, envId, apiKeyInfo.getApplicationId(), federatedApiKeyAgent);
+                    apiUUId, organization, envId, apiKeyInfo.getApplicationId(), federatedApiKeyConnector);
             if (StringUtils.isNotBlank(remotePolicyId)) {
                 FederatedApiKeyContext associationContext = FederatedApiKeyContext.builder()
                         .apiUuid(api != null ? api.getUuid() : null)
@@ -4647,7 +4647,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                         .organizationId(organization)
                         .environmentId(envId)
                         .build();
-                federatedApiKeyAgent.applyRateLimitPolicy(associationContext, remotePolicyId);
+                federatedApiKeyConnector.applyRateLimitPolicy(associationContext, remotePolicyId);
             }
         }
         try {
@@ -4663,7 +4663,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         try {
             apiKeyMgtDAO.addAPIKey(apiKeyHash, apiKeyInfoDTO);
         } catch (APIManagementException e) {
-            if (federatedApiKeyAgent != null && StringUtils.isNotBlank(remoteApiKeyId)) {
+            if (federatedApiKeyConnector != null && StringUtils.isNotBlank(remoteApiKeyId)) {
                 FederatedApiKeyContext rollbackContext = FederatedApiKeyContext.builder()
                         .apiUuid(api != null ? api.getUuid() : null)
                         .apiName(api != null && api.getId() != null ? api.getId().getApiName() : null)
@@ -4678,7 +4678,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                         .environmentId(envId)
                         .build();
                 try {
-                    federatedApiKeyAgent.revokeApiKey(rollbackContext);
+                    federatedApiKeyConnector.revokeApiKey(rollbackContext);
                 } catch (Exception rollbackError) {
                     log.error("Failed to rollback remote API key after local persistence failure: " + apiKeyUuid,
                             rollbackError);
@@ -4691,7 +4691,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         regeneratedApiKeyInfo.setApiKey(apiKey);
         regeneratedApiKeyInfo.setValidityPeriod(apiKeyInfo.getValidityPeriod());
         // --- Normal gateway: publish events to platform ---
-        if (federatedApiKeyAgent == null) {
+        if (federatedApiKeyConnector == null) {
             sendAPIKeyInfoEvent(apiKeyHash, application, api, calculateExpiresAt(apiKeyInfoDTO.getCreatedTime(),
                     apiKeyInfo.getValidityPeriod()), apiKeyInfo.getKeyType(), apiKeyInfo.getKeyName(), props);
 
@@ -4768,13 +4768,13 @@ APIConstants.AuditLogConstants.DELETED, this.username);
 
         String organization = apiMgtDAO.getOrganizationByAPIUUID(apiUUId);
         API api = StringUtils.isNotBlank(organization) ? getLightweightAPIByUUID(apiUUId, organization) : null;
-        FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(api, organization);
+        FederatedApiKeyConnector federatedApiKeyConnector = resolveFederatedApiKeyConnector(api, organization);
         String envId = null;
         String apiReferenceArtifact = null;
         String remoteApiKeyId = null;
 
         // --- Federated gateway: validate subscription and apply rate limit policy ---
-        if (federatedApiKeyAgent != null) {
+        if (federatedApiKeyConnector != null) {
             SubscribedAPI subscribedAPI = findSubscribedApiForScope(apiUUId, application);
             if (subscribedAPI == null || !APIConstants.SubscriptionStatus.UNBLOCKED.equals(subscribedAPI.getSubStatus())) {
                 throw new APIManagementException("API key association requires an active subscription for the selected "
@@ -4792,7 +4792,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
             if (StringUtils.isBlank(remoteApiKeyId)) {
                 throw new APIManagementException("Remote API key ID is missing for federated API key: " + keyUUId);
             }
-            String remotePolicyId = resolveRemotePolicyId(organization, envId, subscriptionTierName, federatedApiKeyAgent);
+            String remotePolicyId = resolveRemotePolicyId(organization, envId, subscriptionTierName, federatedApiKeyConnector);
             FederatedApiKeyContext associationContext = FederatedApiKeyContext.builder()
                     .apiUuid(api != null ? api.getUuid() : null)
                     .apiName(api != null && api.getId() != null ? api.getId().getApiName() : null)
@@ -4806,13 +4806,13 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                     .organizationId(organization)
                     .environmentId(envId)
                     .build();
-            federatedApiKeyAgent.applyRateLimitPolicy(associationContext, remotePolicyId);
+            federatedApiKeyConnector.applyRateLimitPolicy(associationContext, remotePolicyId);
         }
 
         try {
             apiKeyMgtDAO.createAssociationToApiKey(keyUUId, appUUId);
         } catch (APIManagementException e) {
-            if (federatedApiKeyAgent != null) {
+            if (federatedApiKeyConnector != null) {
                 try {
                     FederatedApiKeyContext rollbackContext = FederatedApiKeyContext.builder()
                             .apiUuid(api != null ? api.getUuid() : null)
@@ -4827,7 +4827,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                             .organizationId(organization)
                             .environmentId(envId)
                             .build();
-                    federatedApiKeyAgent.removeRateLimitPolicy(rollbackContext);
+                    federatedApiKeyConnector.removeRateLimitPolicy(rollbackContext);
                 } catch (Exception rollbackError) {
                     log.error("Failed to rollback remote API key association for key: " + keyUUId, rollbackError);
                 }
@@ -4836,7 +4836,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         }
 
         // --- Normal gateway: publish association event ---
-        if (federatedApiKeyAgent == null) {
+        if (federatedApiKeyConnector == null) {
             sendAPIKeyAssociationInfoEvent(tenantDomain, apiKeyInfo.getKeyName(), apiKeyInfo.getKeyType(), apiKeyInfo.getApiKeyHash(),
                     apiUUId, appUUId, apiKeyInfo.getAppId(), "CREATE_ASSOCIATION");
         }
@@ -4863,9 +4863,9 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         String organization = apiMgtDAO.getOrganizationByAPIUUID(apiKeyInfo.getApiUUId());
         API api = StringUtils.isNotBlank(organization)
                 ? getLightweightAPIByUUID(apiKeyInfo.getApiUUId(), organization) : null;
-        FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(api, organization);
+        FederatedApiKeyConnector federatedApiKeyConnector = resolveFederatedApiKeyConnector(api, organization);
         // --- Federated gateway: remove rate limit policy ---
-        if (federatedApiKeyAgent != null) {
+        if (federatedApiKeyConnector != null) {
             String envId = resolveGatewayEnvironmentId(api);
             Map<String, String> props = deserializeApiKeyProperties(apiKeyInfo.getProperties());
             String remoteApiKeyId = props.get(FEDERATED_API_KEY_REMOTE_ID);
@@ -4882,11 +4882,11 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                     .organizationId(organization)
                     .environmentId(envId)
                     .build();
-            federatedApiKeyAgent.removeRateLimitPolicy(context);
+            federatedApiKeyConnector.removeRateLimitPolicy(context);
         }
         apiKeyMgtDAO.removeAssociationOfAPIKeyViaApp(appUUId, keyUUId, tenantDomain);
         // --- Normal gateway: publish association event ---
-        if (federatedApiKeyAgent == null) {
+        if (federatedApiKeyConnector == null) {
             sendAPIKeyAssociationInfoEvent(tenantDomain, apiKeyInfo.getKeyName(), apiKeyInfo.getKeyType(),
                     apiKeyInfo.getApiKeyHash(),
                     apiKeyInfo.getApiUUId(), appUUId, apiKeyInfo.getAppId(), "REMOVE_ASSOCIATION");
@@ -4911,9 +4911,9 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         }
         String organization = apiMgtDAO.getOrganizationByAPIUUID(apiUUId);
         API api = StringUtils.isNotBlank(organization) ? getLightweightAPIByUUID(apiUUId, organization) : null;
-        FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(api, organization);
+        FederatedApiKeyConnector federatedApiKeyConnector = resolveFederatedApiKeyConnector(api, organization);
         // --- Federated gateway: remove rate limit policy ---
-        if (federatedApiKeyAgent != null) {
+        if (federatedApiKeyConnector != null) {
             String envId = resolveGatewayEnvironmentId(api);
             Map<String, String> props = deserializeApiKeyProperties(apiKeyInfo.getProperties());
             String remoteApiKeyId = props.get(FEDERATED_API_KEY_REMOTE_ID);
@@ -4930,11 +4930,11 @@ APIConstants.AuditLogConstants.DELETED, this.username);
                     .organizationId(organization)
                     .environmentId(envId)
                     .build();
-            federatedApiKeyAgent.removeRateLimitPolicy(context);
+            federatedApiKeyConnector.removeRateLimitPolicy(context);
         }
         apiKeyMgtDAO.removeAssociationOfAPIKey(keyUUId, tenantDomain);
         // --- Normal gateway: publish association event ---
-        if (federatedApiKeyAgent == null) {
+        if (federatedApiKeyConnector == null) {
             sendAPIKeyAssociationInfoEvent(tenantDomain, apiKeyInfo.getKeyName(), apiKeyInfo.getKeyType(),
                     apiKeyInfo.getApiKeyHash(), apiUUId, null, 0, "REMOVE_ASSOCIATION");
         }
@@ -4974,7 +4974,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         return api != null && APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(api.getGatewayVendor());
     }
 
-    private FederatedApiKeyAgent resolveFederatedApiKeyAgent(API api, String organization)
+    private FederatedApiKeyConnector resolveFederatedApiKeyConnector(API api, String organization)
             throws APIManagementException {
         if (!isFederatedGatewayApi(api) || StringUtils.isBlank(organization)) {
             return null;
@@ -4986,15 +4986,15 @@ APIConstants.AuditLogConstants.DELETED, this.username);
         }
         GatewayAgentConfiguration agentConfiguration = ServiceReferenceHolder.getInstance()
                 .getExternalGatewayConnectorConfiguration(environment.getGatewayType());
-        if (agentConfiguration == null || StringUtils.isBlank(agentConfiguration.getApiKeyAgentImplementation())) {
+        if (agentConfiguration == null || StringUtils.isBlank(agentConfiguration.getApiKeyConnectorImplementation())) {
             return null;
         }
-        FederatedApiKeyAgent federatedApiKeyAgent = FederatedApiKeyAgentFactory.getApiKeyAgent(environment,
+        FederatedApiKeyConnector federatedApiKeyConnector = FederatedApiKeyConnectorFactory.getApiKeyConnector(environment,
                 organization);
-        if (federatedApiKeyAgent == null || !federatedApiKeyAgent.isApiKeySupport()) {
+        if (federatedApiKeyConnector == null || !federatedApiKeyConnector.isApiKeySupport()) {
             return null;
         }
-        return federatedApiKeyAgent;
+        return federatedApiKeyConnector;
     }
 
     private Map<String, String> deserializeApiKeyProperties(byte[] serializedProperties)
@@ -5011,7 +5011,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
     }
 
     private String resolveRemotePolicyIdForAssociatedSubscription(String apiUuid, String organization,
-            String envId, String applicationUuid, FederatedApiKeyAgent agent) throws APIManagementException {
+            String envId, String applicationUuid, FederatedApiKeyConnector agent) throws APIManagementException {
         if (StringUtils.isBlank(applicationUuid)) {
             return null;
         }
@@ -5033,7 +5033,7 @@ APIConstants.AuditLogConstants.DELETED, this.username);
     }
 
     private String resolveRemotePolicyId(String organization, String envId, String localTierName,
-            FederatedApiKeyAgent agent) throws APIManagementException {
+            FederatedApiKeyConnector agent) throws APIManagementException {
         Environment environment = apiMgtDAO.getEnvironment(organization, envId);
         if (environment == null) {
             throw new APIManagementException("Gateway environment not found: " + envId);

@@ -42,7 +42,7 @@ import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.APIMgtResourceNotFoundException;
 import org.wso2.carbon.apimgt.api.ExceptionCodes;
 import org.wso2.carbon.apimgt.api.APIProvider;
-import org.wso2.carbon.apimgt.api.FederatedApiKeyAgent;
+import org.wso2.carbon.apimgt.api.FederatedApiKeyConnector;
 import org.wso2.carbon.apimgt.api.dto.GatewayVisibilityPermissionConfigurationDTO;
 import org.wso2.carbon.apimgt.api.dto.KeyManagerConfigurationDTO;
 import org.wso2.carbon.apimgt.api.model.API;
@@ -80,7 +80,7 @@ import org.wso2.carbon.apimgt.impl.dao.constants.SQLConstants;
 import org.wso2.carbon.apimgt.impl.dto.ThrottleProperties;
 import org.wso2.carbon.apimgt.impl.dto.WorkflowProperties;
 import org.wso2.carbon.apimgt.impl.factory.PersistenceFactory;
-import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedApiKeyAgentFactory;
+import org.wso2.carbon.apimgt.impl.federated.gateway.FederatedApiKeyConnectorFactory;
 import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
 import org.wso2.carbon.apimgt.impl.keymgt.KeyMgtNotificationSender;
 import org.wso2.carbon.apimgt.impl.monetization.DefaultMonetizationImpl;
@@ -406,9 +406,9 @@ public class APIAdminImpl implements APIAdmin {
                     ? apiKeyInfo.getOrigin()
                     : apiMgtDAO.getOrganizationByAPIUUID(apiUuid);
             if (StringUtils.isNotBlank(organization)) {
-                FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(apiUuid, organization);
+                FederatedApiKeyConnector federatedApiKeyConnector = resolveFederatedApiKeyConnector(apiUuid, organization);
                 // --- Federated gateway: revoke remote key and return early ---
-                if (federatedApiKeyAgent != null) {
+                if (federatedApiKeyConnector != null) {
                     Map<String, String> props = deserializeApiKeyProperties(apiKeyInfo.getProperties());
                     String remoteApiKeyId = props.get(FEDERATED_API_KEY_REMOTE_ID);
                     String envId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(apiUuid);
@@ -424,7 +424,7 @@ public class APIAdminImpl implements APIAdmin {
                             .organizationId(organization)
                             .environmentId(envId)
                             .build();
-                    federatedApiKeyAgent.revokeApiKey(context);
+                    federatedApiKeyConnector.revokeApiKey(context);
                     apiKeyMgtDAO.revokeAPIKey(keyUUId, tenantDomain);
                     return;
                 }
@@ -2502,14 +2502,14 @@ public class APIAdminImpl implements APIAdmin {
     }
 
     /**
-     * Resolves the FederatedApiKeyAgent for an API if it's a federated gateway API.
+     * Resolves the FederatedApiKeyConnector for an API if it's a federated gateway API.
      *
      * @param apiUuid API UUID
      * @param organization organization identifier
-     * @return FederatedApiKeyAgent if applicable, null otherwise
+     * @return FederatedApiKeyConnector if applicable, null otherwise
      * @throws APIManagementException if resolution fails
      */
-    private FederatedApiKeyAgent resolveFederatedApiKeyAgent(String apiUuid, String organization)
+    private FederatedApiKeyConnector resolveFederatedApiKeyConnector(String apiUuid, String organization)
             throws APIManagementException {
 
         if (StringUtils.isBlank(apiUuid) || StringUtils.isBlank(organization)) {
@@ -2534,16 +2534,16 @@ public class APIAdminImpl implements APIAdmin {
 
         GatewayAgentConfiguration agentConfiguration = ServiceReferenceHolder.getInstance()
                 .getExternalGatewayConnectorConfiguration(environment.getGatewayType());
-        if (agentConfiguration == null || StringUtils.isBlank(agentConfiguration.getApiKeyAgentImplementation())) {
+        if (agentConfiguration == null || StringUtils.isBlank(agentConfiguration.getApiKeyConnectorImplementation())) {
             return null;
         }
 
-        FederatedApiKeyAgent federatedApiKeyAgent = FederatedApiKeyAgentFactory.getApiKeyAgent(environment,
+        FederatedApiKeyConnector federatedApiKeyConnector = FederatedApiKeyConnectorFactory.getApiKeyConnector(environment,
                 organization);
-        if (federatedApiKeyAgent == null || !federatedApiKeyAgent.isApiKeySupport()) {
+        if (federatedApiKeyConnector == null || !federatedApiKeyConnector.isApiKeySupport()) {
             return null;
         }
-        return federatedApiKeyAgent;
+        return federatedApiKeyConnector;
     }
 
     /**

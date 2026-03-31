@@ -59,7 +59,7 @@ public interface GatewayAgentConfiguration {
      *
      * @return String implementation class name
      */
-    default String getApiKeyAgentImplementation() {
+    default String getApiKeyConnectorImplementation() {
         return null;
     }
 

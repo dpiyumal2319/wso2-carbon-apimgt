@@ -29,7 +29,7 @@ import java.util.List;
 /**
  * Interface for managing API-bound API keys in external gateways.
  */
-public interface FederatedApiKeyAgent {
+public interface FederatedApiKeyConnector {
 
     /**
      * Initializes the API key agent.
