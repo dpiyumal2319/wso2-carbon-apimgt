@@ -394,7 +394,7 @@ public class APIAdminImpl implements APIAdmin {
     @Override
     public void revokeAPIKey(String keyUUId, String tenantDomain) throws APIManagementException {
 
-        APIKeyInfo apiKeyInfo = apiKeyMgtDAO.getAPIKey(keyUUId);
+        APIKeyInfo apiKeyInfo = apiKeyMgtDAO.getAPIKeyForTenant(keyUUId, tenantDomain);
         if (apiKeyInfo == null || StringUtils.isBlank(apiKeyInfo.getApiKeyHash())) {
             throw new APIMgtResourceNotFoundException("API key not found for UUID: " + keyUUId,
                     ExceptionCodes.RESOURCE_NOT_FOUND);
@@ -407,6 +407,7 @@ public class APIAdminImpl implements APIAdmin {
                     : apiMgtDAO.getOrganizationByAPIUUID(apiUuid);
             if (StringUtils.isNotBlank(organization)) {
                 FederatedApiKeyAgent federatedApiKeyAgent = resolveFederatedApiKeyAgent(apiUuid, organization);
+                // --- Federated gateway: revoke remote key and return early ---
                 if (federatedApiKeyAgent != null) {
                     Map<String, String> props = deserializeApiKeyProperties(apiKeyInfo.getProperties());
                     String remoteApiKeyId = props.get(FEDERATED_API_KEY_REMOTE_ID);

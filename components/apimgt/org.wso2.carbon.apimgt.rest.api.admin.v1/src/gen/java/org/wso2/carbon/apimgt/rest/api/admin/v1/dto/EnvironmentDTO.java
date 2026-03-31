@@ -461,9 +461,7 @@ return null;
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, displayName, provider, type, gatewayType, description, isReadOnly, mode,
-            apiDiscoveryScheduledWindow, vhosts, endpointURIs, additionalProperties, tierMappings, permissions,
-            status, vhost, universalGatewayVersion);
+    return Objects.hash(id, name, displayName, provider, type, gatewayType, description, isReadOnly, mode, apiDiscoveryScheduledWindow, vhosts, endpointURIs, additionalProperties, tierMappings, permissions, status, vhost, universalGatewayVersion);
   }
 
   @Override
@@ -504,3 +502,4 @@ return null;
     return o.toString().replace("\n", "\n    ");
   }
 }
+
