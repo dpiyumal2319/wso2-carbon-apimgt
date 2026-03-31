@@ -412,9 +412,18 @@ public class APIAdminImpl implements APIAdmin {
                     Map<String, String> props = deserializeApiKeyProperties(apiKeyInfo.getProperties());
                     String remoteApiKeyId = props.get(FEDERATED_API_KEY_REMOTE_ID);
                     String envId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(apiUuid);
-                    FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, organization, envId, null,
-                            keyUUId, apiKeyInfo.getKeyName(), null, remoteApiKeyId, apiKeyInfo.getAuthUser(),
-                            apiKeyInfo.getApplicationId());
+                    FederatedApiKeyContext context = FederatedApiKeyContext.builder()
+                            .apiUuid(apiUuid)
+                            .apiReferenceArtifact(null)
+                            .apiKeyUuid(keyUUId)
+                            .apiKeyName(apiKeyInfo.getKeyName())
+                            .apiKeyValue(null)
+                            .remoteApiKeyId(remoteApiKeyId)
+                            .authzUser(apiKeyInfo.getAuthUser())
+                            .applicationUuid(apiKeyInfo.getApplicationId())
+                            .organizationId(organization)
+                            .environmentId(envId)
+                            .build();
                     federatedApiKeyAgent.revokeApiKey(context);
                     apiKeyMgtDAO.revokeAPIKey(keyUUId, tenantDomain);
                     return;
@@ -2535,39 +2544,6 @@ public class APIAdminImpl implements APIAdmin {
             return null;
         }
         return federatedApiKeyAgent;
-    }
-
-    /**
-     * Builds a FederatedApiKeyContext for federated API key operations.
-     *
-     * @param apiUuid API UUID
-     * @param organization organization identifier
-     * @param envId gateway environment ID
-     * @param apiReferenceArtifact API reference artifact (external API mapping)
-     * @param apiKeyUuid API key UUID
-     * @param apiKeyName API key name
-     * @param apiKeyValue API key value (for creation)
-     * @param remoteApiKeyId remote API key ID in external gateway
-     * @param authzUser authorized user
-     * @param applicationUuid application UUID
-     * @return built FederatedApiKeyContext
-     */
-    private FederatedApiKeyContext buildFederatedApiKeyContext(String apiUuid, String organization, String envId,
-            String apiReferenceArtifact, String apiKeyUuid, String apiKeyName, String apiKeyValue,
-            String remoteApiKeyId, String authzUser, String applicationUuid) {
-
-        return FederatedApiKeyContext.builder()
-                .apiUuid(apiUuid)
-                .apiReferenceArtifact(apiReferenceArtifact)
-                .apiKeyUuid(apiKeyUuid)
-                .apiKeyName(apiKeyName)
-                .apiKeyValue(apiKeyValue)
-                .remoteApiKeyId(remoteApiKeyId)
-                .authzUser(authzUser)
-                .applicationUuid(applicationUuid)
-                .organizationId(organization)
-                .environmentId(envId)
-                .build();
     }
 
     /**
