@@ -735,8 +735,10 @@ public class ApplicationsApiServiceImpl implements ApplicationsApiService {
             Long errorCode = e.getErrorHandler() != null ? e.getErrorHandler().getErrorCode() : null;
             if (errorCode != null && errorCode.equals(ExceptionCodes.SUBSCRIPTION_STATE_INVALID.getErrorCode())) {
                 RestApiUtil.handleBadRequest(e.getMessage(), errorCode, log);
+            } else {
+                RestApiUtil.handleInternalServerError("Error while creating an association to the API Key "
+                        + keyUUId, e, log);
             }
-            RestApiUtil.handleInternalServerError("Error while creating an association to the API Key " + keyUUId, e, log);
         }
         return null;
     }
