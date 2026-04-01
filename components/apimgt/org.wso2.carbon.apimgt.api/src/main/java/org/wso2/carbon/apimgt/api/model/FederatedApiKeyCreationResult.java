@@ -26,13 +26,13 @@ import java.util.Map;
  * Result of a federated credential creation operation.
  * Captures the remote credential identifier and its type to support different gateway models.
  */
-public class CredentialCreationResult {
+public class FederatedApiKeyCreationResult {
 
     private final String remoteCredentialId;
     private final String credentialType;
     private final Map<String, Object> metadata;
 
-    private CredentialCreationResult(Builder builder) {
+    private FederatedApiKeyCreationResult(Builder builder) {
         this.remoteCredentialId = builder.remoteCredentialId;
         this.credentialType = builder.credentialType;
         this.metadata = builder.metadata != null ? 
@@ -96,8 +96,8 @@ public class CredentialCreationResult {
             return this;
         }
 
-        public CredentialCreationResult build() {
-            return new CredentialCreationResult(this);
+        public FederatedApiKeyCreationResult build() {
+            return new FederatedApiKeyCreationResult(this);
         }
     }
 }

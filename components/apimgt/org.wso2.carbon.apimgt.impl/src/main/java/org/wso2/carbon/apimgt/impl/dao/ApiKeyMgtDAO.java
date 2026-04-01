@@ -658,8 +658,6 @@ public class ApiKeyMgtDAO {
                         apiKeyInfo.setApiKeyHash(rs.getString("API_KEY_HASH"));
                         apiKeyInfo.setAuthUser(rs.getString("AUTHZ_USER"));
                         apiKeyInfo.setProperties(rs.getBytes("API_KEY_PROPERTIES"));
-                        apiKeyInfo.setAuthUser(rs.getString("AUTHZ_USER"));
-                        apiKeyInfo.setProperties(rs.getBytes("API_KEY_PROPERTIES"));
                     }
                 }
             }

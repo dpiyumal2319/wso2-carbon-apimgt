@@ -18,10 +18,7 @@
 
 package org.wso2.carbon.apimgt.api;
 
-import org.wso2.carbon.apimgt.api.model.CredentialCreationResult;
-import org.wso2.carbon.apimgt.api.model.Environment;
-import org.wso2.carbon.apimgt.api.model.FederatedApiKeyContext;
-import org.wso2.carbon.apimgt.api.model.ExternalSubscriptionPolicy;
+import org.wso2.carbon.apimgt.api.model.*;
 
 import java.util.Collections;
 import java.util.List;
@@ -47,7 +44,7 @@ public interface FederatedApiKeyConnector {
      * @return credential creation result containing remote identifier and metadata
      * @throws APIManagementException if operation fails
      */
-    CredentialCreationResult createApiKey(FederatedApiKeyContext context) throws APIManagementException;
+    FederatedApiKeyCreationResult createApiKey(FederatedApiKeyContext context) throws APIManagementException;
 
     /**
      * Revokes/deletes an API key in the external gateway.
@@ -102,6 +99,15 @@ public interface FederatedApiKeyConnector {
      * @return true if supported
      */
     default boolean isApiKeySupport() {
+        return false;
+    }
+
+    /**
+     * Returns whether this gateway supports listing remote plans for onboarding and tier mapping.
+     *
+     * @return true if remote plan listing is supported
+     */
+    default boolean supportsRemotePlanListing() {
         return false;
     }
 

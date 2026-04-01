@@ -411,20 +411,25 @@ public class APIAdminImpl implements APIAdmin {
                 if (federatedApiKeyConnector != null) {
                     Map<String, String> props = deserializeApiKeyProperties(apiKeyInfo.getProperties());
                     String remoteApiKeyId = props.get(FEDERATED_API_KEY_REMOTE_ID);
-                    String envId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(apiUuid);
-                    FederatedApiKeyContext context = FederatedApiKeyContext.builder()
-                            .apiUuid(apiUuid)
-                            .apiReferenceArtifact(null)
-                            .apiKeyUuid(keyUUId)
-                            .apiKeyName(apiKeyInfo.getKeyName())
-                            .apiKeyValue(null)
-                            .remoteApiKeyId(remoteApiKeyId)
-                            .authzUser(apiKeyInfo.getAuthUser())
-                            .applicationUuid(apiKeyInfo.getApplicationId())
-                            .organizationId(organization)
-                            .environmentId(envId)
-                            .build();
-                    federatedApiKeyConnector.revokeApiKey(context);
+                    if (StringUtils.isBlank(remoteApiKeyId)) {
+                        log.warn("Remote API key id is missing for federated API key UUID: " + keyUUId
+                                + ". Proceeding with local revocation only.");
+                    } else {
+                        String envId = apiMgtDAO.getGatewayEnvironmentIdForExternalApi(apiUuid);
+                        FederatedApiKeyContext context = FederatedApiKeyContext.builder()
+                                .apiUuid(apiUuid)
+                                .apiReferenceArtifact(null)
+                                .apiKeyUuid(keyUUId)
+                                .apiKeyName(apiKeyInfo.getKeyName())
+                                .apiKeyValue(null)
+                                .remoteApiKeyId(remoteApiKeyId)
+                                .authzUser(apiKeyInfo.getAuthUser())
+                                .applicationUuid(apiKeyInfo.getApplicationId())
+                                .organizationId(organization)
+                                .environmentId(envId)
+                                .build();
+                        federatedApiKeyConnector.revokeApiKey(context);
+                    }
                     apiKeyMgtDAO.revokeAPIKey(keyUUId, tenantDomain);
                     return;
                 }

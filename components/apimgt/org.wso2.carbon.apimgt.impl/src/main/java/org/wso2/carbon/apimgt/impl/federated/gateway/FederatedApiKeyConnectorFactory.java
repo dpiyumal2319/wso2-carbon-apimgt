@@ -136,8 +136,19 @@ public class FederatedApiKeyConnectorFactory {
             throws ReflectiveOperationException, APIManagementException {
 
         Class<?> clazz = Class.forName(implementationClassName);
-        FederatedApiKeyConnector agent = (FederatedApiKeyConnector) clazz.getDeclaredConstructor().newInstance();
-        agent.init(environment, organization);
-        return agent;
+        if (!FederatedApiKeyConnector.class.isAssignableFrom(clazz)) {
+            String msg = "Configured API Key Connector class " + implementationClassName + " does not implement "
+                    + FederatedApiKeyConnector.class.getName();
+            throw new APIManagementException(msg);
+        }
+        try {
+            FederatedApiKeyConnector agent = (FederatedApiKeyConnector) clazz.getDeclaredConstructor().newInstance();
+            agent.init(environment, organization);
+            return agent;
+        } catch (RuntimeException e) {
+            String msg = "Error while instantiating Federated API Key Connector implementation: "
+                    + implementationClassName;
+            throw new APIManagementException(msg, e);
+        }
     }
 }

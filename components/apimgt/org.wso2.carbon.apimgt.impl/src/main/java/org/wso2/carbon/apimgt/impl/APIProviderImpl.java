@@ -548,7 +548,9 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
         // Skip key manager and scope validations for external gateway vendors.
         // Federated APIs imported via FederatedAPIDiscovery come with keyManagers null,
         // causing import failures. External gateway vendors manage their own key managers and scopes.
-        if (!APIConstants.EXTERNAL_GATEWAY_VENDOR.equals(api.getGatewayVendor())) {
+        boolean skipKeyManagerValidationForExternalGateway =
+                APIConstants.EXTERNAL_GATEWAY_VENDOR.equals(api.getGatewayVendor()) && api.isInitiatedFromGateway();
+        if (!skipKeyManagerValidationForExternalGateway) {
             validateKeyManagers(api);
             validateKeyManagerScopes(api, tenantDomain);
         }
@@ -1036,7 +1038,10 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
         // Skip key manager and scope validations for external gateway vendors.
         // Federated APIs imported via FederatedAPIDiscovery come with keyManagers null,
         // causing update failures. External gateway vendors manage their own key managers and scopes.
-        if (!APIConstants.EXTERNAL_GATEWAY_VENDOR.equals(api.getGatewayVendor())) {
+        boolean skipKeyManagerValidationForExternalGateway =
+                APIConstants.EXTERNAL_GATEWAY_VENDOR.equals(api.getGatewayVendor())
+                        && (api.isInitiatedFromGateway() || existingAPI.isInitiatedFromGateway());
+        if (!skipKeyManagerValidationForExternalGateway) {
             validateKeyManagers(api, existingAPI.getKeyManagers());
         }
 
@@ -1044,7 +1049,7 @@ class APIProviderImpl extends AbstractAPIManager implements APIProvider {
             checkIfAdditionalPropertyValuesAreNullOrEmpty(new ApiTypeWrapper(api));
         }
 
-        if (!APIConstants.EXTERNAL_GATEWAY_VENDOR.equals(api.getGatewayVendor())) {
+        if (!skipKeyManagerValidationForExternalGateway) {
             validateKeyManagerScopes(api, tenantDomain);
         }
         // Validate and process API level and operation level policies

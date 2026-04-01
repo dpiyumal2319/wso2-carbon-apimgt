@@ -119,7 +119,7 @@ EnvironmentsApiService delegate = new EnvironmentsApiServiceImpl();
     @ApiOperation(value = "Get all registered Environments", notes = "Get all Registered Environments ", response = EnvironmentListDTO.class, authorizations = {
         @Authorization(value = "OAuth2Security", scopes = {
             @AuthorizationScope(scope = "apim:admin", description = "Manage all admin operations"),
-            @AuthorizationScope(scope = "apim:environment_read", description = "Retrieve gateway environments")
+            @AuthorizationScope(scope = "apim:environment_manage", description = "Manage gateway environments")
         })
     }, tags={ "Environments",  })
     @ApiResponses(value = { 
@@ -135,7 +135,7 @@ EnvironmentsApiService delegate = new EnvironmentsApiServiceImpl();
     @ApiOperation(value = "Add an Environment", notes = "Add a new gateway environment ", response = EnvironmentDTO.class, authorizations = {
         @Authorization(value = "OAuth2Security", scopes = {
             @AuthorizationScope(scope = "apim:admin", description = "Manage all admin operations"),
-            @AuthorizationScope(scope = "apim:environment_read", description = "Retrieve gateway environments")
+            @AuthorizationScope(scope = "apim:environment_manage", description = "Manage gateway environments")
         })
     }, tags={ "Environments",  })
     @ApiResponses(value = { 
@@ -160,7 +160,7 @@ EnvironmentsApiService delegate = new EnvironmentsApiServiceImpl();
         @ApiResponse(code = 400, message = "Bad Request. Invalid request or validation error.", response = ErrorDTO.class),
         @ApiResponse(code = 404, message = "Not Found. The specified resource does not exist.", response = ErrorDTO.class),
         @ApiResponse(code = 501, message = "Not Implemented. The gateway type does not support listing remote plans. ", response = ErrorDTO.class) })
-    public Response getEnvironmentRemotePlans(@ApiParam(value = "Remote plan lookup request. Provide either a persisted environmentId or a draft environment object. " ,required=true) RemotePlanLookupRequestDTO remotePlanLookupRequestDTO) throws APIManagementException{
+    public Response getEnvironmentRemotePlans(@ApiParam(value = "Remote plan lookup request. Provide a persisted environmentId, a draft environment object, or both when previewing edits against a persisted environment with masked connector secrets. " ,required=true) RemotePlanLookupRequestDTO remotePlanLookupRequestDTO) throws APIManagementException{
         return delegate.getEnvironmentRemotePlans(remotePlanLookupRequestDTO, securityContext);
     }
 }

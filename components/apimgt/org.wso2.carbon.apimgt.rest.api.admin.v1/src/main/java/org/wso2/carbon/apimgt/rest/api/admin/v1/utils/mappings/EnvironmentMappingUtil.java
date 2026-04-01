@@ -17,6 +17,9 @@
 
 package org.wso2.carbon.apimgt.rest.api.admin.v1.utils.mappings;
 
+import org.apache.commons.lang3.StringUtils;
+import org.wso2.carbon.apimgt.api.APIManagementException;
+import org.wso2.carbon.apimgt.api.ExceptionCodes;
 import org.wso2.carbon.apimgt.api.dto.GatewayVisibilityPermissionConfigurationDTO;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.PlatformGateway;
@@ -221,7 +224,8 @@ public class EnvironmentMappingUtil {
      * @param envListDto EnvironmentListDTO
      * @return EnvironmentListDTO containing Environment list
      */
-    public static List<Environment> fromEnvListDtoToEnvList(EnvironmentListDTO envListDto) {
+    public static List<Environment> fromEnvListDtoToEnvList(EnvironmentListDTO envListDto)
+            throws APIManagementException {
         List<Environment> envList = new ArrayList<>(envListDto.getCount());
         for (EnvironmentDTO envDto : envListDto.getList()) {
             envList.add(fromEnvDtoToEnv(envDto));
@@ -235,7 +239,7 @@ public class EnvironmentMappingUtil {
      * @param envDTO EnvironmentDTO
      * @return Environment
      */
-    public static Environment fromEnvDtoToEnv(EnvironmentDTO envDTO) {
+    public static Environment fromEnvDtoToEnv(EnvironmentDTO envDTO) throws APIManagementException {
         Environment env = new Environment();
         env.setUuid(envDTO.getId());
         env.setName(envDTO.getName());
@@ -347,7 +351,7 @@ public class EnvironmentMappingUtil {
      * The remotePlanReference Map is serialized to a JSON string for storage.
      */
     public static List<GatewayTierMapping> fromTierMappingDTOsToTierMappings(
-            List<GatewayTierMappingDTO> dtos) {
+            List<GatewayTierMappingDTO> dtos) throws APIManagementException {
         List<GatewayTierMapping> mappings = new ArrayList<>();
         if (dtos == null) {
             return mappings;
@@ -358,7 +362,9 @@ public class EnvironmentMappingUtil {
                 try {
                     refJson = OBJECT_MAPPER.writeValueAsString(dto.getRemotePlanReference());
                 } catch (JsonProcessingException e) {
-                    refJson = "{}";
+                    String tierName = StringUtils.defaultIfBlank(dto.getLocalTierName(), "<unknown>");
+                    throw new APIManagementException("Failed to serialize remote plan reference for tier: "
+                            + tierName, ExceptionCodes.PARAMETER_NOT_PROVIDED);
                 }
             }
             GatewayTierMapping mapping = new GatewayTierMapping();

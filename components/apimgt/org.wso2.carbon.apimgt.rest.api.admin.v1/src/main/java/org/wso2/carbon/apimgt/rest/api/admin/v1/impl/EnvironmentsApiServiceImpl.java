@@ -7,11 +7,14 @@ import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.apimgt.api.APIAdmin;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.ExceptionCodes;
+import org.wso2.carbon.apimgt.api.FederatedApiKeyConnector;
 import org.wso2.carbon.apimgt.api.dto.GatewayVisibilityPermissionConfigurationDTO;
+import org.wso2.carbon.apimgt.api.model.ConfigurationDto;
 import org.wso2.carbon.apimgt.api.model.Environment;
-import org.wso2.carbon.apimgt.api.PlatformGatewayService;
-import org.wso2.carbon.apimgt.api.model.PlatformGateway;
 import org.wso2.carbon.apimgt.api.model.ExternalSubscriptionPolicy;
+import org.wso2.carbon.apimgt.api.model.GatewayAgentConfiguration;
+import org.wso2.carbon.apimgt.api.model.PlatformGateway;
+import org.wso2.carbon.apimgt.api.PlatformGatewayService;
 import org.wso2.carbon.apimgt.impl.APIConstants;
 import org.wso2.carbon.apimgt.impl.APIAdminImpl;
 import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
@@ -23,6 +26,7 @@ import org.apache.cxf.jaxrs.ext.MessageContext;
 
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentListDTO;
+import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.ErrorDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.RemotePlanDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.RemotePlanListDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.RemotePlanLookupRequestDTO;
@@ -40,6 +44,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -252,47 +257,120 @@ public class EnvironmentsApiServiceImpl implements EnvironmentsApiService {
 
         final boolean hasEnvironmentId = StringUtils.isNotBlank(request.getEnvironmentId());
         final boolean hasEnvironmentPayload = request.getEnvironment() != null;
-        if (hasEnvironmentId == hasEnvironmentPayload) {
-            throw new APIManagementException("Provide either environmentId or environment payload for remote plan lookup",
+        if (!hasEnvironmentId && !hasEnvironmentPayload) {
+            throw new APIManagementException("Provide environmentId, environment payload, or both for remote plan lookup",
                     ExceptionCodes.PARAMETER_NOT_PROVIDED);
         }
 
         Environment environment;
         boolean transientLookup = false;
         APIAdminImpl apiAdmin = new APIAdminImpl();
+        Environment persistedEnvironment = null;
         if (hasEnvironmentId) {
-            environment = apiAdmin.getEnvironmentWithoutPropertyMasking(organization, request.getEnvironmentId());
-            if (environment == null) {
+            persistedEnvironment = apiAdmin.getEnvironmentWithoutPropertyMasking(organization, request.getEnvironmentId());
+            if (persistedEnvironment == null) {
                 throw new APIManagementException("Requested Gateway Environment not found",
                         ExceptionCodes.GATEWAY_ENVIRONMENT_NOT_FOUND);
             }
-            environment = apiAdmin.decryptGatewayConfigurationValues(environment);
-        } else {
+            persistedEnvironment = apiAdmin.decryptGatewayConfigurationValues(persistedEnvironment);
+        }
+
+        if (hasEnvironmentPayload) {
             EnvironmentDTO environmentDTO = request.getEnvironment();
             environment = EnvironmentMappingUtil.fromEnvDtoToEnv(environmentDTO);
+            validateRemotePlanLookupEnvironment(environmentDTO, environment);
             transientLookup = true;
 
-            List<String> gatewayTypes = APIUtil.getGatewayTypes();
-            if (!gatewayTypes.contains(environment.getGatewayType())) {
-                throw new APIManagementException("Invalid gateway type: " + environment.getGatewayType());
+            if (persistedEnvironment != null) {
+                mergeMaskedGatewayConfigurationValues(environment, persistedEnvironment);
             }
-            if (APIConstants.API_GATEWAY_TYPE_APK.equals(environment.getGatewayType())
-                    && hasUnsupportedVhostConfiguration(environmentDTO.getVhosts())) {
-                throw new APIManagementException("Unsupported Vhost Configuration for gateway type: "
-                        + environment.getGatewayType());
+        } else {
+            environment = persistedEnvironment;
+        }
+        FederatedApiKeyConnector connector = transientLookup
+                ? FederatedApiKeyConnectorFactory.getTransientApiKeyConnector(environment, organization)
+                : FederatedApiKeyConnectorFactory.getApiKeyConnector(environment, organization);
+        ensureRemotePlanListingSupported(connector);
+        List<ExternalSubscriptionPolicy> rateLimitPolicies = connector.listRateLimitPolicies(environment);
+        return Response.ok().entity(buildRemotePlanListDTO(rateLimitPolicies)).build();
+    }
+
+    private void validateRemotePlanLookupEnvironment(EnvironmentDTO environmentDTO, Environment environment)
+            throws APIManagementException {
+        List<String> gatewayTypes = APIUtil.getGatewayTypes();
+        if (!gatewayTypes.contains(environment.getGatewayType())) {
+            throw new APIManagementException("Invalid gateway type: " + environment.getGatewayType(),
+                    ExceptionCodes.PARAMETER_NOT_PROVIDED);
+        }
+        if (APIConstants.API_GATEWAY_TYPE_APK.equals(environment.getGatewayType())
+                && hasUnsupportedVhostConfiguration(environmentDTO.getVhosts())) {
+            throw new APIManagementException("Unsupported Vhost Configuration for gateway type: "
+                    + environment.getGatewayType(), ExceptionCodes.PARAMETER_NOT_PROVIDED);
+        }
+    }
+
+    private void ensureRemotePlanListingSupported(FederatedApiKeyConnector connector) {
+        if (connector != null && connector.supportsRemotePlanListing()) {
+            return;
+        }
+        ErrorDTO errorDTO = new ErrorDTO();
+        errorDTO.setCode(501L);
+        errorDTO.setMessage("Not Implemented");
+        errorDTO.setDescription("The gateway type does not support listing remote plans.");
+        throw new javax.ws.rs.WebApplicationException(Response.status(Response.Status.NOT_IMPLEMENTED)
+                .entity(errorDTO).build());
+    }
+
+    private void mergeMaskedGatewayConfigurationValues(Environment draftEnvironment, Environment persistedEnvironment) {
+        GatewayAgentConfiguration gatewayConfiguration = ServiceReferenceHolder.getInstance()
+                .getExternalGatewayConnectorConfiguration(draftEnvironment.getGatewayType());
+        if (gatewayConfiguration == null) {
+            return;
+        }
+
+        Map<String, String> draftProperties = draftEnvironment.getAdditionalProperties();
+        if (draftProperties == null) {
+            draftProperties = new HashMap<>();
+            draftEnvironment.setAdditionalProperties(draftProperties);
+        }
+        Map<String, String> persistedProperties = persistedEnvironment.getAdditionalProperties();
+        if (persistedProperties == null || persistedProperties.isEmpty()) {
+            return;
+        }
+
+        for (ConfigurationDto configurationDto : gatewayConfiguration.getConnectionConfigurations()) {
+            mergeMaskedGatewayConfigurationValue(configurationDto, draftProperties, persistedProperties);
+        }
+    }
+
+    private void mergeMaskedGatewayConfigurationValue(ConfigurationDto configurationDto,
+            Map<String, String> draftProperties, Map<String, String> persistedProperties) {
+        if (configurationDto.isMask()) {
+            String draftValue = draftProperties.get(configurationDto.getName());
+            if (APIConstants.DEFAULT_MODIFIED_ENDPOINT_PASSWORD.equals(draftValue)
+                    && persistedProperties.containsKey(configurationDto.getName())) {
+                draftProperties.put(configurationDto.getName(), persistedProperties.get(configurationDto.getName()));
             }
         }
 
-        List<ExternalSubscriptionPolicy> rateLimitPolicies = transientLookup
-                ? FederatedApiKeyConnectorFactory.getTransientApiKeyConnector(environment, organization)
-                        .listRateLimitPolicies(environment)
-                : FederatedApiKeyConnectorFactory.getApiKeyConnector(environment, organization)
-                        .listRateLimitPolicies(environment);
-        return Response.ok().entity(buildRemotePlanListDTO(rateLimitPolicies)).build();
+        List<Object> nestedConfigurationValues = configurationDto.getValues();
+        if (nestedConfigurationValues == null || nestedConfigurationValues.isEmpty()) {
+            return;
+        }
+
+        for (Object nestedConfiguration : nestedConfigurationValues) {
+            if (nestedConfiguration instanceof ConfigurationDto) {
+                mergeMaskedGatewayConfigurationValue((ConfigurationDto) nestedConfiguration, draftProperties,
+                        persistedProperties);
+            }
+        }
     }
 
     private RemotePlanListDTO buildRemotePlanListDTO(List<ExternalSubscriptionPolicy> rateLimitPolicies) {
         List<RemotePlanDTO> planDTOs = new ArrayList<>();
+        if (rateLimitPolicies == null) {
+            rateLimitPolicies = new ArrayList<>();
+        }
         for (ExternalSubscriptionPolicy policy : rateLimitPolicies) {
             RemotePlanDTO dto = new RemotePlanDTO();
             dto.setId(policy.getId());
