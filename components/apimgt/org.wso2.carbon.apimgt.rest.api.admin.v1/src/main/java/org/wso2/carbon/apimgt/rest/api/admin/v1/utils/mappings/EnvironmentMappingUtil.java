@@ -338,7 +338,8 @@ public class EnvironmentMappingUtil {
                 } catch (JsonProcessingException e) {
                     String tierName = StringUtils.defaultIfBlank(mapping.getLocalTierName(), "<unknown>");
                     log.error("Failed to deserialize remote plan reference for tier: " + tierName, e);
-                    throw new IllegalArgumentException("Invalid remote plan reference for tier: " + tierName, e);
+                    throw new APIManagementException("Invalid remote plan reference for tier: " + tierName, e,
+                            ExceptionCodes.INTERNAL_ERROR);
                 }
             }
             dto.setRemotePlanReference(refMap);
