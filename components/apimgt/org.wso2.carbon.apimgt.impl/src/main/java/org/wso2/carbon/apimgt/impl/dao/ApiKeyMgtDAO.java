@@ -498,7 +498,8 @@ public class ApiKeyMgtDAO {
                         keyInfo.setApiKeyHash(rs.getString("API_KEY_HASH"));
                         keyInfo.setKeyType(rs.getString("KEY_TYPE"));
                         keyInfo.setValidityPeriod(rs.getLong("VALIDITY_PERIOD"));
-                        Timestamp lastUsedTime = rs.getTimestamp("LAST_USED");
+                        Timestamp lastUsedTime = rs.getTimestamp("LAST_USED",
+                                Calendar.getInstance(TimeZone.getTimeZone(APIConstants.UTC_TIME_ZONE)));
                         keyInfo.setLastUsedTime(lastUsedTime != null ? lastUsedTime.getTime() : null);
                         keyInfo.setAuthUser(rs.getString("AUTHZ_USER"));
                         try (InputStream apiKeyProperties = rs.getBinaryStream("API_KEY_PROPERTIES")) {

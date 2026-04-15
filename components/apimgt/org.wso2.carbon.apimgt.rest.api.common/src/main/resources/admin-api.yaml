@@ -2341,10 +2341,10 @@ paths:
       security:
         - OAuth2Security:
             - apim:admin
-            - apim:environment_read
+            - apim:environment_manage
       x-code-samples:
         - lang: Curl
-          source: 'curl -k -X POST -H "Authorization: Bearer ae4eae22-3f65-387b-a171-d37eaa366fa8"
+          source: 'curl -k -X POST -H "Authorization: Bearer <access-token>"
           -H "Content-Type: application/json" -d @data.json "https://127.0.0.1:9443/api/am/admin/v4/environments/remote-plans"'
 
   ######################################################

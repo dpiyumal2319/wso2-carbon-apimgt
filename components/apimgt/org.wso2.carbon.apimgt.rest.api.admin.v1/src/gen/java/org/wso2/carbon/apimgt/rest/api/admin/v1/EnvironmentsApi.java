@@ -152,7 +152,7 @@ EnvironmentsApiService delegate = new EnvironmentsApiServiceImpl();
     @ApiOperation(value = "List Available Remote Plans for a Gateway Environment", notes = "Retrieve the list of plans available on the remote external gateway (e.g., AWS Usage Plans). Used by the Admin Portal to populate the plan mapping section during gateway onboarding using either a persisted environment id or a draft environment configuration. Only supported for gateway environments with federated subscription support. ", response = RemotePlanListDTO.class, authorizations = {
         @Authorization(value = "OAuth2Security", scopes = {
             @AuthorizationScope(scope = "apim:admin", description = "Manage all admin operations"),
-            @AuthorizationScope(scope = "apim:environment_read", description = "Retrieve gateway environments")
+            @AuthorizationScope(scope = "apim:environment_manage", description = "Manage gateway environments")
         })
     }, tags={ "Environments" })
     @ApiResponses(value = { 
