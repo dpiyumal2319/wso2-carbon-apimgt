@@ -358,16 +358,24 @@ public class EnvironmentMappingUtil {
             return mappings;
         }
         for (GatewayTierMappingDTO dto : dtos) {
+            if (StringUtils.isBlank(dto.getLocalTierName())) {
+                throw new APIManagementException("Local tier name is required for gateway tier mapping",
+                        ExceptionCodes.from(ExceptionCodes.INVALID_ENV_API_PROP_CONFIG,
+                                "localTierName is required for each tier mapping"));
+            }
+            if (dto.getRemotePlanReference() == null) {
+                throw new APIManagementException("Remote plan reference is required for gateway tier mapping: "
+                        + dto.getLocalTierName(), ExceptionCodes.from(ExceptionCodes.INVALID_ENV_API_PROP_CONFIG,
+                        "remotePlanReference is required for tier mapping: " + dto.getLocalTierName()));
+            }
             String refJson = null;
-            if (dto.getRemotePlanReference() != null) {
-                try {
-                    refJson = OBJECT_MAPPER.writeValueAsString(dto.getRemotePlanReference());
-                } catch (JsonProcessingException e) {
-                    String tierName = StringUtils.defaultIfBlank(dto.getLocalTierName(), "<unknown>");
-                    log.error("Failed to serialize remote plan reference for tier: " + tierName, e);
-                    throw new APIManagementException("Failed to serialize remote plan reference for tier: "
-                            + tierName, e, ExceptionCodes.INTERNAL_ERROR);
-                }
+            try {
+                refJson = OBJECT_MAPPER.writeValueAsString(dto.getRemotePlanReference());
+            } catch (JsonProcessingException e) {
+                String tierName = StringUtils.defaultIfBlank(dto.getLocalTierName(), "<unknown>");
+                log.error("Failed to serialize remote plan reference for tier: " + tierName, e);
+                throw new APIManagementException("Failed to serialize remote plan reference for tier: "
+                        + tierName, e, ExceptionCodes.INTERNAL_ERROR);
             }
             GatewayTierMapping mapping = new GatewayTierMapping();
             mapping.setLocalTierName(dto.getLocalTierName());
