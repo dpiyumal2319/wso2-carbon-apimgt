@@ -450,7 +450,6 @@ public class ApiKeyMgtDAO {
                         keyInfo.setApplicationId(rs.getString("APPLICATION_UUID"));
                         keyInfo.setKeyName(rs.getString("NAME"));
                         keyInfo.setApiKeyHash(rs.getString("API_KEY_HASH"));
-                        keyInfo.setApiUUId(rs.getString("API_UUID"));
                         keyInfo.setKeyType(rs.getString("KEY_TYPE"));
                         keyInfo.setValidityPeriod(rs.getLong("VALIDITY_PERIOD"));
                         Timestamp lastUsedTime = rs.getTimestamp("LAST_USED",
@@ -790,6 +789,29 @@ public class ApiKeyMgtDAO {
         } catch (SQLException e) {
             handleException("Failed to update association of " + appUUId + " for the API key " + keyUUId, e);
         }
+    }
+
+    /**
+     * Returns number of distinct application associations for the given API key UUID.
+     *
+     * @param keyUUId API key UUID
+     * @return count of associated applications
+     * @throws APIManagementException if lookup fails
+     */
+    public int getApplicationAssociationCount(String keyUUId) throws APIManagementException {
+
+        try (Connection conn = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(SQLConstants.GET_API_KEY_APPLICATION_ASSOCIATION_COUNT_SQL)) {
+            ps.setString(1, keyUUId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("ASSOCIATION_COUNT");
+                }
+            }
+        } catch (SQLException e) {
+            handleException("Failed to get application association count for API key " + keyUUId, e);
+        }
+        return 0;
     }
 
     /**

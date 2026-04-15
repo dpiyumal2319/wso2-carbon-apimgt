@@ -187,6 +187,13 @@ public class FederatedApiKeyNotifier implements Notifier {
         APIKeyInfo keyInfo = resolveAssociationKeyInfo(event);
         String apiUuid = resolveApiUuid(event, keyInfo);
         String applicationUuid = resolveApplicationUuid(event, keyInfo);
+        int associationCount = getApiKeyMgtDAO().getApplicationAssociationCount(event.getApiKeyUUId());
+        if (associationCount > 1) {
+            log.error("Skipping remote rate limit policy apply for federated API key because multiple local "
+                    + "application associations exist. KeyUuid: " + event.getApiKeyUUId() + ", APIUuid: " + apiUuid
+                    + ", ApplicationUuid: " + applicationUuid + ", AssociationCount: " + associationCount);
+            return;
+        }
         String organization = resolveOrganization(apiUuid);
         String environmentId = resolveEnvironmentId(apiUuid);
         String apiReferenceArtifact = resolveApiReferenceArtifact(apiUuid, environmentId);
