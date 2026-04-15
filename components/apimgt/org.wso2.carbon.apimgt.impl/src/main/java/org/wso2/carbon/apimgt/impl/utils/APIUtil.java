@@ -694,7 +694,8 @@ public final class APIUtil {
             return false;
         }
         String gatewayVendor = ApiMgtDAO.getInstance().getGatewayVendorByAPIUUID(apiUuid);
-        return APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(gatewayVendor);
+        String normalizedGatewayVendor = handleGatewayVendorRetrieval(gatewayVendor);
+        return APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(normalizedGatewayVendor);
     }
 
     /**
