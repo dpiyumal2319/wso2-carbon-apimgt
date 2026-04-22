@@ -682,7 +682,7 @@ public final class APIUtil {
         if (existingProperties != null) {
             properties.putAll(existingProperties);
         }
-        properties.put("federated.apiKeyValue", apiKeyValue);
+        properties.put(APIConstants.NotificationEvent.FEDERATED_API_KEY_VALUE, apiKeyValue);
         return properties;
     }
 

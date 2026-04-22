@@ -57,7 +57,6 @@ public class FederatedApiKeyNotifier implements Notifier {
     private static final Log log = LogFactory.getLog(FederatedApiKeyNotifier.class);
     private static final String FEDERATED_API_KEY_REMOTE_ID = "federated.remoteApiKeyId";
     private static final String FEDERATED_API_KEY_REMOTE_ID_PREFIX = FEDERATED_API_KEY_REMOTE_ID + ".";
-    private static final String FEDERATED_API_KEY_VALUE = "federated.apiKeyValue";
 
     @Override
     public boolean publishEvent(Event event) throws NotifierException {
@@ -67,34 +66,63 @@ public class FederatedApiKeyNotifier implements Notifier {
 
         try {
             if (event instanceof APIKeyEvent) {
-                APIKeyEvent apiKeyEvent = (APIKeyEvent) event;
-                switch (apiKeyEvent.getType()) {
-                    case "API_KEY_CREATE":
-                        handleCreate(apiKeyEvent);
-                        break;
-                    case "API_KEY_DELETE":
-                        handleRevoke(apiKeyEvent);
-                        break;
-                    default:
-                        log.warn("Unknown federated API key event type: " + apiKeyEvent.getType());
-                }
+                handleAPIKeyEvent((APIKeyEvent) event);
             } else if (event instanceof APIKeyAssociationEvent) {
-                APIKeyAssociationEvent associationEvent = (APIKeyAssociationEvent) event;
-                switch (associationEvent.getType()) {
-                    case "API_KEY_ASSOCIATION_CREATE":
-                        handleApplyRateLimitPolicy(associationEvent);
-                        break;
-                    case "API_KEY_ASSOCIATION_DELETE":
-                        handleRemoveRateLimitPolicy(associationEvent);
-                        break;
-                    default:
-                        log.warn("Unknown federated API key association event type: " + associationEvent.getType());
-                }
+                handleAPIKeyAssociationEvent((APIKeyAssociationEvent) event);
             }
             return true;
         } catch (APIManagementException e) {
             log.error("Failed to process federated API key event: " + event, e);
             throw new NotifierException("Failed to process federated API key event", e);
+        }
+    }
+
+    private void handleAPIKeyEvent(APIKeyEvent apiKeyEvent) throws APIManagementException {
+
+        APIConstants.EventType eventType = resolveEventType(apiKeyEvent.getType());
+        if (eventType == null) {
+            log.warn("Unknown federated API key event type: " + apiKeyEvent.getType());
+            return;
+        }
+
+        switch (eventType) {
+            case API_KEY_CREATE:
+                handleCreate(apiKeyEvent);
+                break;
+            case API_KEY_DELETE:
+                handleRevoke(apiKeyEvent);
+                break;
+            default:
+                log.warn("Unsupported federated API key event type: " + eventType.name());
+        }
+    }
+
+    private void handleAPIKeyAssociationEvent(APIKeyAssociationEvent associationEvent) throws APIManagementException {
+
+        APIConstants.EventType eventType = resolveEventType(associationEvent.getType());
+        if (eventType == null) {
+            log.warn("Unknown federated API key association event type: " + associationEvent.getType());
+            return;
+        }
+
+        switch (eventType) {
+            case API_KEY_ASSOCIATION_CREATE:
+                handleApplyRateLimitPolicy(associationEvent);
+                break;
+            case API_KEY_ASSOCIATION_DELETE:
+                handleRemoveRateLimitPolicy(associationEvent);
+                break;
+            default:
+                log.warn("Unsupported federated API key association event type: " + eventType.name());
+        }
+    }
+
+    private APIConstants.EventType resolveEventType(String type) {
+
+        try {
+            return APIConstants.EventType.valueOf(type);
+        } catch (IllegalArgumentException e) {
+            return null;
         }
     }
 
@@ -110,7 +138,7 @@ public class FederatedApiKeyNotifier implements Notifier {
         APIKeyInfo keyInfo = getApiKeyMgtDAO().getAPIKey(event.getUuid(), event.getUser());
         String apiUuid = resolveApiUuid(event, keyInfo);
         String organization = resolveOrganization(apiUuid);
-        String apiKeyValue = getEventProperties(event).get(FEDERATED_API_KEY_VALUE);
+        String apiKeyValue = getEventProperties(event).get(APIConstants.NotificationEvent.FEDERATED_API_KEY_VALUE);
         if (StringUtils.isBlank(apiKeyValue)) {
             throw new APIManagementException("Federated API key create event is missing the generated key value");
         }

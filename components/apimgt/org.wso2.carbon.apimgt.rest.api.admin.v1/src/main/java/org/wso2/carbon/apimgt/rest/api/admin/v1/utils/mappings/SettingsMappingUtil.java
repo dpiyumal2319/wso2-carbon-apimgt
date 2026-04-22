@@ -44,6 +44,7 @@ import java.util.Set;
 public class SettingsMappingUtil {
 
     private static final Log log = LogFactory.getLog(SettingsMappingUtil.class);
+    private static final String SUBSCRIPTIONS_FEATURE_KEY = "subscriptions";
 
     /**
      * This method feeds data into the settingsDTO
@@ -281,11 +282,11 @@ public class SettingsMappingUtil {
             if (supportedFeaturesMap == null) {
                 return false;
             }
-            Object subscriptions = supportedFeaturesMap.get("subscriptions");
+            Object subscriptions = supportedFeaturesMap.get(SUBSCRIPTIONS_FEATURE_KEY);
             if (!(subscriptions instanceof List)) {
                 return false;
             }
-            return ((List<?>) subscriptions).contains("subscriptions");
+            return ((List<?>) subscriptions).contains(SUBSCRIPTIONS_FEATURE_KEY);
         } catch (APIManagementException | RuntimeException e) {
             log.warn(String.format("Failed to resolve subscriptions capability for gateway '%s'",
                     gatewayConfiguration.getType()), e);
