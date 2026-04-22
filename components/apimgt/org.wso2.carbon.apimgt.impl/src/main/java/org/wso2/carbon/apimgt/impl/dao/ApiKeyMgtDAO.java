@@ -787,29 +787,6 @@ public class ApiKeyMgtDAO {
     }
 
     /**
-     * Returns number of distinct application associations for the given API key UUID.
-     *
-     * @param keyUUId API key UUID
-     * @return count of associated applications
-     * @throws APIManagementException if lookup fails
-     */
-    public int getApplicationAssociationCount(String keyUUId) throws APIManagementException {
-
-        try (Connection conn = APIMgtDBUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(SQLConstants.GET_API_KEY_APPLICATION_ASSOCIATION_COUNT_SQL)) {
-            ps.setString(1, keyUUId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt("ASSOCIATION_COUNT");
-                }
-            }
-        } catch (SQLException e) {
-            handleException("Failed to get application association count for API key " + keyUUId, e);
-        }
-        return 0;
-    }
-
-    /**
      * Returns the key type of an API bound API key specified by the key name and api Id
      *
      * @param apiUUId API UUID
