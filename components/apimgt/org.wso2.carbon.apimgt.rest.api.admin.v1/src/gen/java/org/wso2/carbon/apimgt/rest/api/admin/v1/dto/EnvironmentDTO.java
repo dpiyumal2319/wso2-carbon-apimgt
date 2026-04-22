@@ -27,7 +27,7 @@ import javax.validation.Valid;
 
 
 public class EnvironmentDTO   {
-  
+
     private String id = null;
     private String name = null;
     private String displayName = null;
@@ -345,7 +345,6 @@ return null;
     this.tierMappings = tierMappings;
     return this;
   }
-
 
   @ApiModelProperty(value = "Mappings between local WSO2 subscription tiers and remote gateway plans.")
       @Valid

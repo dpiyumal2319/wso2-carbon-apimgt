@@ -911,7 +911,7 @@ public class ApiKeyMgtDAO {
     }
 
     /**
-     * Updates API key properties after async gateway operation.
+     * Updates API key properties after gateway operation.
      * Used by FederatedApiKeyNotifier to persist remoteCredentialId metadata.
      *
      * @param keyUuid    the API key UUID

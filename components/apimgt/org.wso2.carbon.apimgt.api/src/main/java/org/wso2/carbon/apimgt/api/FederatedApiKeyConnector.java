@@ -62,29 +62,21 @@ public interface FederatedApiKeyConnector {
      * - Azure: Associates subscription with tier
      *
      * @param context API key operation context
-     * @param policyId remote rate limit policy identifier
+     * @param remotePolicyReference stored remote rate limit policy reference
      * @throws APIManagementException if operation fails
      */
-    void applyRateLimitPolicy(FederatedApiKeyContext context, String policyId)
+    void applyRateLimitPolicy(FederatedApiKeyContext context, String remotePolicyReference)
             throws APIManagementException;
 
     /**
      * Removes rate limiting policy from an API key.
      *
      * @param context API key operation context
+     * @param remotePolicyReference stored remote rate limit policy reference
      * @throws APIManagementException if operation fails
      */
-    void removeRateLimitPolicy(FederatedApiKeyContext context) throws APIManagementException;
-
-    /**
-     * Resolves the remote rate limit policy ID from the stored policy reference.
-     * Each gateway implementation parses its own format (JSON, raw ID, etc.).
-     *
-     * @param remotePolicyReference the stored policy reference (may be JSON or raw ID)
-     * @return the resolved policy ID, or null if not resolvable
-     * @throws APIManagementException if parsing fails
-     */
-    String resolveRemotePolicyId(String remotePolicyReference) throws APIManagementException;
+    void removeRateLimitPolicy(FederatedApiKeyContext context, String remotePolicyReference)
+            throws APIManagementException;
 
     /**
      * Gets gateway type identifier.

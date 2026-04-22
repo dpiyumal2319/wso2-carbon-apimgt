@@ -31,6 +31,7 @@ import java.util.Map;
 public class ExternalSubscriptionPolicy {
 
     private String id;
+    private String reference;
     private String name;
     private String description;
     private Map<String, String> limits;
@@ -42,6 +43,7 @@ public class ExternalSubscriptionPolicy {
     public ExternalSubscriptionPolicy(String id, String name, String description, Map<String, String> limits) {
 
         this.id = id;
+        this.reference = id;
         this.name = name;
         this.description = description;
         this.limits = limits;
@@ -55,6 +57,16 @@ public class ExternalSubscriptionPolicy {
     public void setId(String id) {
 
         this.id = id;
+    }
+
+    public String getReference() {
+
+        return reference;
+    }
+
+    public void setReference(String reference) {
+
+        this.reference = reference;
     }
 
     public String getName() {

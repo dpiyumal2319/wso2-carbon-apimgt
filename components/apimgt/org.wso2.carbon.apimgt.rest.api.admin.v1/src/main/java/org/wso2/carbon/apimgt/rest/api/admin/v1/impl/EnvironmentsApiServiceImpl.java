@@ -379,6 +379,7 @@ public class EnvironmentsApiServiceImpl implements EnvironmentsApiService {
         for (ExternalSubscriptionPolicy policy : rateLimitPolicies) {
             RemotePlanDTO dto = new RemotePlanDTO();
             dto.setId(policy.getId());
+            dto.setReference(policy.getReference());
             dto.setName(policy.getName());
             dto.setDescription(policy.getDescription());
             dto.setLimits(policy.getLimits());

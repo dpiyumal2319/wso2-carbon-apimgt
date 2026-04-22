@@ -4,9 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import javax.validation.constraints.*;
 
 /**
@@ -27,7 +24,7 @@ import javax.validation.Valid;
 public class GatewayTierMappingDTO   {
   
     private String localTierName = null;
-    private Map<String, Object> remotePlanReference = new HashMap<String, Object>();
+    private String remotePlanReference = null;
 
   /**
    * Name of the local WSO2 subscription tier (e.g., Unlimited, Gold).
@@ -49,21 +46,21 @@ public class GatewayTierMappingDTO   {
   }
 
   /**
-   * Opaque JSON blob representing the remote gateway plan. The structure is gateway-specific (e.g., for AWS this contains usagePlanId and name). 
+   * Opaque connector-owned reference for the remote gateway plan. The structure is gateway-specific and must not be interpreted by API Manager.
    **/
-  public GatewayTierMappingDTO remotePlanReference(Map<String, Object> remotePlanReference) {
+  public GatewayTierMappingDTO remotePlanReference(String remotePlanReference) {
     this.remotePlanReference = remotePlanReference;
     return this;
   }
 
   
-  @ApiModelProperty(example = "{\"id\":\"abc123\",\"name\":\"AWS Unlimited Plan\"}", required = true, value = "Opaque JSON blob representing the remote gateway plan. The structure is gateway-specific (e.g., for AWS this contains usagePlanId and name). ")
+  @ApiModelProperty(example = "{\"id\":\"abc123\"}", required = true, value = "Opaque connector-owned reference for the remote gateway plan. The structure is gateway-specific and must not be interpreted by API Manager. ")
   @JsonProperty("remotePlanReference")
   @NotNull
-  public Map<String, Object> getRemotePlanReference() {
+  public String getRemotePlanReference() {
     return remotePlanReference;
   }
-  public void setRemotePlanReference(Map<String, Object> remotePlanReference) {
+  public void setRemotePlanReference(String remotePlanReference) {
     this.remotePlanReference = remotePlanReference;
   }
 
@@ -108,4 +105,3 @@ public class GatewayTierMappingDTO   {
     return o.toString().replace("\n", "\n    ");
   }
 }
-

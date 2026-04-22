@@ -25,8 +25,9 @@ import javax.validation.Valid;
 
 
 public class RemotePlanDTO   {
-  
+
     private String id = null;
+    private String reference = null;
     private String name = null;
     private String description = null;
     private Map<String, String> limits = new HashMap<String, String>();
@@ -47,6 +48,23 @@ public class RemotePlanDTO   {
   }
   public void setId(String id) {
     this.id = id;
+  }
+
+  /**
+   * Opaque connector-owned reference to persist when this plan is selected.
+   **/
+  public RemotePlanDTO reference(String reference) {
+    this.reference = reference;
+    return this;
+  }
+
+  @ApiModelProperty(example = "{\"id\":\"abc123\"}", value = "Opaque connector-owned reference to persist when this plan is selected.")
+  @JsonProperty("reference")
+  public String getReference() {
+    return reference;
+  }
+  public void setReference(String reference) {
+    this.reference = reference;
   }
 
   /**
@@ -114,6 +132,7 @@ public class RemotePlanDTO   {
     }
     RemotePlanDTO remotePlan = (RemotePlanDTO) o;
     return Objects.equals(id, remotePlan.id) &&
+        Objects.equals(reference, remotePlan.reference) &&
         Objects.equals(name, remotePlan.name) &&
         Objects.equals(description, remotePlan.description) &&
         Objects.equals(limits, remotePlan.limits);
@@ -121,7 +140,7 @@ public class RemotePlanDTO   {
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, description, limits);
+    return Objects.hash(id, reference, name, description, limits);
   }
 
   @Override
@@ -130,6 +149,7 @@ public class RemotePlanDTO   {
     sb.append("class RemotePlanDTO {\n");
     
     sb.append("    id: ").append(toIndentedString(id)).append("\n");
+    sb.append("    reference: ").append(toIndentedString(reference)).append("\n");
     sb.append("    name: ").append(toIndentedString(name)).append("\n");
     sb.append("    description: ").append(toIndentedString(description)).append("\n");
     sb.append("    limits: ").append(toIndentedString(limits)).append("\n");
@@ -148,4 +168,3 @@ public class RemotePlanDTO   {
     return o.toString().replace("\n", "\n    ");
   }
 }
-
