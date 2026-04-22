@@ -5501,6 +5501,14 @@ public class SQLConstants {
         public static final String SELECT_ARTIFACT_DEPLOYMENT_BY_API_AND_GATEWAY_SQL =
                 "SELECT DEPLOYMENT_ID FROM " + PLATFORM_GATEWAY_ARTIFACT_CACHE_TABLE
                         + " WHERE API_ID = ? AND GATEWAY_ENV_UUID = ?";
+        /**
+         * Resolve REVISION_ID (revision UUID) for a gateway environment and deployment id from the artifact cache.
+         * {@code DEPLOYMENT_ID} is the table primary key (see AM_GW_PLATFORM_API_ARTIFACTS DDL), so this returns
+         * at most one row on a conforming database; callers should still guard against duplicate rows if data is corrupt.
+         */
+        public static final String SELECT_ARTIFACT_REVISION_BY_GATEWAY_AND_DEPLOYMENT_SQL =
+                "SELECT REVISION_ID FROM " + PLATFORM_GATEWAY_ARTIFACT_CACHE_TABLE
+                        + " WHERE GATEWAY_ENV_UUID = ? AND DEPLOYMENT_ID = ?";
         public static final String UPDATE_ARTIFACT_BY_API_AND_GATEWAY_SQL =
                 "UPDATE " + PLATFORM_GATEWAY_ARTIFACT_CACHE_TABLE
                         + " SET ARTIFACT = ?, TIME_STAMP = ?, REVISION_ID = ?, DEPLOYMENT_ID = ? "
