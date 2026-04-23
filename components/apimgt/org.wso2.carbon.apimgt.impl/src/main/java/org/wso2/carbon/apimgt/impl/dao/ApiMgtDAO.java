@@ -72,7 +72,6 @@ import org.wso2.carbon.apimgt.api.model.Comment;
 import org.wso2.carbon.apimgt.api.model.CommentList;
 import org.wso2.carbon.apimgt.api.model.DeployedAPIRevision;
 import org.wso2.carbon.apimgt.api.model.Environment;
-import org.wso2.carbon.apimgt.api.model.GatewayTierMapping;
 import org.wso2.carbon.apimgt.api.model.GatewayMode;
 import org.wso2.carbon.apimgt.api.model.GatewayPolicyData;
 import org.wso2.carbon.apimgt.api.model.GatewayPolicyDeployment;
@@ -205,9 +204,7 @@ public class ApiMgtDAO {
 
     private static final Log log = LogFactory.getLog(ApiMgtDAO.class);
     private static final Gson GSON = new Gson();
-    private static final String ENV_CONFIG_TIER_MAPPINGS_KEY = "__wso2_gateway_tier_mappings";
     private static final Type ENV_CONFIG_MAP_TYPE = new TypeToken<Map<String, Object>>() { }.getType();
-    private static final Type ENV_TIER_MAPPINGS_TYPE = new TypeToken<List<GatewayTierMapping>>() { }.getType();
     private static ApiMgtDAO INSTANCE = null;
     private final Object scopeMutex = new Object();
     private boolean forceCaseInsensitiveComparisons = false;
@@ -693,36 +690,6 @@ public class ApiMgtDAO {
             handleException("Failed to add subscriber data ", e);
         }
         return subscriptionId;
-    }
-
-    /**
-     * Returns the subscription UUID for the given API integer ID and application integer ID.
-     *
-     * @param apiId integer API ID
-     * @param applicationId integer application ID
-     * @return subscription UUID, or null if not found
-     * @throws APIManagementException on DAO errors
-     */
-    public String getSubscriptionUuid(int apiId, int applicationId) throws APIManagementException {
-
-        try (Connection conn = APIMgtDBUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(SQLConstants.GET_SUBSCRIPTION_UUID_SQL)) {
-            ps.setInt(1, apiId);
-            ps.setInt(2, applicationId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("UUID");
-                }
-                if (log.isDebugEnabled()) {
-                    log.debug("No subscription found for apiId: " + apiId + " and applicationId: "
-                            + applicationId);
-                }
-            }
-        } catch (SQLException e) {
-            handleException("Error while retrieving subscription UUID for apiId: " + apiId
-                    + " and applicationId: " + applicationId, e);
-        }
-        return null;
     }
 
     public int updateSubscription(ApiTypeWrapper apiTypeWrapper, String inputSubscriptionUUId, String status,
@@ -15980,11 +15947,8 @@ public class ApiMgtDAO {
                         scheduledTime = 0;
                     }
                     Map<String, String> additionalProperties = new HashMap<>();
-                    List<GatewayTierMapping> tierMappings = new ArrayList<>();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        EnvironmentConfiguration envConfig = readEnvironmentConfiguration(configuration, uuid);
-                        additionalProperties = envConfig.getAdditionalProperties();
-                        tierMappings = envConfig.getTierMappings();
+                        additionalProperties = readEnvironmentConfiguration(configuration, uuid);
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -16010,7 +15974,6 @@ public class ApiMgtDAO {
                     env.setVhosts(getVhostGatewayEnvironments(connection, id));
                     env.setPermissions(getGatewayVisibilityPermissions(uuid));
                     env.setAdditionalProperties(additionalProperties);
-                    env.setTierMappings(tierMappings);
                     envList.add(env);
                 }
             }
@@ -16056,11 +16019,8 @@ public class ApiMgtDAO {
                         scheduledTime = 0;
                     }
                     Map<String, String> additionalProperties = new HashMap<>();
-                    List<GatewayTierMapping> tierMappings = new ArrayList<>();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        EnvironmentConfiguration envConfig = readEnvironmentConfiguration(configuration, uuid);
-                        additionalProperties = envConfig.getAdditionalProperties();
-                        tierMappings = envConfig.getTierMappings();
+                        additionalProperties = readEnvironmentConfiguration(configuration, uuid);
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -16079,7 +16039,6 @@ public class ApiMgtDAO {
                     env.setVhosts(getVhostGatewayEnvironments(connection, id));
                     env.setPermissions(getGatewayVisibilityPermissions(uuid));
                     env.setAdditionalProperties(additionalProperties);
-                    env.setTierMappings(tierMappings);
 
                     List<Environment> environments = envMap.computeIfAbsent(organization, k -> new ArrayList<>());
                     environments.add(env);
@@ -16123,11 +16082,8 @@ public class ApiMgtDAO {
                         scheduledTime = 0;
                     }
                     Map<String, String> additionalProperties = new HashMap<>();
-                    List<GatewayTierMapping> tierMappings = new ArrayList<>();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        EnvironmentConfiguration envConfig = readEnvironmentConfiguration(configuration, uuid);
-                        additionalProperties = envConfig.getAdditionalProperties();
-                        tierMappings = envConfig.getTierMappings();
+                        additionalProperties = readEnvironmentConfiguration(configuration, uuid);
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -16149,7 +16105,6 @@ public class ApiMgtDAO {
                     env.setVhosts(getVhostGatewayEnvironments(connection, id));
                     env.setPermissions(getGatewayVisibilityPermissions(uuid));
                     env.setAdditionalProperties(additionalProperties);
-                    env.setTierMappings(tierMappings);
                 }
             }
         } catch (SQLException e) {
@@ -16195,10 +16150,7 @@ public class ApiMgtDAO {
                     }
                     Map<String, String> additionalProperties = new HashMap<>();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        if (configuration != null) {
-                            String configurationContent = IOUtils.toString(configuration);
-                            additionalProperties = new Gson().fromJson(configurationContent, Map.class);
-                        }
+                        additionalProperties = readEnvironmentConfiguration(configuration, uuid);
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -16420,46 +16372,42 @@ public class ApiMgtDAO {
         return vhosts;
     }
 
-    private EnvironmentConfiguration readEnvironmentConfiguration(InputStream configuration, String environmentUuid)
+    private Map<String, String> readEnvironmentConfiguration(InputStream configuration, String environmentUuid)
             throws IOException {
         Map<String, String> additionalProperties = new HashMap<>();
-        List<GatewayTierMapping> tierMappings = new ArrayList<>();
         if (configuration == null) {
-            return new EnvironmentConfiguration(additionalProperties, tierMappings);
+            return additionalProperties;
         }
 
         String configurationContent = APIMgtDBUtil.getStringFromInputStream(configuration);
         if (StringUtils.isBlank(configurationContent)) {
-            return new EnvironmentConfiguration(additionalProperties, tierMappings);
+            return additionalProperties;
         }
 
         try {
             Map<String, Object> parsedMap = GSON.fromJson(configurationContent, ENV_CONFIG_MAP_TYPE);
             if (parsedMap == null) {
-                return new EnvironmentConfiguration(additionalProperties, tierMappings);
+                return additionalProperties;
             }
-
-            Object tierMappingsObject = parsedMap.remove(ENV_CONFIG_TIER_MAPPINGS_KEY);
 
             for (Map.Entry<String, Object> entry : parsedMap.entrySet()) {
-                additionalProperties.put(entry.getKey(), entry.getValue() != null ? entry.getValue().toString() : null);
-            }
-            if (tierMappingsObject != null) {
-                try {
-                    List<GatewayTierMapping> parsedTierMappings = GSON.fromJson(GSON.toJson(tierMappingsObject),
-                            ENV_TIER_MAPPINGS_TYPE);
-                    if (parsedTierMappings != null) {
-                        tierMappings = parsedTierMappings;
-                    }
-                } catch (RuntimeException e) {
-                    log.error("Error while parsing gateway tier mappings in " + environmentUuid, e);
-                }
+                additionalProperties.put(entry.getKey(), environmentConfigurationValueToString(entry.getValue()));
             }
         } catch (RuntimeException e) {
             log.error("Error while converting configurations in " + environmentUuid, e);
         }
 
-        return new EnvironmentConfiguration(additionalProperties, tierMappings);
+        return additionalProperties;
+    }
+
+    private static String environmentConfigurationValueToString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof String) {
+            return (String) value;
+        }
+        return GSON.toJson(value);
     }
 
     private byte[] buildEnvironmentConfiguration(Environment environment) {
@@ -16467,33 +16415,7 @@ public class ApiMgtDAO {
         if (environment.getAdditionalProperties() != null) {
             configurationMap.putAll(environment.getAdditionalProperties());
         }
-
-        List<GatewayTierMapping> tierMappings = environment.getTierMappings();
-        if (tierMappings != null && !tierMappings.isEmpty()) {
-            configurationMap.put(ENV_CONFIG_TIER_MAPPINGS_KEY, tierMappings);
-        } else {
-            configurationMap.remove(ENV_CONFIG_TIER_MAPPINGS_KEY);
-        }
         return GSON.toJson(configurationMap).getBytes(StandardCharsets.UTF_8);
-    }
-
-    private static class EnvironmentConfiguration {
-        private final Map<String, String> additionalProperties;
-        private final List<GatewayTierMapping> tierMappings;
-
-        private EnvironmentConfiguration(Map<String, String> additionalProperties,
-                List<GatewayTierMapping> tierMappings) {
-            this.additionalProperties = additionalProperties;
-            this.tierMappings = tierMappings;
-        }
-
-        private Map<String, String> getAdditionalProperties() {
-            return additionalProperties;
-        }
-
-        private List<GatewayTierMapping> getTierMappings() {
-            return tierMappings;
-        }
     }
 
     /**

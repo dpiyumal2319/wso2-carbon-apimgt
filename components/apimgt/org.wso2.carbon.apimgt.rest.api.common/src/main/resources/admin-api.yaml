@@ -5895,11 +5895,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AdditionalProperty'
-        tierMappings:
-          type: array
-          description: Mappings between local WSO2 subscription tiers and remote gateway plans.
-          items:
-            $ref: '#/components/schemas/GatewayTierMapping'
         permissions:
           type: object
           properties:
@@ -6518,24 +6513,6 @@ components:
         value:
           type: string
           example: wso2
-    GatewayTierMapping:
-      title: Gateway Tier Mapping
-      description: Maps a local WSO2 subscription tier to a plan on the remote external gateway.
-      type: object
-      required:
-        - localTierName
-        - remotePlanReference
-      properties:
-        localTierName:
-          type: string
-          description: Name of the local WSO2 subscription tier (e.g., Unlimited, Gold).
-          example: Unlimited
-        remotePlanReference:
-          type: string
-          description: >
-            Opaque connector-owned reference for the remote gateway plan.
-            The structure is gateway-specific and must not be interpreted by API Manager.
-          example: '{"id":"abc123"}'
     GatewayEnvironmentProtocolURI:
       title: Gateway Environment protocols and URIs
       required:

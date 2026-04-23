@@ -17,12 +17,9 @@
 
 package org.wso2.carbon.apimgt.rest.api.admin.v1.utils.mappings;
 
-import org.apache.commons.lang3.StringUtils;
 import org.wso2.carbon.apimgt.api.APIManagementException;
-import org.wso2.carbon.apimgt.api.ExceptionCodes;
 import org.wso2.carbon.apimgt.api.dto.GatewayVisibilityPermissionConfigurationDTO;
 import org.wso2.carbon.apimgt.api.model.Environment;
-import org.wso2.carbon.apimgt.api.model.GatewayTierMapping;
 import org.wso2.carbon.apimgt.api.model.PlatformGateway;
 import org.wso2.carbon.apimgt.api.model.VHost;
 import org.wso2.carbon.apimgt.impl.dto.PlatformGatewayConnectConfig;
@@ -31,7 +28,6 @@ import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.AdditionalPropertyDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentListDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentPermissionsDTO;
-import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.GatewayTierMappingDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.VHostDTO;
 
 import java.util.ArrayList;
@@ -80,7 +76,6 @@ public class EnvironmentMappingUtil {
                 .collect(Collectors.toList()));
         envDTO.setAdditionalProperties(fromAdditionalPropertiesToAdditionalPropertiesDTO
                 (env.getAdditionalProperties()));
-        envDTO.setTierMappings(fromTierMappingsToTierMappingDTOs(env.getTierMappings()));
         envDTO.setPermissions(mapPermissionsToDTO(env.getPermissions()));
         envDTO.setPlatformGatewayVersions(resolvePlatformGatewayVersions());
         return envDTO;
@@ -254,7 +249,6 @@ public class EnvironmentMappingUtil {
                 .collect(Collectors.toList()));
         env.setAdditionalProperties(fromAdditionalPropertiesDTOToAdditionalProperties
                 (envDTO.getAdditionalProperties()));
-        env.setTierMappings(fromTierMappingDTOsToTierMappings(envDTO.getTierMappings()));
         EnvironmentPermissionsDTO permissions = envDTO.getPermissions();
         if (permissions != null && permissions.getPermissionType() != null) {
             GatewayVisibilityPermissionConfigurationDTO permissionsConfiguration = new GatewayVisibilityPermissionConfigurationDTO();
@@ -307,52 +301,6 @@ public class EnvironmentMappingUtil {
             additionalProperties.putIfAbsent(entry.getKey(),entry.getValue());
         }
         return additionalProperties;
-    }
-
-    /**
-     * Converts a list of GatewayTierMapping model objects to GatewayTierMappingDTOs.
-     */
-    public static List<GatewayTierMappingDTO> fromTierMappingsToTierMappingDTOs(
-            List<GatewayTierMapping> tierMappings) {
-        List<GatewayTierMappingDTO> dtos = new ArrayList<>();
-        if (tierMappings == null) {
-            return dtos;
-        }
-        for (GatewayTierMapping mapping : tierMappings) {
-            GatewayTierMappingDTO dto = new GatewayTierMappingDTO();
-            dto.setLocalTierName(mapping.getLocalTierName());
-            dto.setRemotePlanReference(mapping.getRemotePlanReference());
-            dtos.add(dto);
-        }
-        return dtos;
-    }
-
-    /**
-     * Converts a list of GatewayTierMappingDTOs to GatewayTierMapping model objects.
-     */
-    public static List<GatewayTierMapping> fromTierMappingDTOsToTierMappings(
-            List<GatewayTierMappingDTO> dtos) throws APIManagementException {
-        List<GatewayTierMapping> mappings = new ArrayList<>();
-        if (dtos == null) {
-            return mappings;
-        }
-        for (GatewayTierMappingDTO dto : dtos) {
-            if (StringUtils.isBlank(dto.getLocalTierName())) {
-                throw new APIManagementException("Local tier name is required for gateway tier mapping",
-                        ExceptionCodes.from(ExceptionCodes.INVALID_ENV_API_PROP_CONFIG,
-                                "localTierName is required for each tier mapping"));
-            }
-            if (StringUtils.isBlank(dto.getRemotePlanReference())) {
-                throw new APIManagementException("Remote plan reference is required for gateway tier mapping: "
-                        + dto.getLocalTierName(), ExceptionCodes.from(ExceptionCodes.INVALID_ENV_API_PROP_CONFIG,
-                        "remotePlanReference is required for tier mapping: " + dto.getLocalTierName()));
-            }
-            GatewayTierMapping mapping = new GatewayTierMapping();
-            mapping.setLocalTierName(dto.getLocalTierName());
-            mapping.setRemotePlanReference(dto.getRemotePlanReference());
-            mappings.add(mapping);
-        }
-        return mappings;
     }
 
 }
