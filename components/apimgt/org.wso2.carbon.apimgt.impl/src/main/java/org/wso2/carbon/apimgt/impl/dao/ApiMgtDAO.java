@@ -24218,37 +24218,6 @@ public class ApiMgtDAO {
     }
 
     /**
-     * Get all external API mappings of an API keyed by gateway environment UUID.
-     *
-     * @param apiId UUID of the API
-     * @return Map of gateway environment UUID to reference artifact
-     * @throws APIManagementException if an error occurs while getting the mapping references
-     */
-    public Map<String, String> getApiExternalGatewayMappings(String apiId) throws APIManagementException {
-        Map<String, String> references = new HashMap<>();
-        try (Connection connection = APIMgtDBUtil.getConnection();
-             PreparedStatement statement =
-                     connection.prepareStatement(SQLConstants.GET_EXTERNAL_GATEWAY_MAPPINGS_BY_API_ID_SQL)) {
-            statement.setString(1, apiId);
-
-            try (ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    String reference = "";
-                    try (InputStream referenceArtifactStream = resultSet.getBinaryStream("REFERENCE_ARTIFACT")) {
-                        if (referenceArtifactStream != null) {
-                            reference = IOUtils.toString(referenceArtifactStream, StandardCharsets.UTF_8);
-                        }
-                    }
-                    references.put(resultSet.getString("GATEWAY_ENV_ID"), reference);
-                }
-            }
-        } catch (SQLException | IOException e) {
-            handleException("Failed to fetch API - External API mappings for the API ID: " + apiId, e);
-        }
-        return references;
-    }
-
-    /**
      * Add or update external API-key reference artifact for a local API key and gateway environment.
      *
      * @param apiKeyUuid        UUID of the local API key
@@ -24415,31 +24384,6 @@ public class ApiMgtDAO {
             handleException("Failed to move API key - External API key mappings from API key UUID: "
                     + oldApiKeyUuid + " to API key UUID: " + newApiKeyUuid, e);
         }
-    }
-
-    /**
-     * Get the gateway environment UUID for a federated API from AM_API_EXTERNAL_API_MAPPING.
-     *
-     * @param apiId UUID of the API
-     * @return gateway environment UUID, or null if no mapping found
-     * @throws APIManagementException on DAO errors
-     */
-    public String getGatewayEnvironmentIdForExternalApi(String apiId) throws APIManagementException {
-        String gatewayEnvId = null;
-        try (Connection connection = APIMgtDBUtil.getConnection();
-             PreparedStatement statement =
-                     connection.prepareStatement(SQLConstants.GET_GATEWAY_ENV_ID_FROM_EXTERNAL_MAPPING_SQL)) {
-            statement.setString(1, apiId);
-
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (resultSet.next()) {
-                    gatewayEnvId = resultSet.getString("GATEWAY_ENV_ID");
-                }
-            }
-        } catch (SQLException e) {
-            handleException("Failed to fetch gateway environment ID for external API: " + apiId, e);
-        }
-        return gatewayEnvId;
     }
 
     /**

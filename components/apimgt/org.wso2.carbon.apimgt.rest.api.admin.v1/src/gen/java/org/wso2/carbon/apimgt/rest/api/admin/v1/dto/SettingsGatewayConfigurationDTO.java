@@ -28,6 +28,7 @@ public class SettingsGatewayConfigurationDTO   {
     private List<String> supportedModes = new ArrayList<String>();
     private List<String> supportedApiTypes = new ArrayList<String>();
     private Boolean planMappingSupported = null;
+    private String planMappingIdentifierLabel = null;
     private List<GatewayConfigurationDTO> configurations = new ArrayList<GatewayConfigurationDTO>();
     private String defaultHostnameTemplate = null;
 
@@ -118,6 +119,24 @@ public class SettingsGatewayConfigurationDTO   {
   }
 
   /**
+   * Connector-provided label for manual plan mapping identifier input.
+   **/
+  public SettingsGatewayConfigurationDTO planMappingIdentifierLabel(String planMappingIdentifierLabel) {
+    this.planMappingIdentifierLabel = planMappingIdentifierLabel;
+    return this;
+  }
+
+  
+  @ApiModelProperty(example = "Usage Plan ID", value = "Connector-provided label for manual plan mapping identifier input.")
+  @JsonProperty("planMappingIdentifierLabel")
+  public String getPlanMappingIdentifierLabel() {
+    return planMappingIdentifierLabel;
+  }
+  public void setPlanMappingIdentifierLabel(String planMappingIdentifierLabel) {
+    this.planMappingIdentifierLabel = planMappingIdentifierLabel;
+  }
+
+  /**
    **/
   public SettingsGatewayConfigurationDTO configurations(List<GatewayConfigurationDTO> configurations) {
     this.configurations = configurations;
@@ -167,13 +186,14 @@ public class SettingsGatewayConfigurationDTO   {
         Objects.equals(supportedModes, settingsGatewayConfiguration.supportedModes) &&
         Objects.equals(supportedApiTypes, settingsGatewayConfiguration.supportedApiTypes) &&
         Objects.equals(planMappingSupported, settingsGatewayConfiguration.planMappingSupported) &&
+        Objects.equals(planMappingIdentifierLabel, settingsGatewayConfiguration.planMappingIdentifierLabel) &&
         Objects.equals(configurations, settingsGatewayConfiguration.configurations) &&
         Objects.equals(defaultHostnameTemplate, settingsGatewayConfiguration.defaultHostnameTemplate);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(type, displayName, supportedModes, supportedApiTypes, planMappingSupported, configurations, defaultHostnameTemplate);
+    return Objects.hash(type, displayName, supportedModes, supportedApiTypes, planMappingSupported, planMappingIdentifierLabel, configurations, defaultHostnameTemplate);
   }
 
   @Override
@@ -186,6 +206,7 @@ public class SettingsGatewayConfigurationDTO   {
     sb.append("    supportedModes: ").append(toIndentedString(supportedModes)).append("\n");
     sb.append("    supportedApiTypes: ").append(toIndentedString(supportedApiTypes)).append("\n");
     sb.append("    planMappingSupported: ").append(toIndentedString(planMappingSupported)).append("\n");
+    sb.append("    planMappingIdentifierLabel: ").append(toIndentedString(planMappingIdentifierLabel)).append("\n");
     sb.append("    configurations: ").append(toIndentedString(configurations)).append("\n");
     sb.append("    defaultHostnameTemplate: ").append(toIndentedString(defaultHostnameTemplate)).append("\n");
     sb.append("}");

@@ -204,6 +204,8 @@ public class SettingsMappingUtil {
             settingsFederatedGatewayConfigurationDTO.setSupportedApiTypes(resolveSupportedApiTypes(gatewayConfiguration));
             settingsFederatedGatewayConfigurationDTO.setPlanMappingSupported(
                     resolvePlanMappingSupport(gatewayConfiguration));
+            settingsFederatedGatewayConfigurationDTO.setPlanMappingIdentifierLabel(
+                    resolvePlanMappingIdentifierLabel(gatewayConfiguration));
             List<String> supportedModes = gatewayConfiguration.getSupportedModes();
             List<String> effectiveModes = (supportedModes == null) ? new ArrayList<>() : new ArrayList<>(supportedModes);
             if (effectiveModes.isEmpty()) {
@@ -239,6 +241,7 @@ public class SettingsMappingUtil {
             }
             gateway.setSupportedApiTypes(new ArrayList<>());
             gateway.setPlanMappingSupported(false);
+            gateway.setPlanMappingIdentifierLabel(null);
             if (list.stream().noneMatch(obj -> obj.getType().equals(type))) {
                 list.add(gateway);
             }
@@ -261,6 +264,16 @@ public class SettingsMappingUtil {
 
     private static boolean resolvePlanMappingSupport(GatewayAgentConfiguration gatewayConfiguration) {
         return resolveSubscriptionsCapability(gatewayConfiguration);
+    }
+
+    private static String resolvePlanMappingIdentifierLabel(GatewayAgentConfiguration gatewayConfiguration) {
+        try {
+            return gatewayConfiguration.getPlanMappingIdentifierLabel();
+        } catch (RuntimeException e) {
+            log.warn(String.format("Failed to resolve plan mapping identifier label for gateway '%s'",
+                    gatewayConfiguration.getType()), e);
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")

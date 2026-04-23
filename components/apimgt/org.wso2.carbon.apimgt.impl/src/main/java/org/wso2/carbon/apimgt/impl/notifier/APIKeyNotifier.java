@@ -18,17 +18,9 @@
 
 package org.wso2.carbon.apimgt.impl.notifier;
 
-import org.apache.commons.lang3.StringUtils;
-import org.wso2.carbon.apimgt.api.APIManagementException;
-import org.wso2.carbon.apimgt.api.model.APIKeyInfo;
 import org.wso2.carbon.apimgt.impl.APIConstants;
-import org.wso2.carbon.apimgt.impl.dao.ApiKeyMgtDAO;
-import org.wso2.carbon.apimgt.impl.notifier.events.APIKeyAssociationEvent;
-import org.wso2.carbon.apimgt.impl.notifier.events.APIKeyEvent;
-import org.wso2.carbon.apimgt.impl.notifier.events.APIKeyRegenerationEvent;
 import org.wso2.carbon.apimgt.impl.notifier.events.Event;
 import org.wso2.carbon.apimgt.impl.notifier.exceptions.NotifierException;
-import org.wso2.carbon.apimgt.impl.utils.APIUtil;
 
 /**
  * APIKeyNotifier is responsible for publishing events related to API Keys. Whenever there is a change in the API Key.
@@ -38,9 +30,6 @@ public class APIKeyNotifier extends AbstractNotifier {
 
     @Override
     public boolean publishEvent(Event event) throws NotifierException {
-        if (isFederatedApiKeyEvent(event)) {
-            return true;
-        }
         publishEventToEventHub(event);
         return true;
     }
@@ -49,58 +38,5 @@ public class APIKeyNotifier extends AbstractNotifier {
     public String getType() {
 
         return APIConstants.NotifierType.API_KEY.name();
-    }
-
-    private boolean isFederatedApiKeyEvent(Event event) throws NotifierException {
-
-        try {
-            String apiUuid = resolveApiUuid(event);
-            return StringUtils.isNotBlank(apiUuid) && APIUtil.isFederatedGatewayApi(apiUuid);
-        } catch (APIManagementException e) {
-            throw new NotifierException("Failed to resolve API key event gateway type", e);
-        }
-    }
-
-    private String resolveApiUuid(Event event) throws APIManagementException {
-
-        if (event instanceof APIKeyEvent) {
-            APIKeyEvent apiKeyEvent = (APIKeyEvent) event;
-            String apiUuid = apiKeyEvent.getApiUUId();
-            if (StringUtils.isBlank(apiUuid)) {
-                apiUuid = resolveApiUuidFromKey(apiKeyEvent.getUuid(), apiKeyEvent.getTenantDomain());
-            }
-            return apiUuid;
-        }
-        if (event instanceof APIKeyAssociationEvent) {
-            APIKeyAssociationEvent associationEvent = (APIKeyAssociationEvent) event;
-            String apiUuid = associationEvent.getApiUUId();
-            if (StringUtils.isBlank(apiUuid)) {
-                apiUuid = resolveApiUuidFromKey(associationEvent.getApiKeyUUId(), associationEvent.getTenantDomain());
-            }
-            return apiUuid;
-        }
-        if (event instanceof APIKeyRegenerationEvent) {
-            APIKeyRegenerationEvent regenerationEvent = (APIKeyRegenerationEvent) event;
-            String apiUuid = regenerationEvent.getApiUuid();
-            if (StringUtils.isBlank(apiUuid)) {
-                apiUuid = resolveApiUuidFromKey(regenerationEvent.getNewApiKeyUuid(),
-                        regenerationEvent.getTenantDomain());
-            }
-            if (StringUtils.isBlank(apiUuid)) {
-                apiUuid = resolveApiUuidFromKey(regenerationEvent.getOldApiKeyUuid(),
-                        regenerationEvent.getTenantDomain());
-            }
-            return apiUuid;
-        }
-        return null;
-    }
-
-    private String resolveApiUuidFromKey(String apiKeyUuid, String tenantDomain) throws APIManagementException {
-
-        if (StringUtils.isAnyBlank(apiKeyUuid, tenantDomain)) {
-            return null;
-        }
-        APIKeyInfo apiKeyInfo = ApiKeyMgtDAO.getInstance().getAPIKeyForTenantAnyStatus(apiKeyUuid, tenantDomain);
-        return apiKeyInfo != null ? apiKeyInfo.getApiUUId() : null;
     }
 }

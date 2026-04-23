@@ -78,6 +78,15 @@ public interface GatewayAgentConfiguration {
     List<ConfigurationDto> getConnectionConfigurations();
 
     /**
+     * This method returns a connector-defined label for manual plan mapping identifier input.
+     *
+     * @return plan mapping identifier label, or null when not applicable
+     */
+    default String getPlanMappingIdentifierLabel() {
+        return null;
+    }
+
+    /**
      * This method returns the Gateway Feature Catalog
      *
      * @return String Gateway Feature Catalog

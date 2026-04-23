@@ -33,7 +33,7 @@ public class FederatedApiKeyContext {
     @JsonIgnore
     private final transient String apiKeyValue;
     private final String apiKeyReferenceArtifact;
-    private final String remotePolicyReference;
+    private final String localTierName;
     private final String authzUser;
     private final String applicationUuid;
     private final String organizationId;
@@ -50,7 +50,7 @@ public class FederatedApiKeyContext {
         this.apiKeyName = builder.apiKeyName;
         this.apiKeyValue = builder.apiKeyValue;
         this.apiKeyReferenceArtifact = builder.apiKeyReferenceArtifact;
-        this.remotePolicyReference = builder.remotePolicyReference;
+        this.localTierName = builder.localTierName;
         this.authzUser = builder.authzUser;
         this.applicationUuid = builder.applicationUuid;
         this.organizationId = builder.organizationId;
@@ -98,8 +98,8 @@ public class FederatedApiKeyContext {
         return apiKeyReferenceArtifact;
     }
 
-    public String getRemotePolicyReference() {
-        return remotePolicyReference;
+    public String getLocalTierName() {
+        return localTierName;
     }
 
     public String getAuthzUser() {
@@ -139,7 +139,7 @@ public class FederatedApiKeyContext {
         private String apiKeyName;
         private String apiKeyValue;
         private String apiKeyReferenceArtifact;
-        private String remotePolicyReference;
+        private String localTierName;
         private String authzUser;
         private String applicationUuid;
         private String organizationId;
@@ -190,8 +190,8 @@ public class FederatedApiKeyContext {
             return this;
         }
 
-        public Builder remotePolicyReference(String remotePolicyReference) {
-            this.remotePolicyReference = remotePolicyReference;
+        public Builder localTierName(String localTierName) {
+            this.localTierName = localTierName;
             return this;
         }
 

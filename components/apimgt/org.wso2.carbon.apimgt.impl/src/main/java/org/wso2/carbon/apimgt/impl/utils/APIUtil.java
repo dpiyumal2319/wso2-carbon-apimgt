@@ -8847,7 +8847,7 @@ public final class APIUtil {
      * Get all the external api mapping references of an API
      *
      * @param apiId UUID of the API
-     * @return Map of environmentId and referenceArtifact
+     * @return Map of environment name and reference artifact
      * @throws APIManagementException if an error occurs while getting the mapping references
      */
     public static Map<String, String> getApiExternalApiMappingReferenceByApiId(String apiId)

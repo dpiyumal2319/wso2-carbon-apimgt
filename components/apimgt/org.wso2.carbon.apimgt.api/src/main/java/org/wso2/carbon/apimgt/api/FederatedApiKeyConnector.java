@@ -18,10 +18,9 @@
 
 package org.wso2.carbon.apimgt.api;
 
-import org.wso2.carbon.apimgt.api.model.*;
-
-import java.util.Collections;
-import java.util.List;
+import org.wso2.carbon.apimgt.api.model.Environment;
+import org.wso2.carbon.apimgt.api.model.FederatedApiKeyContext;
+import org.wso2.carbon.apimgt.api.model.FederatedApiKeyCreationResult;
 
 /**
  * Interface for managing API-bound API keys in external gateways.
@@ -73,21 +72,17 @@ public interface FederatedApiKeyConnector {
      * - Azure: Associates subscription with tier
      *
      * @param context API key operation context
-     * @param remotePolicyReference stored remote rate limit policy reference
      * @throws APIManagementException if operation fails
      */
-    void applyRateLimitPolicy(FederatedApiKeyContext context, String remotePolicyReference)
-            throws APIManagementException;
+    void applyRateLimitPolicy(FederatedApiKeyContext context) throws APIManagementException;
 
     /**
      * Removes rate limiting policy from an API key.
      *
      * @param context API key operation context
-     * @param remotePolicyReference stored remote rate limit policy reference
      * @throws APIManagementException if operation fails
      */
-    void removeRateLimitPolicy(FederatedApiKeyContext context, String remotePolicyReference)
-            throws APIManagementException;
+    void removeRateLimitPolicy(FederatedApiKeyContext context) throws APIManagementException;
 
     /**
      * Gets gateway type identifier.
@@ -103,26 +98,5 @@ public interface FederatedApiKeyConnector {
      */
     default boolean isApiKeySupport() {
         return false;
-    }
-
-    /**
-     * Returns whether this gateway supports listing remote plans for onboarding and tier mapping.
-     *
-     * @return true if remote plan listing is supported
-     */
-    default boolean supportsRemotePlanListing() {
-        return false;
-    }
-
-    /**
-     * Lists available rate limiting policies from gateway for environment onboarding and local tier mapping.
-     * Different gateways call these different things (usage plans, consumer groups, subscription tiers, etc.).
-     *
-     * @param environment gateway environment configuration
-     * @return list of rate limit policies
-     * @throws APIManagementException if policy retrieval fails
-     */
-    default List<ExternalSubscriptionPolicy> listRateLimitPolicies(Environment environment) throws APIManagementException {
-        return Collections.emptyList();
     }
 }
