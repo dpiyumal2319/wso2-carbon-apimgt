@@ -609,6 +609,7 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
                             apiKeyInfoDTO.getAuthUser(), apiKeyInfoDTO.getApiKeyProperties(),
                             apiKeyInfoDTO.getCreatedTime(), apiKeyInfoDTO.getValidityPeriod(),
                             apiKeyInfoDTO.getPermittedIP(), apiKeyInfoDTO.getPermittedReferer(), "ACTIVE", "APPLICATION");
+            apiKeyEvent.setApiKey(apiKey);
             apiKeyEvent.setApplicationId(application.getId());
             apiKeyEvent.setApplicationUUId(application.getUUID());
             APIUtil.sendNotification(apiKeyEvent, APIConstants.NotifierType.API_KEY.name());
@@ -671,9 +672,6 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
         Map<String, String> props = new HashMap<>();
         props.put(APIConstants.JwtTokenConstants.PERMITTED_IP, permittedIP != null ? permittedIP : "");
         props.put(APIConstants.JwtTokenConstants.PERMITTED_REFERER, permittedReferer != null ? permittedReferer : "");
-
-        boolean isFederated = APIUtil.isFederatedGatewayApi(api.getUuid());
-
         APIKeyDTO apiKeyInfoDTO =
                 generateAPIKeyInfoDTO(userName, validityPeriod, keyName, keyType, permittedIP, permittedReferer, props);
         apiKeyInfoDTO.setApiId(api.getUuid());
@@ -686,16 +684,13 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
             APIKeyEvent apiKeyEvent =
                     new APIKeyEvent(APIConstants.EventType.API_KEY_CREATE.name(), tenantId, tenantDomain, apiKeyHash,
                             apiKeyInfoDTO.getKeyId(), apiKeyInfoDTO.getKeyName(), apiKeyInfoDTO.getKeyType(),
-                            apiKeyInfoDTO.getAuthUser(),
-                            isFederated ? APIUtil.createFederatedApiKeyEventProperties(apiKey,
-                                    apiKeyInfoDTO.getApiKeyProperties()) :
-                                    apiKeyInfoDTO.getApiKeyProperties(),
+                            apiKeyInfoDTO.getAuthUser(), apiKeyInfoDTO.getApiKeyProperties(),
                             apiKeyInfoDTO.getCreatedTime(), apiKeyInfoDTO.getValidityPeriod(),
                             apiKeyInfoDTO.getPermittedIP(), apiKeyInfoDTO.getPermittedReferer(), "ACTIVE", "API");
+            apiKeyEvent.setApiKey(apiKey);
             apiKeyEvent.setApiUUId(api.getUuid());
             apiKeyEvent.setApiId(api.getId().getId());
-            APIUtil.sendNotification(apiKeyEvent, !isFederated ? APIConstants.NotifierType.API_KEY.name() :
-                    APIConstants.NotifierType.FEDERATED_API_KEY.name());
+            APIUtil.sendNotification(apiKeyEvent, APIConstants.NotifierType.API_KEY.name());
         }
 
         if (broadcastPlatformGatewayCreated) {
@@ -4227,8 +4222,6 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
             throw new APIMgtAuthorizationFailedException(
                     "User is not authorized to revoke the API key for UUID: " + keyUUID);
         }
-        String apiUuid = apiKeyInfo.getApiUUId();
-        boolean isFederated = APIUtil.isFederatedGatewayApi(apiUuid);
         apiKeyMgtDAO.revokeAPIKeyViaUser(keyUUID, username);
 
         if (broadcastPlatformGatewayRevoke) {
@@ -4236,8 +4229,7 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
                     new APIKeyEvent(APIConstants.EventType.API_KEY_DELETE.name(), tenantId, tenantDomain,
                             apiKeyInfo.getApiKeyHash(), apiKeyInfo.getKeyUUID(), apiKeyInfo.getKeyName(),
                             apiKeyInfo.getKeyType());
-            APIUtil.sendNotification(apiKeyEvent, !isFederated ? APIConstants.NotifierType.API_KEY.name() :
-                    APIConstants.NotifierType.FEDERATED_API_KEY.name());
+            APIUtil.sendNotification(apiKeyEvent, APIConstants.NotifierType.API_KEY.name());
         }
 
         if (!broadcastPlatformGatewayRevoke) {
@@ -4575,12 +4567,8 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
     @Override
     public APIKeyInfo regenerateApiApiKey(API api, String keyUUId, String tenantDomain, String organization,
                                           String username) throws APIManagementException {
-        String apiUUId = api != null ? api.getUuid() : null;
-        if (StringUtils.isBlank(apiUUId)) {
-            throw new APIMgtResourceNotFoundException("API UUID is required for API key regeneration");
-        }
         // Load existing metadata before revocation (revocation may remove/alter it)
-        APIKeyInfo apiKeyInfo = apiKeyMgtDAO.getAPIAPIKey(apiUUId, keyUUId, username);
+        APIKeyInfo apiKeyInfo = apiKeyMgtDAO.getAPIAPIKey(api.getUuid(), keyUUId, username);
         if (apiKeyInfo == null || apiKeyInfo.getApiKeyHash() == null) {
             throw new APIMgtResourceNotFoundException("API key not found for UUID: " + keyUUId);
         }
@@ -4651,6 +4639,11 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
                 new APIKeyRegenerationEvent(UUID.randomUUID().toString(), System.currentTimeMillis(),
                         APIConstants.EventType.API_KEY_REGENERATE.name(), tenantId, tenantDomain,
                         apiKeyInfo.getApiKeyHash(), apiKeyDTO.getApikeyHash());
+        apiKeyRegenerationEvent.setOldApiKeyUuid(keyUUId);
+        apiKeyRegenerationEvent.setNewApiKeyUuid(apiKeyDTO.getKeyId());
+        apiKeyRegenerationEvent.setApiUuid(api.getUuid());
+        apiKeyRegenerationEvent.setApplicationUuid(apiKeyInfo.getApplicationId());
+        apiKeyRegenerationEvent.setApiKey(apiKeyDTO.getApiKey());
         APIUtil.sendNotification(apiKeyRegenerationEvent, APIConstants.NotifierType.API_KEY.name());
         APIKeyInfo regeneratedApiKeyInfo = new APIKeyInfo();
         regeneratedApiKeyInfo.setKeyName(apiKeyInfo.getKeyName());
@@ -4687,15 +4680,13 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
             throw new APIMgtAuthorizationFailedException(
                     "User is not authorized to create association of the API key for UUID: " + keyUUId);
         }
-        boolean isFederated = APIUtil.isFederatedGatewayApi(api.getUuid());
         apiKeyMgtDAO.createAssociationToApiKey(keyUUId, application.getUUID());
         APIKeyAssociationEvent apiKeyAssociationEvent =
                 new APIKeyAssociationEvent(APIConstants.EventType.API_KEY_ASSOCIATION_CREATE.name(),
                         apiKeyInfo.getApiKeyHash(), application.getUUID(), api.getUuid(), api.getId().getId(),
                         application.getId(), tenantId, tenantDomain);
         apiKeyAssociationEvent.setApiKeyUUId(keyUUId);
-        APIUtil.sendNotification(apiKeyAssociationEvent, !isFederated ? APIConstants.NotifierType.API_KEY.name() :
-                APIConstants.NotifierType.FEDERATED_API_KEY.name());
+        APIUtil.sendNotification(apiKeyAssociationEvent, APIConstants.NotifierType.API_KEY.name());
         apiKeyInfo.setApplicationName(application.getName());
         return apiKeyInfo;
     }
@@ -4726,14 +4717,14 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
             throw new APIMgtAuthorizationFailedException(
                     "User is not authorized to remove association of the API key for UUID: " + keyUUId);
         }
-        boolean isFederated = APIUtil.isFederatedGatewayApi(apiKeyInfo.getApiUUId());
         apiKeyMgtDAO.removeAssociationOfAPIKeyViaApp(application.getUUID(), keyUUId, tenantDomain);
         APIKeyAssociationEvent apiKeyAssociationEvent =
                 new APIKeyAssociationEvent(APIConstants.EventType.API_KEY_ASSOCIATION_DELETE.name(),
                         apiKeyInfo.getApiKeyHash(), application.getUUID(), application.getId(), tenantId, tenantDomain);
         apiKeyAssociationEvent.setApiKeyUUId(keyUUId);
-        APIUtil.sendNotification(apiKeyAssociationEvent, !isFederated ? APIConstants.NotifierType.API_KEY.name() :
-                APIConstants.NotifierType.FEDERATED_API_KEY.name());
+        apiKeyAssociationEvent.setApiUUId(apiKeyInfo.getApiUUId());
+        APIUtil.sendNotification(apiKeyAssociationEvent, APIConstants.NotifierType.API_KEY.name());
+
     }
 
     /**
@@ -4754,16 +4745,14 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
             throw new APIMgtAuthorizationFailedException(
                     "User is not authorized to remove association of the API key for UUID: " + keyUUId);
         }
-        boolean isFederated = APIUtil.isFederatedGatewayApi(apiUUId);
-
         Application application = getLightweightApplicationByUUID(apiKeyInfo.getApplicationId());
         apiKeyMgtDAO.removeAssociationOfAPIKeyViaApp(application.getUUID(), keyUUId, tenantDomain);
         APIKeyAssociationEvent apiKeyAssociationEvent =
                 new APIKeyAssociationEvent(APIConstants.EventType.API_KEY_ASSOCIATION_DELETE.name(),
                         apiKeyInfo.getApiKeyHash(), application.getUUID(), application.getId(), tenantId, tenantDomain);
         apiKeyAssociationEvent.setApiKeyUUId(keyUUId);
-        APIUtil.sendNotification(apiKeyAssociationEvent, !isFederated ? APIConstants.NotifierType.API_KEY.name() :
-                APIConstants.NotifierType.FEDERATED_API_KEY.name());
+        apiKeyAssociationEvent.setApiUUId(apiUUId);
+        APIUtil.sendNotification(apiKeyAssociationEvent, APIConstants.NotifierType.API_KEY.name());
     }
 
     /**

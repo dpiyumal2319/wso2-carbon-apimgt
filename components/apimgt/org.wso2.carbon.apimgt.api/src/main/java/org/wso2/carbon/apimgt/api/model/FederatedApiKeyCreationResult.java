@@ -24,30 +24,27 @@ import java.util.Map;
 
 /**
  * Result of a federated credential creation operation.
- * Captures the remote credential identifier and optional gateway-specific metadata.
+ * Captures the connector-owned remote credential reference artifact and optional gateway-specific metadata.
  */
 public class FederatedApiKeyCreationResult {
 
-    private final String remoteCredentialId;
+    private final String referenceArtifact;
     private final Map<String, Object> metadata;
 
     private FederatedApiKeyCreationResult(Builder builder) {
-        this.remoteCredentialId = builder.remoteCredentialId;
+        this.referenceArtifact = builder.referenceArtifact;
         this.metadata = builder.metadata != null ? 
             Collections.unmodifiableMap(new HashMap<>(builder.metadata)) : Collections.emptyMap();
     }
 
     /**
-     * Gets the remote credential identifier used for revocation and association operations.
-     * The semantic meaning varies by gateway:
-     * - AWS: API Key ID
-     * - Kong: Consumer ID
-     * - Azure: Subscription ID
+     * Gets the opaque connector-owned reference artifact used for revocation and association operations.
+     * APIM must store and pass this value without parsing gateway-specific fields.
      *
-     * @return remote credential identifier
+     * @return connector-owned reference artifact
      */
-    public String getRemoteCredentialId() {
-        return remoteCredentialId;
+    public String getReferenceArtifact() {
+        return referenceArtifact;
     }
 
     /**
@@ -65,11 +62,11 @@ public class FederatedApiKeyCreationResult {
     }
 
     public static class Builder {
-        private String remoteCredentialId;
+        private String referenceArtifact;
         private Map<String, Object> metadata;
 
-        public Builder remoteCredentialId(String remoteCredentialId) {
-            this.remoteCredentialId = remoteCredentialId;
+        public Builder referenceArtifact(String referenceArtifact) {
+            this.referenceArtifact = referenceArtifact;
             return this;
         }
 
@@ -79,8 +76,8 @@ public class FederatedApiKeyCreationResult {
         }
 
         public FederatedApiKeyCreationResult build() {
-            if (remoteCredentialId == null || remoteCredentialId.trim().isEmpty()) {
-                throw new IllegalStateException("remoteCredentialId must not be blank");
+            if (referenceArtifact == null || referenceArtifact.trim().isEmpty()) {
+                throw new IllegalStateException("referenceArtifact must not be blank");
             }
             return new FederatedApiKeyCreationResult(this);
         }

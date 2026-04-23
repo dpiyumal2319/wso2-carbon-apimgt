@@ -32,7 +32,8 @@ public class FederatedApiKeyContext {
     private final String apiKeyName;
     @JsonIgnore
     private final transient String apiKeyValue;
-    private final String remoteApiKeyId;
+    private final String apiKeyReferenceArtifact;
+    private final String remotePolicyReference;
     private final String authzUser;
     private final String applicationUuid;
     private final String organizationId;
@@ -48,7 +49,8 @@ public class FederatedApiKeyContext {
         this.apiKeyUuid = builder.apiKeyUuid;
         this.apiKeyName = builder.apiKeyName;
         this.apiKeyValue = builder.apiKeyValue;
-        this.remoteApiKeyId = builder.remoteApiKeyId;
+        this.apiKeyReferenceArtifact = builder.apiKeyReferenceArtifact;
+        this.remotePolicyReference = builder.remotePolicyReference;
         this.authzUser = builder.authzUser;
         this.applicationUuid = builder.applicationUuid;
         this.organizationId = builder.organizationId;
@@ -92,8 +94,12 @@ public class FederatedApiKeyContext {
         return apiKeyValue;
     }
 
-    public String getRemoteApiKeyId() {
-        return remoteApiKeyId;
+    public String getApiKeyReferenceArtifact() {
+        return apiKeyReferenceArtifact;
+    }
+
+    public String getRemotePolicyReference() {
+        return remotePolicyReference;
     }
 
     public String getAuthzUser() {
@@ -132,7 +138,8 @@ public class FederatedApiKeyContext {
         private String apiKeyUuid;
         private String apiKeyName;
         private String apiKeyValue;
-        private String remoteApiKeyId;
+        private String apiKeyReferenceArtifact;
+        private String remotePolicyReference;
         private String authzUser;
         private String applicationUuid;
         private String organizationId;
@@ -178,8 +185,13 @@ public class FederatedApiKeyContext {
             return this;
         }
 
-        public Builder remoteApiKeyId(String remoteApiKeyId) {
-            this.remoteApiKeyId = remoteApiKeyId;
+        public Builder apiKeyReferenceArtifact(String apiKeyReferenceArtifact) {
+            this.apiKeyReferenceArtifact = apiKeyReferenceArtifact;
+            return this;
+        }
+
+        public Builder remotePolicyReference(String remotePolicyReference) {
+            this.remotePolicyReference = remotePolicyReference;
             return this;
         }
 

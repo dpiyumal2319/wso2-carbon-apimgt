@@ -3256,8 +3256,7 @@ public final class APIConstants {
         LLM_PROVIDER,
         LABEL,
         TENANT,
-        API_KEY,
-        FEDERATED_API_KEY
+        API_KEY
     }
 
     // Supported Event Types
@@ -3459,7 +3458,6 @@ public final class APIConstants {
         public static final String ASSOCIATION_TYPE = "associationType";
         public static final String KEY_NAME = "keyName";
         public static final String ADDITIONAL_PROPERTIES = "additionalProperties";
-        public static final String FEDERATED_API_KEY_VALUE = "federated.apiKeyValue";
         public static final String APPLICATION_ID = "applicationId";
         public static final String APPLICATION_UUID = "applicationUUId";
         public static final String API_UUID = "apiUUId";

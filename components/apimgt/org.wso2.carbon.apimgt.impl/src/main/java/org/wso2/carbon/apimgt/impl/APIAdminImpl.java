@@ -394,15 +394,13 @@ public class APIAdminImpl implements APIAdmin {
         if (apiKeyInfo == null || StringUtils.isEmpty(apiKeyInfo.getKeyUUID())) {
             throw new APIMgtResourceNotFoundException("Active API key not found for UUID: " + keyUUId);
         }
-        boolean isFederated = APIUtil.isFederatedGatewayApi(apiKeyInfo.getApiUUId());
         if (log.isDebugEnabled()){
             log.debug("Revoking API key with UUID: " + keyUUId + " for tenant: " + tenantDomain);
         }
         apiKeyMgtDAO.revokeAPIKey(keyUUId, tenantDomain);
         APIKeyEvent apiKeyEvent = new APIKeyEvent(APIConstants.EventType.API_KEY_DELETE.name(), tenantId, tenantDomain,
                 apiKeyInfo.getApiKeyHash(),apiKeyInfo.getKeyUUID(), apiKeyInfo.getKeyName(),apiKeyInfo.getKeyType());
-        APIUtil.sendNotification(apiKeyEvent, !isFederated ? APIConstants.NotifierType.API_KEY.name() :
-                APIConstants.NotifierType.FEDERATED_API_KEY.name());
+        APIUtil.sendNotification(apiKeyEvent, APIConstants.NotifierType.API_KEY.name());
     }
 
     /**

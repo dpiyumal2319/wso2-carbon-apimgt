@@ -676,16 +676,6 @@ public final class APIUtil {
 
     }
 
-    public static Map<String, String> createFederatedApiKeyEventProperties(String apiKeyValue,
-                                                                           Map<String, String> existingProperties) {
-        Map<String, String> properties = new HashMap<>();
-        if (existingProperties != null) {
-            properties.putAll(existingProperties);
-        }
-        properties.put(APIConstants.NotificationEvent.FEDERATED_API_KEY_VALUE, apiKeyValue);
-        return properties;
-    }
-
     public static boolean isFederatedGatewayApi(String apiUuid) throws APIManagementException {
         if (StringUtils.isBlank(apiUuid)) {
             if (log.isDebugEnabled()) {

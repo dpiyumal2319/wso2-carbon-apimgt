@@ -41,10 +41,21 @@ public interface FederatedApiKeyConnector {
      * Creates/pushes an API key in the external gateway.
      *
      * @param context API key operation context
-     * @return credential creation result containing remote identifier and metadata
+     * @return credential creation result containing connector-owned reference artifact and metadata
      * @throws APIManagementException if operation fails
      */
     FederatedApiKeyCreationResult createApiKey(FederatedApiKeyContext context) throws APIManagementException;
+
+    /**
+     * Replaces/regenerates an API key in the external gateway.
+     * Implementations may update the existing remote credential in place, or create a new remote credential and migrate
+     * connector-owned associations before deleting the old one.
+     *
+     * @param context API key operation context containing the old connector-owned reference artifact and new key value
+     * @return credential creation result containing the retained or newly created connector-owned reference artifact
+     * @throws APIManagementException if operation fails
+     */
+    FederatedApiKeyCreationResult replaceApiKey(FederatedApiKeyContext context) throws APIManagementException;
 
     /**
      * Revokes/deletes an API key in the external gateway.
