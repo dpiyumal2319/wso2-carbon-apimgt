@@ -24180,36 +24180,6 @@ public class ApiMgtDAO {
     }
 
     /**
-     * Get external API-key reference artifact by local API key and gateway environment.
-     *
-     * @param apiKeyUuid    UUID of the local API key
-     * @param environmentId gateway environment UUID
-     * @return connector-owned opaque reference artifact, or null if not found
-     * @throws APIManagementException if an error occurs while retrieving the mapping
-     */
-    public String getApiKeyExternalApiKeyMappingReference(String apiKeyUuid, String environmentId)
-            throws APIManagementException {
-        try (Connection connection = APIMgtDBUtil.getConnection();
-             PreparedStatement statement =
-                     connection.prepareStatement(SQLConstants.GET_API_KEY_EXTERNAL_API_KEY_MAPPING_SQL)) {
-            statement.setString(1, apiKeyUuid);
-            statement.setString(2, environmentId);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (resultSet.next()) {
-                    try (InputStream referenceArtifactStream = resultSet.getBinaryStream("REFERENCE_ARTIFACT")) {
-                        if (referenceArtifactStream != null) {
-                            return IOUtils.toString(referenceArtifactStream, StandardCharsets.UTF_8);
-                        }
-                    }
-                }
-            }
-        } catch (SQLException | IOException e) {
-            handleException("Failed to fetch API key - External API key mapping for API key UUID: " + apiKeyUuid, e);
-        }
-        return null;
-    }
-
-    /**
      * Get all external API-key reference artifacts keyed by gateway environment UUID for a local API key.
      *
      * @param apiKeyUuid UUID of the local API key
@@ -24240,26 +24210,6 @@ public class ApiMgtDAO {
     }
 
     /**
-     * Delete external API-key reference artifact for a local API key and gateway environment.
-     *
-     * @param apiKeyUuid    UUID of the local API key
-     * @param environmentId gateway environment UUID
-     * @throws APIManagementException if an error occurs while deleting the mapping
-     */
-    public void deleteApiKeyExternalApiKeyMapping(String apiKeyUuid, String environmentId)
-            throws APIManagementException {
-        try (Connection connection = APIMgtDBUtil.getConnection();
-             PreparedStatement statement =
-                     connection.prepareStatement(SQLConstants.DELETE_API_KEY_EXTERNAL_API_KEY_MAPPING_SQL)) {
-            statement.setString(1, apiKeyUuid);
-            statement.setString(2, environmentId);
-            statement.executeUpdate();
-        } catch (SQLException e) {
-            handleException("Failed to delete API key - External API key mapping for API key UUID: " + apiKeyUuid, e);
-        }
-    }
-
-    /**
      * Delete all external API-key reference artifacts for a local API key.
      *
      * @param apiKeyUuid UUID of the local API key
@@ -24273,38 +24223,6 @@ public class ApiMgtDAO {
             statement.executeUpdate();
         } catch (SQLException e) {
             handleException("Failed to delete API key - External API key mappings for API key UUID: " + apiKeyUuid, e);
-        }
-    }
-
-    /**
-     * Move external API-key reference artifacts from one local API key UUID to another during regeneration.
-     *
-     * @param oldApiKeyUuid old local API key UUID
-     * @param newApiKeyUuid new local API key UUID
-     * @throws APIManagementException if an error occurs while moving mappings
-     */
-    public void replaceApiKeyExternalApiKeyMappings(String oldApiKeyUuid, String newApiKeyUuid)
-            throws APIManagementException {
-        try (Connection connection = APIMgtDBUtil.getConnection()) {
-            connection.setAutoCommit(false);
-            try (PreparedStatement deleteStatement =
-                         connection.prepareStatement(SQLConstants.DELETE_API_KEY_EXTERNAL_API_KEY_MAPPINGS_SQL);
-                 PreparedStatement updateStatement =
-                         connection.prepareStatement(SQLConstants.UPDATE_API_KEY_EXTERNAL_API_KEY_MAPPING_KEY_UUID_SQL)) {
-                deleteStatement.setString(1, newApiKeyUuid);
-                deleteStatement.executeUpdate();
-                updateStatement.setString(1, newApiKeyUuid);
-                updateStatement.setString(2, oldApiKeyUuid);
-                updateStatement.executeUpdate();
-                connection.commit();
-            } catch (SQLException e) {
-                connection.rollback();
-                handleException("Failed to move API key - External API key mappings from API key UUID: "
-                        + oldApiKeyUuid + " to API key UUID: " + newApiKeyUuid, e);
-            }
-        } catch (SQLException e) {
-            handleException("Failed to move API key - External API key mappings from API key UUID: "
-                    + oldApiKeyUuid + " to API key UUID: " + newApiKeyUuid, e);
         }
     }
 

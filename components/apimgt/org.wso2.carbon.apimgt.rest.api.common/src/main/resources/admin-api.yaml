@@ -6734,19 +6734,6 @@ components:
                 items:
                   type: string
                   example: 'READ_WRITE'
-              supportedApiTypes:
-                type: array
-                items:
-                  type: string
-                  example: rest
-              planMappingSupported:
-                type: boolean
-                description: Whether plan mapping is supported for this gateway type.
-                example: true
-              planMappingIdentifierLabel:
-                type: string
-                description: Connector-provided label for manual plan mapping identifier input.
-                example: Usage Plan ID
               configurations:
                 type: array
                 items:
@@ -7138,6 +7125,10 @@ components:
         label:
           type: string
           example: Consumer Key
+        labels:
+          type: object
+          additionalProperties:
+            type: string
         type:
           type: string
           example: select

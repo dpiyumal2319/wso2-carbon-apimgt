@@ -891,40 +891,6 @@ public class ApiKeyMgtDAO {
         }
     }
 
-    /**
-     * Updates API key properties after gateway operation.
-     * Used by FederatedApiKeyNotifier to persist remoteCredentialId metadata.
-     *
-     * @param keyUuid    the API key UUID
-     * @param properties updated properties map (including remoteCredentialId)
-     * @throws APIManagementException if database update fails
-     */
-    public void updateApiKeyGatewaySync(String keyUuid, Map<String, String> properties)
-            throws APIManagementException {
-
-        try (Connection conn = APIMgtDBUtil.getConnection()) {
-            conn.setAutoCommit(false);
-            String sqlQuery = SQLConstants.UPDATE_API_KEY_GATEWAY_SYNC_SQL;
-            ObjectMapper mapper = new ObjectMapper();
-            try {
-                byte[] propsBytes = mapper.writeValueAsBytes(properties);
-                try (PreparedStatement ps = conn.prepareStatement(sqlQuery)) {
-                    ps.setBinaryStream(1, new ByteArrayInputStream(propsBytes), propsBytes.length);
-                    ps.setString(2, keyUuid);
-                    int rowsUpdated = ps.executeUpdate();
-                    if (rowsUpdated == 0) {
-                        throw new APIManagementException("API key not found for UUID: " + keyUuid);
-                    }
-                    conn.commit();
-                }
-            } catch (IOException e) {
-                throw new APIManagementException("Failed to serialize API key properties", e);
-            }
-        } catch (SQLException e) {
-            handleException("Failed to update gateway sync properties for API key: " + keyUuid, e);
-        }
-    }
-
     private void handleException(String msg, Throwable t) throws APIManagementException {
 
         log.error(msg, t);

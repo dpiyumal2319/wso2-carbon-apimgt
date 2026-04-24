@@ -240,21 +240,17 @@ public class APIMgtDAOTest {
         String initialReferenceArtifact = "{\"credential\":\"initial\"}";
         String updatedReferenceArtifact = "{\"credential\":\"updated\"}";
         apiMgtDAO.addOrUpdateApiKeyExternalApiKeyMapping(oldApiKeyUuid, gatewayEnvUuid, initialReferenceArtifact);
-        assertEquals(initialReferenceArtifact,
-                apiMgtDAO.getApiKeyExternalApiKeyMappingReference(oldApiKeyUuid, gatewayEnvUuid));
+        Map<String, String> initialMappings = apiMgtDAO.getApiKeyExternalApiKeyMappings(oldApiKeyUuid);
+        assertEquals(1, initialMappings.size());
+        assertEquals(initialReferenceArtifact, initialMappings.get(gatewayEnvUuid));
 
         apiMgtDAO.addOrUpdateApiKeyExternalApiKeyMapping(oldApiKeyUuid, gatewayEnvUuid, updatedReferenceArtifact);
         Map<String, String> mappings = apiMgtDAO.getApiKeyExternalApiKeyMappings(oldApiKeyUuid);
         assertEquals(1, mappings.size());
         assertEquals(updatedReferenceArtifact, mappings.get(gatewayEnvUuid));
 
-        apiMgtDAO.replaceApiKeyExternalApiKeyMappings(oldApiKeyUuid, newApiKeyUuid);
+        apiMgtDAO.deleteApiKeyExternalApiKeyMappings(oldApiKeyUuid);
         assertTrue(apiMgtDAO.getApiKeyExternalApiKeyMappings(oldApiKeyUuid).isEmpty());
-        assertEquals(updatedReferenceArtifact,
-                apiMgtDAO.getApiKeyExternalApiKeyMappingReference(newApiKeyUuid, gatewayEnvUuid));
-
-        apiMgtDAO.deleteApiKeyExternalApiKeyMapping(newApiKeyUuid, gatewayEnvUuid);
-        assertNull(apiMgtDAO.getApiKeyExternalApiKeyMappingReference(newApiKeyUuid, gatewayEnvUuid));
     }
 
     @Test

@@ -17,21 +17,22 @@
 
 package org.wso2.carbon.apimgt.rest.api.admin.v1.utils.mappings;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.apimgt.api.APIDefinition;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.*;
+import org.wso2.carbon.apimgt.api.model.policy.SubscriptionPolicy;
 import org.wso2.carbon.apimgt.impl.APIConstants;
+import org.wso2.carbon.apimgt.impl.dao.ApiMgtDAO;
 import org.wso2.carbon.apimgt.impl.dto.PlatformGatewayConnectConfig;
 import org.wso2.carbon.apimgt.impl.internal.ServiceReferenceHolder;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.*;
 import org.wso2.carbon.apimgt.rest.api.util.utils.RestApiUtil;
 import org.wso2.carbon.apimgt.spec.parser.definitions.OASParserUtil;
+import org.wso2.carbon.context.CarbonContext;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,8 +45,6 @@ import java.util.Set;
 public class SettingsMappingUtil {
 
     private static final Log log = LogFactory.getLog(SettingsMappingUtil.class);
-    private static final String SUBSCRIPTIONS_FEATURE_KEY = "subscriptions";
-
     /**
      * This method feeds data into the settingsDTO
      *
@@ -193,6 +192,7 @@ public class SettingsMappingUtil {
 
     private static List<SettingsGatewayConfigurationDTO> getSettingsGatewayConfigurationDTOList() {
         List<SettingsGatewayConfigurationDTO> list = new ArrayList<>();
+        GatewayConfigurationContext context = buildGatewayConfigurationContext();
         Map<String, GatewayAgentConfiguration> gatewayConfigurations =
                 ServiceReferenceHolder.getInstance().getExternalGatewayConnectorConfigurations();
         gatewayConfigurations.forEach((gatewayName, gatewayConfiguration) -> {
@@ -201,11 +201,6 @@ public class SettingsMappingUtil {
             settingsFederatedGatewayConfigurationDTO.setType(gatewayConfiguration.getType());
             settingsFederatedGatewayConfigurationDTO.setDisplayName(gatewayConfiguration.getType());
             settingsFederatedGatewayConfigurationDTO.setDefaultHostnameTemplate(gatewayConfiguration.getDefaultHostnameTemplate());
-            settingsFederatedGatewayConfigurationDTO.setSupportedApiTypes(resolveSupportedApiTypes(gatewayConfiguration));
-            settingsFederatedGatewayConfigurationDTO.setPlanMappingSupported(
-                    resolvePlanMappingSupport(gatewayConfiguration));
-            settingsFederatedGatewayConfigurationDTO.setPlanMappingIdentifierLabel(
-                    resolvePlanMappingIdentifierLabel(gatewayConfiguration));
             List<String> supportedModes = gatewayConfiguration.getSupportedModes();
             List<String> effectiveModes = (supportedModes == null) ? new ArrayList<>() : new ArrayList<>(supportedModes);
             if (effectiveModes.isEmpty()) {
@@ -215,7 +210,7 @@ public class SettingsMappingUtil {
                 effectiveModes.add(GatewayMode.WRITE_ONLY.getMode());
             }
             settingsFederatedGatewayConfigurationDTO.setSupportedModes(effectiveModes);
-            List<ConfigurationDto> connectionConfigurations = gatewayConfiguration.getConnectionConfigurations();
+            List<ConfigurationDto> connectionConfigurations = gatewayConfiguration.getConnectionConfigurations(context);
             if (connectionConfigurations != null) {
                 for (ConfigurationDto dto : connectionConfigurations) {
                     settingsFederatedGatewayConfigurationDTO.getConfigurations().add(fromConfigurationToConfigurationDTO(dto));
@@ -239,72 +234,11 @@ public class SettingsMappingUtil {
                 }
                 gateway.setSupportedModes(supportedModes);
             }
-            gateway.setSupportedApiTypes(new ArrayList<>());
-            gateway.setPlanMappingSupported(false);
-            gateway.setPlanMappingIdentifierLabel(null);
             if (list.stream().noneMatch(obj -> obj.getType().equals(type))) {
                 list.add(gateway);
             }
         }
         return list;
-    }
-
-    private static List<String> resolveSupportedApiTypes(GatewayAgentConfiguration gatewayConfiguration) {
-        try {
-            GatewayPortalConfiguration featureCatalog = gatewayConfiguration.getGatewayFeatureCatalog();
-            if (featureCatalog != null && featureCatalog.getSupportedAPITypes() != null) {
-                return new ArrayList<>(featureCatalog.getSupportedAPITypes());
-            }
-        } catch (APIManagementException e) {
-            log.warn(String.format("Failed to resolve supported API types for gateway '%s'",
-                    gatewayConfiguration.getType()), e);
-        }
-        return new ArrayList<>();
-    }
-
-    private static boolean resolvePlanMappingSupport(GatewayAgentConfiguration gatewayConfiguration) {
-        return resolveSubscriptionsCapability(gatewayConfiguration);
-    }
-
-    private static String resolvePlanMappingIdentifierLabel(GatewayAgentConfiguration gatewayConfiguration) {
-        try {
-            return gatewayConfiguration.getPlanMappingIdentifierLabel();
-        } catch (RuntimeException e) {
-            log.warn(String.format("Failed to resolve plan mapping identifier label for gateway '%s'",
-                    gatewayConfiguration.getType()), e);
-        }
-        return null;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static boolean resolveSubscriptionsCapability(GatewayAgentConfiguration gatewayConfiguration) {
-        try {
-            GatewayPortalConfiguration featureCatalog = gatewayConfiguration.getGatewayFeatureCatalog();
-            if (featureCatalog == null || featureCatalog.getSupportedFeatures() == null) {
-                return false;
-            }
-
-            Object supportedFeatures = featureCatalog.getSupportedFeatures();
-            Map<String, Object> supportedFeaturesMap = null;
-            if (supportedFeatures instanceof JsonObject) {
-                supportedFeaturesMap = new Gson().fromJson((JsonObject) supportedFeatures, Map.class);
-            } else if (supportedFeatures instanceof Map) {
-                supportedFeaturesMap = (Map<String, Object>) supportedFeatures;
-            }
-
-            if (supportedFeaturesMap == null) {
-                return false;
-            }
-            Object subscriptions = supportedFeaturesMap.get(SUBSCRIPTIONS_FEATURE_KEY);
-            if (!(subscriptions instanceof List)) {
-                return false;
-            }
-            return ((List<?>) subscriptions).contains(SUBSCRIPTIONS_FEATURE_KEY);
-        } catch (APIManagementException | RuntimeException e) {
-            log.warn(String.format("Failed to resolve subscriptions capability for gateway '%s'",
-                    gatewayConfiguration.getType()), e);
-            return false;
-        }
     }
 
     private static GatewayConfigurationDTO fromConfigurationToConfigurationDTO(ConfigurationDto configuration) {
@@ -317,8 +251,28 @@ public class SettingsMappingUtil {
         dto.setMultiple(configuration.isMultiple());
         dto.setTooltip(configuration.getTooltip());
         dto.setDefault(configuration.getDefaultValue());
+        dto.setLabels(configuration.getLabels());
         dto.setValues(configuration.getValues());
         return dto;
+    }
+
+    private static GatewayConfigurationContext buildGatewayConfigurationContext() {
+        String tenantDomain = CarbonContext.getThreadLocalCarbonContext().getTenantDomain();
+        if (tenantDomain == null) {
+            return new GatewayConfigurationContext(new ArrayList<>());
+        }
+        try {
+            int tenantId = APIUtil.getTenantIdFromTenantDomain(tenantDomain);
+            SubscriptionPolicy[] policies = ApiMgtDAO.getInstance().getSubscriptionPolicies(tenantId);
+            List<SubscriptionPolicy> policyList = new ArrayList<>();
+            if (policies != null) {
+                policyList.addAll(Arrays.asList(policies));
+            }
+            return new GatewayConfigurationContext(policyList);
+        } catch (APIManagementException e) {
+            log.warn("Failed to load subscription policies for gateway configuration context", e);
+            return new GatewayConfigurationContext(new ArrayList<>());
+        }
     }
 
     public List<String> GetRoleScopeList(String[] userRoles, Map<String, String> scopeRoleMapping) {

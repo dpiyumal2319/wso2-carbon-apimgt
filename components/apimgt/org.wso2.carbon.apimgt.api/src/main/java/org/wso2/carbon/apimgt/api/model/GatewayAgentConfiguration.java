@@ -78,12 +78,13 @@ public interface GatewayAgentConfiguration {
     List<ConfigurationDto> getConnectionConfigurations();
 
     /**
-     * This method returns a connector-defined label for manual plan mapping identifier input.
+     * This method returns the Configurations related to external gateway with WSO2-local context when needed.
      *
-     * @return plan mapping identifier label, or null when not applicable
+     * @param context WSO2-local context for connector configuration generation
+     * @return List<ConfigurationDto> connectionConfigurations
      */
-    default String getPlanMappingIdentifierLabel() {
-        return null;
+    default List<ConfigurationDto> getConnectionConfigurations(GatewayConfigurationContext context) {
+        return getConnectionConfigurations();
     }
 
     /**

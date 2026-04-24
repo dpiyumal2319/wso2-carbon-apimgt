@@ -29,6 +29,7 @@ import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.FederatedApiKeyContext;
 import org.wso2.carbon.apimgt.api.model.FederatedApiKeyCreationResult;
 import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
+import org.wso2.carbon.apimgt.api.model.policy.SubscriptionPolicy;
 import org.wso2.carbon.apimgt.impl.APIConstants;
 import org.wso2.carbon.apimgt.impl.dao.ApiKeyMgtDAO;
 import org.wso2.carbon.apimgt.impl.dao.ApiMgtDAO;
@@ -281,7 +282,7 @@ public class FederatedApiKeyNotifier implements Notifier {
         String apiUuid = resolveApiUuid(event, keyInfo);
         String applicationUuid = resolveApplicationUuid(event, keyInfo);
         String organization = resolveOrganization(apiUuid);
-        String localTierName = resolveSubscriptionTierName(applicationUuid, apiUuid);
+        String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid);
         Map<String, String> apiKeyReferenceArtifacts =
                 getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getApiKeyUUId());
         if (apiKeyReferenceArtifacts.isEmpty()) {
@@ -307,7 +308,7 @@ public class FederatedApiKeyNotifier implements Notifier {
             FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment.getEnvironment());
             FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getApiKeyUUId(),
                     keyInfo.getKeyName(), null, apiKeyReferenceArtifact, keyInfo.getAuthUser(), applicationUuid,
-                    organization, gatewayEnvironment, null, null, null, localTierName);
+                    organization, gatewayEnvironment, null, null, null, localPolicyId);
             connector.applyRateLimitPolicy(context);
         }
 
@@ -323,7 +324,7 @@ public class FederatedApiKeyNotifier implements Notifier {
         String apiUuid = resolveApiUuid(event, keyInfo);
         String applicationUuid = resolveApplicationUuid(event, keyInfo);
         String organization = resolveOrganization(apiUuid);
-        String localTierName = resolveSubscriptionTierName(applicationUuid, apiUuid);
+        String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid);
         Map<String, String> apiKeyReferenceArtifacts =
                 getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getApiKeyUUId());
         if (apiKeyReferenceArtifacts.isEmpty()) {
@@ -350,7 +351,7 @@ public class FederatedApiKeyNotifier implements Notifier {
             FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment.getEnvironment());
             FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getApiKeyUUId(),
                     keyInfo.getKeyName(), null, apiKeyReferenceArtifact, keyInfo.getAuthUser(), applicationUuid,
-                    organization, gatewayEnvironment, null, null, null, localTierName);
+                    organization, gatewayEnvironment, null, null, null, localPolicyId);
             connector.removeRateLimitPolicy(context);
         }
 
@@ -423,8 +424,8 @@ public class FederatedApiKeyNotifier implements Notifier {
                 resolveGatewayEnvironments(apiUuid, organization, apiKeyReferenceArtifacts.keySet(),
                         currentGatewayMappings);
         Map<String, String> replacementReferenceArtifacts = new LinkedHashMap<>();
-        String localTierName = StringUtils.isNotBlank(applicationUuid) ?
-                resolveSubscriptionTierName(applicationUuid, apiUuid) : null;
+        String localPolicyId = StringUtils.isNotBlank(applicationUuid) ?
+                resolveSubscriptionPolicyId(applicationUuid, apiUuid) : null;
         for (GatewayEnvironmentContext gatewayEnvironment : gatewayEnvironments) {
             String apiKeyReferenceArtifact = apiKeyReferenceArtifacts.get(gatewayEnvironment.getEnvironmentId());
             if (StringUtils.isBlank(apiKeyReferenceArtifact)) {
@@ -440,7 +441,7 @@ public class FederatedApiKeyNotifier implements Notifier {
                     resolveApiKeyName(newKeyInfo, oldKeyInfo), event.getApiKey(), apiKeyReferenceArtifact,
                     resolveAuthUser(newKeyInfo, oldKeyInfo), applicationUuid, organization, gatewayEnvironment,
                     resolveValidityPeriod(newKeyInfo, oldKeyInfo), resolvePermittedIP(newKeyInfo, oldKeyInfo),
-                    resolvePermittedReferer(newKeyInfo, oldKeyInfo), localTierName);
+                    resolvePermittedReferer(newKeyInfo, oldKeyInfo), localPolicyId);
             FederatedApiKeyCreationResult result = connector.replaceApiKey(context);
             if (result == null || StringUtils.isBlank(result.getReferenceArtifact())) {
                 throw new APIManagementException("Federated API key replacement did not return a reference artifact "
@@ -536,7 +537,7 @@ public class FederatedApiKeyNotifier implements Notifier {
                                                                String organization, GatewayEnvironmentContext env,
                                                                Long validityPeriod, String permittedIP,
                                                                String permittedReferer,
-                                                               String localTierName) {
+                                                               String localPolicyId) {
         return FederatedApiKeyContext.builder()
                 .apiUuid(apiUuid)
                 .apiName(null)
@@ -545,7 +546,7 @@ public class FederatedApiKeyNotifier implements Notifier {
                 .apiKeyName(apiKeyName)
                 .apiKeyValue(apiKeyValue)
                 .apiKeyReferenceArtifact(apiKeyReferenceArtifact)
-                .localTierName(localTierName)
+                .localPolicyId(localPolicyId)
                 .authzUser(authzUser)
                 .applicationUuid(applicationUuid)
                 .organizationId(organization)
@@ -720,9 +721,9 @@ public class FederatedApiKeyNotifier implements Notifier {
     }
 
     /**
-     * Resolves the active local subscription tier for the application and API pair.
+     * Resolves the active local subscription policy UUID for the application and API pair.
      */
-    private String resolveSubscriptionTierName(String applicationUuid, String apiUuid) throws APIManagementException {
+    private String resolveSubscriptionPolicyId(String applicationUuid, String apiUuid) throws APIManagementException {
         if (StringUtils.isBlank(applicationUuid)) {
             throw new APIManagementException("Application UUID is required for federated API key association");
         }
@@ -740,12 +741,27 @@ public class FederatedApiKeyNotifier implements Notifier {
                         + apiUuid);
             }
             if (subscribedAPI.getTier() == null || StringUtils.isBlank(subscribedAPI.getTier().getName())) {
-                throw new APIManagementException("Subscription tier is required for federated external tier mapping");
+                throw new APIManagementException("Subscription tier is required for federated external plan mapping");
             }
-            return subscribedAPI.getTier().getName();
+            return resolveSubscriptionPolicyId(application, subscribedAPI.getTier().getName());
         }
         throw new APIManagementException("No active subscription found for application " + applicationUuid
                 + " and API " + apiUuid);
+    }
+
+    private String resolveSubscriptionPolicyId(Application application, String policyName)
+            throws APIManagementException {
+
+        int tenantId = application.getSubscriber() != null && application.getSubscriber().getTenantId() > 0
+                ? application.getSubscriber().getTenantId()
+                : APIUtil.getTenantId(application.getSubscriber() != null ? application.getSubscriber().getName() : null);
+        SubscriptionPolicy[] subscriptionPolicies =
+                getApiMgtDAO().getSubscriptionPolicies(new String[] { policyName }, tenantId);
+        if (subscriptionPolicies == null || subscriptionPolicies.length == 0
+                || StringUtils.isBlank(subscriptionPolicies[0].getUUID())) {
+            throw new APIManagementException("Subscription policy UUID not found for tier: " + policyName);
+        }
+        return subscriptionPolicies[0].getUUID();
     }
 
     /**

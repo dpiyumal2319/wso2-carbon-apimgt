@@ -26,9 +26,6 @@ public class SettingsGatewayConfigurationDTO   {
     private String type = null;
     private String displayName = null;
     private List<String> supportedModes = new ArrayList<String>();
-    private List<String> supportedApiTypes = new ArrayList<String>();
-    private Boolean planMappingSupported = null;
-    private String planMappingIdentifierLabel = null;
     private List<GatewayConfigurationDTO> configurations = new ArrayList<GatewayConfigurationDTO>();
     private String defaultHostnameTemplate = null;
 
@@ -85,59 +82,6 @@ public class SettingsGatewayConfigurationDTO   {
 
   /**
    **/
-  public SettingsGatewayConfigurationDTO supportedApiTypes(List<String> supportedApiTypes) {
-    this.supportedApiTypes = supportedApiTypes;
-    return this;
-  }
-
-  
-  @ApiModelProperty(value = "")
-  @JsonProperty("supportedApiTypes")
-  public List<String> getSupportedApiTypes() {
-    return supportedApiTypes;
-  }
-  public void setSupportedApiTypes(List<String> supportedApiTypes) {
-    this.supportedApiTypes = supportedApiTypes;
-  }
-
-  /**
-   * Whether plan mapping is supported for this gateway type.
-   **/
-  public SettingsGatewayConfigurationDTO planMappingSupported(Boolean planMappingSupported) {
-    this.planMappingSupported = planMappingSupported;
-    return this;
-  }
-
-  
-  @ApiModelProperty(example = "true", value = "Whether plan mapping is supported for this gateway type.")
-  @JsonProperty("planMappingSupported")
-  public Boolean isPlanMappingSupported() {
-    return planMappingSupported;
-  }
-  public void setPlanMappingSupported(Boolean planMappingSupported) {
-    this.planMappingSupported = planMappingSupported;
-  }
-
-  /**
-   * Connector-provided label for manual plan mapping identifier input.
-   **/
-  public SettingsGatewayConfigurationDTO planMappingIdentifierLabel(String planMappingIdentifierLabel) {
-    this.planMappingIdentifierLabel = planMappingIdentifierLabel;
-    return this;
-  }
-
-  
-  @ApiModelProperty(example = "Usage Plan ID", value = "Connector-provided label for manual plan mapping identifier input.")
-  @JsonProperty("planMappingIdentifierLabel")
-  public String getPlanMappingIdentifierLabel() {
-    return planMappingIdentifierLabel;
-  }
-  public void setPlanMappingIdentifierLabel(String planMappingIdentifierLabel) {
-    this.planMappingIdentifierLabel = planMappingIdentifierLabel;
-  }
-
-  /**
-   **/
   public SettingsGatewayConfigurationDTO configurations(List<GatewayConfigurationDTO> configurations) {
     this.configurations = configurations;
     return this;
@@ -184,16 +128,13 @@ public class SettingsGatewayConfigurationDTO   {
     return Objects.equals(type, settingsGatewayConfiguration.type) &&
         Objects.equals(displayName, settingsGatewayConfiguration.displayName) &&
         Objects.equals(supportedModes, settingsGatewayConfiguration.supportedModes) &&
-        Objects.equals(supportedApiTypes, settingsGatewayConfiguration.supportedApiTypes) &&
-        Objects.equals(planMappingSupported, settingsGatewayConfiguration.planMappingSupported) &&
-        Objects.equals(planMappingIdentifierLabel, settingsGatewayConfiguration.planMappingIdentifierLabel) &&
         Objects.equals(configurations, settingsGatewayConfiguration.configurations) &&
         Objects.equals(defaultHostnameTemplate, settingsGatewayConfiguration.defaultHostnameTemplate);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(type, displayName, supportedModes, supportedApiTypes, planMappingSupported, planMappingIdentifierLabel, configurations, defaultHostnameTemplate);
+    return Objects.hash(type, displayName, supportedModes, configurations, defaultHostnameTemplate);
   }
 
   @Override
@@ -204,9 +145,6 @@ public class SettingsGatewayConfigurationDTO   {
     sb.append("    type: ").append(toIndentedString(type)).append("\n");
     sb.append("    displayName: ").append(toIndentedString(displayName)).append("\n");
     sb.append("    supportedModes: ").append(toIndentedString(supportedModes)).append("\n");
-    sb.append("    supportedApiTypes: ").append(toIndentedString(supportedApiTypes)).append("\n");
-    sb.append("    planMappingSupported: ").append(toIndentedString(planMappingSupported)).append("\n");
-    sb.append("    planMappingIdentifierLabel: ").append(toIndentedString(planMappingIdentifierLabel)).append("\n");
     sb.append("    configurations: ").append(toIndentedString(configurations)).append("\n");
     sb.append("    defaultHostnameTemplate: ").append(toIndentedString(defaultHostnameTemplate)).append("\n");
     sb.append("}");
@@ -224,4 +162,3 @@ public class SettingsGatewayConfigurationDTO   {
     return o.toString().replace("\n", "\n    ");
   }
 }
-
