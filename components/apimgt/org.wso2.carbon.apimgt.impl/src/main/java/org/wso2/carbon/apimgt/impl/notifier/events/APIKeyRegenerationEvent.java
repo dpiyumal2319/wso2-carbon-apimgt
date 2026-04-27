@@ -18,8 +18,6 @@
 
 package org.wso2.carbon.apimgt.impl.notifier.events;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 /**
  * An Event Object which can holds the data related to API Key regeneration which are required
  * for the validation purpose in a gateway.
@@ -31,7 +29,6 @@ public class APIKeyRegenerationEvent extends Event {
     private String newApiKeyUuid;
     private String apiUuid;
     private String applicationUuid;
-    @JsonIgnore
     private transient String apiKey;
 
     public APIKeyRegenerationEvent(String eventId, long timeStamp, String type, int tenantId, String tenantDomain,

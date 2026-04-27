@@ -88,6 +88,15 @@ public interface GatewayAgentConfiguration {
     }
 
     /**
+     * Validate the external gateway environment configuration before persisting it.
+     *
+     * @param environment external gateway environment with plain text connector configurations
+     * @throws APIManagementException if the environment cannot be validated
+     */
+    default void validateEnvironment(Environment environment) throws APIManagementException {
+    }
+
+    /**
      * This method returns the Gateway Feature Catalog
      *
      * @return String Gateway Feature Catalog

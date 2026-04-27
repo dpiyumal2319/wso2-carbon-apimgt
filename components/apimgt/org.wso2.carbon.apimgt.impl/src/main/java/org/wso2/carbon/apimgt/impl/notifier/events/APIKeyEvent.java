@@ -18,8 +18,6 @@
 
 package org.wso2.carbon.apimgt.impl.notifier.events;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import java.util.Map;
 import java.util.UUID;
 
@@ -169,7 +167,6 @@ public class APIKeyEvent extends Event {
     private String name;
     private String keyType;
     private String user;
-    @JsonIgnore
     private transient String apiKey;
     private Map properties;
     private long timeCreated;
