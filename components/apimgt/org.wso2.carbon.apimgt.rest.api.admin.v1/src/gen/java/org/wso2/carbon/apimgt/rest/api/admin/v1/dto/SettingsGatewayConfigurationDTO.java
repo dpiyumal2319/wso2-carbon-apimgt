@@ -162,3 +162,4 @@ public class SettingsGatewayConfigurationDTO   {
     return o.toString().replace("\n", "\n    ");
   }
 }
+

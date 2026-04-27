@@ -450,54 +450,6 @@ public class ApiKeyMgtDAO {
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         keyInfo.setKeyUUID(rs.getString("API_KEY_UUID"));
-                        keyInfo.setApiUUId(rs.getString("API_UUID"));
-                        keyInfo.setKeyName(rs.getString("NAME"));
-                        keyInfo.setApiKeyHash(rs.getString("API_KEY_HASH"));
-                        keyInfo.setKeyType(rs.getString("KEY_TYPE"));
-                        keyInfo.setValidityPeriod(rs.getLong("VALIDITY_PERIOD"));
-                        Timestamp lastUsedTime = rs.getTimestamp("LAST_USED",
-                                Calendar.getInstance(TimeZone.getTimeZone(APIConstants.UTC_TIME_ZONE)));
-                        keyInfo.setLastUsedTime(lastUsedTime != null ? lastUsedTime.getTime() : null);
-                        keyInfo.setAuthUser(rs.getString("AUTHZ_USER"));
-                        try (InputStream apiKeyProperties = rs.getBinaryStream("API_KEY_PROPERTIES")) {
-                            if (apiKeyProperties != null) {
-                                ObjectMapper mapper = new ObjectMapper();
-                                Map<String, String> propertiesMap = mapper.readValue(apiKeyProperties, Map.class);
-                                keyInfo.setProperties(propertiesMap);
-                            }
-                        } catch (IOException e) {
-                            handleException("Failed to convert apiKeyProperties", e);
-                        }
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            handleException("Failed to get the API key details for " + keyUUId, e);
-        }
-        return keyInfo;
-    }
-
-    /**
-     * Returns the api key specified by the key UUID for a tenant regardless of status.
-     *
-     * @param keyUUId API key UUID
-     * @param tenantDomain Tenant domain
-     * @return API key info
-     * @throws APIManagementException if lookup fails
-     */
-    public APIKeyInfo getAPIKeyForTenantAnyStatus(String keyUUId, String tenantDomain) throws APIManagementException {
-
-        APIKeyInfo keyInfo = new APIKeyInfo();
-        try (Connection conn = APIMgtDBUtil.getConnection()) {
-            String sqlQuery = SQLConstants.GET_API_KEY_DETAILS_FROM_KEY_UUID_ANY_STATUS_SQL;
-            try (PreparedStatement ps = conn.prepareStatement(sqlQuery)) {
-                ps.setString(1, keyUUId);
-                ps.setString(2, tenantDomain);
-                ps.setString(3, tenantDomain);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        keyInfo.setKeyUUID(rs.getString("API_KEY_UUID"));
-                        keyInfo.setApiUUId(rs.getString("API_UUID"));
                         keyInfo.setKeyName(rs.getString("NAME"));
                         keyInfo.setApiKeyHash(rs.getString("API_KEY_HASH"));
                         keyInfo.setKeyType(rs.getString("KEY_TYPE"));
@@ -545,7 +497,6 @@ public class ApiKeyMgtDAO {
                         keyInfo.setKeyUUID(rs.getString("API_KEY_UUID"));
                         keyInfo.setKeyName(rs.getString("NAME"));
                         keyInfo.setApiKeyHash(rs.getString("API_KEY_HASH"));
-                        keyInfo.setApiUUId(rs.getString("API_UUID"));
                         keyInfo.setKeyType(rs.getString("KEY_TYPE"));
                         keyInfo.setValidityPeriod(rs.getLong("VALIDITY_PERIOD"));
                         Timestamp lastUsedTime = rs.getTimestamp("LAST_USED",
@@ -651,16 +602,6 @@ public class ApiKeyMgtDAO {
                         apiKeyInfo.setKeyType(rs.getString("KEY_TYPE"));
                         apiKeyInfo.setKeyName(rs.getString("NAME"));
                         apiKeyInfo.setApiKeyHash(rs.getString("API_KEY_HASH"));
-                        try (InputStream apiKeyProperties = rs.getBinaryStream("API_KEY_PROPERTIES")) {
-                            if (apiKeyProperties != null) {
-                                ObjectMapper mapper = new ObjectMapper();
-                                Map<String, String> propertiesMap = mapper.readValue(apiKeyProperties,
-                                        Map.class);
-                                apiKeyInfo.setProperties(propertiesMap);
-                            }
-                        } catch (IOException e) {
-                            handleException("Failed to convert apiKeyProperties", e);
-                        }
                         apiKeyInfo.setAppId(rs.getInt("APPLICATION_ID"));
                     }
                 }
@@ -815,16 +756,6 @@ public class ApiKeyMgtDAO {
                         apiKeyInfo.setKeyType(rs.getString("KEY_TYPE"));
                         apiKeyInfo.setApiKeyHash(rs.getString("API_KEY_HASH"));
                         apiKeyInfo.setAuthUser(rs.getString("AUTHZ_USER"));
-                        try (InputStream apiKeyProperties = rs.getBinaryStream("API_KEY_PROPERTIES")) {
-                            if (apiKeyProperties != null) {
-                                ObjectMapper mapper = new ObjectMapper();
-                                Map<String, String> propertiesMap = mapper.readValue(apiKeyProperties,
-                                        Map.class);
-                                apiKeyInfo.setProperties(propertiesMap);
-                            }
-                        } catch (IOException e) {
-                            handleException("Failed to convert apiKeyProperties", e);
-                        }
                     }
                 }
             }

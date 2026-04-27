@@ -31,10 +31,9 @@ public interface FederatedApiKeyConnector {
      * Initializes the API key agent.
      *
      * @param environment gateway environment configuration
-     * @param organization organization identifier
      * @throws APIManagementException if initialization fails
      */
-    void init(Environment environment, String organization) throws APIManagementException;
+    void init(Environment environment) throws APIManagementException;
 
     /**
      * Creates/pushes an API key in the external gateway.

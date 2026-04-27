@@ -5895,6 +5895,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AdditionalProperty'
+        planMappings:
+          type: array
+          description: Gateway-specific plan mappings for subscription policy enforcement.
+          items:
+            $ref: '#/components/schemas/PlanMapping'
         permissions:
           type: object
           properties:
@@ -6513,6 +6518,16 @@ components:
         value:
           type: string
           example: wso2
+    PlanMapping:
+      title: Gateway Plan Mapping
+      type: object
+      properties:
+        localPolicyId:
+          type: string
+          example: 78c85595-bbe0-4802-9c9d-46c8dd72d731
+        remotePlanReference:
+          type: string
+          example: 4msf4m
     GatewayEnvironmentProtocolURI:
       title: Gateway Environment protocols and URIs
       required:

@@ -28,6 +28,7 @@ import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.AdditionalPropertyDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentListDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentPermissionsDTO;
+import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.PlanMappingDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.VHostDTO;
 
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ import java.util.stream.Collectors;
  * This class manage Environment mapping to EnvironmentDTO
  */
 public class EnvironmentMappingUtil {
+    private static final String PLAN_MAPPING_PROPERTY_PREFIX = "plan_mapping.";
 
     /**
      * Convert list of Environment to EnvironmentListDTO
@@ -76,6 +78,7 @@ public class EnvironmentMappingUtil {
                 .collect(Collectors.toList()));
         envDTO.setAdditionalProperties(fromAdditionalPropertiesToAdditionalPropertiesDTO
                 (env.getAdditionalProperties()));
+        envDTO.setPlanMappings(fromAdditionalPropertiesToPlanMappingsDTO(env.getAdditionalProperties()));
         envDTO.setPermissions(mapPermissionsToDTO(env.getPermissions()));
         envDTO.setPlatformGatewayVersions(resolvePlatformGatewayVersions());
         return envDTO;
@@ -182,6 +185,9 @@ public class EnvironmentMappingUtil {
                                                                                                         additionalProperties) {
         List<AdditionalPropertyDTO> additionalPropertyDTOList = new ArrayList<>();
         for (Map.Entry<String, String> entry : additionalProperties.entrySet()) {
+            if (entry.getKey() != null && entry.getKey().startsWith(PLAN_MAPPING_PROPERTY_PREFIX)) {
+                continue;
+            }
             AdditionalPropertyDTO additionalPropertyDTO = new AdditionalPropertyDTO();
             additionalPropertyDTO.setKey(entry.getKey());
             additionalPropertyDTO.setValue(entry.getValue());
@@ -189,6 +195,33 @@ public class EnvironmentMappingUtil {
         }
         return additionalPropertyDTOList;
     }
+
+    /**
+     * Converts the internal flat plan mapping properties into the public REST API field.
+     *
+     * @param additionalProperties Environment additional properties
+     * @return list of PlanMappingDTOs
+     */
+    public static List<PlanMappingDTO> fromAdditionalPropertiesToPlanMappingsDTO(Map<String, String>
+                                                                                         additionalProperties) {
+        List<PlanMappingDTO> planMappings = new ArrayList<>();
+        for (Map.Entry<String, String> entry : additionalProperties.entrySet()) {
+            String key = entry.getKey();
+            if (key == null || !key.startsWith(PLAN_MAPPING_PROPERTY_PREFIX)) {
+                continue;
+            }
+            String localPolicyId = key.substring(PLAN_MAPPING_PROPERTY_PREFIX.length());
+            if (localPolicyId.isEmpty()) {
+                continue;
+            }
+            PlanMappingDTO planMappingDTO = new PlanMappingDTO();
+            planMappingDTO.setLocalPolicyId(localPolicyId);
+            planMappingDTO.setRemotePlanReference(entry.getValue());
+            planMappings.add(planMappingDTO);
+        }
+        return planMappings;
+    }
+
     /**
      * Convert VHost to VHostDTO
      *
@@ -247,8 +280,10 @@ public class EnvironmentMappingUtil {
         env.setApiDiscoveryScheduledWindow(envDTO.getApiDiscoveryScheduledWindow());
         env.setVhosts(envDTO.getVhosts().stream().map(EnvironmentMappingUtil::fromVHostDtoToVHost)
                 .collect(Collectors.toList()));
-        env.setAdditionalProperties(fromAdditionalPropertiesDTOToAdditionalProperties
-                (envDTO.getAdditionalProperties()));
+        Map<String, String> additionalProperties = fromAdditionalPropertiesDTOToAdditionalProperties(
+                envDTO.getAdditionalProperties());
+        addPlanMappingsToAdditionalProperties(envDTO.getPlanMappings(), additionalProperties);
+        env.setAdditionalProperties(additionalProperties);
         EnvironmentPermissionsDTO permissions = envDTO.getPermissions();
         if (permissions != null && permissions.getPermissionType() != null) {
             GatewayVisibilityPermissionConfigurationDTO permissionsConfiguration = new GatewayVisibilityPermissionConfigurationDTO();
@@ -294,13 +329,39 @@ public class EnvironmentMappingUtil {
      * @param additionalPropertiesDTOs Set of additional propertyDTOs
      * @return Map<String, String> of Additional properties
      */
-    public static Map<String, String>  fromAdditionalPropertiesDTOToAdditionalProperties(List<AdditionalPropertyDTO>
-                                                                                                 additionalPropertiesDTOs) {
+    public static Map<String, String> fromAdditionalPropertiesDTOToAdditionalProperties(List<AdditionalPropertyDTO>
+                                                                                                 additionalPropertiesDTOs)
+            throws APIManagementException {
         Map<String,String> additionalProperties = new HashMap<>();
+        if (additionalPropertiesDTOs == null) {
+            return additionalProperties;
+        }
         for (AdditionalPropertyDTO entry : additionalPropertiesDTOs) {
+            if (entry.getKey() != null && entry.getKey().startsWith(PLAN_MAPPING_PROPERTY_PREFIX)) {
+                throw new APIManagementException("Plan mappings must be provided using the planMappings field");
+            }
             additionalProperties.putIfAbsent(entry.getKey(),entry.getValue());
         }
         return additionalProperties;
+    }
+
+    private static void addPlanMappingsToAdditionalProperties(List<PlanMappingDTO> planMappings,
+                                                              Map<String, String> additionalProperties) {
+        if (planMappings == null) {
+            return;
+        }
+        for (PlanMappingDTO planMapping : planMappings) {
+            if (planMapping == null || planMapping.getLocalPolicyId() == null
+                    || planMapping.getLocalPolicyId().trim().isEmpty()) {
+                continue;
+            }
+            String remotePlanReference = planMapping.getRemotePlanReference();
+            if (remotePlanReference == null || remotePlanReference.trim().isEmpty()) {
+                continue;
+            }
+            additionalProperties.put(PLAN_MAPPING_PROPERTY_PREFIX + planMapping.getLocalPolicyId(),
+                    remotePlanReference);
+        }
     }
 
 }

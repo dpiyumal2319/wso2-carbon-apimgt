@@ -203,8 +203,6 @@ import static org.wso2.carbon.apimgt.impl.dao.constants.SQLConstants.APIRevision
 public class ApiMgtDAO {
 
     private static final Log log = LogFactory.getLog(ApiMgtDAO.class);
-    private static final Gson GSON = new Gson();
-    private static final Type ENV_CONFIG_MAP_TYPE = new TypeToken<Map<String, Object>>() { }.getType();
     private static ApiMgtDAO INSTANCE = null;
     private final Object scopeMutex = new Object();
     private boolean forceCaseInsensitiveComparisons = false;
@@ -15946,9 +15944,12 @@ public class ApiMgtDAO {
                     if (rs.wasNull()) {
                         scheduledTime = 0;
                     }
-                    Map<String, String> additionalProperties = new HashMap<>();
+                    Map<String, String> additionalProperties = new HashMap();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        additionalProperties = readEnvironmentConfiguration(configuration, uuid);
+                        if (configuration != null) {
+                            String configurationContent = IOUtils.toString(configuration);
+                            additionalProperties = new Gson().fromJson(configurationContent, Map.class);
+                        }
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -16020,7 +16021,18 @@ public class ApiMgtDAO {
                     }
                     Map<String, String> additionalProperties = new HashMap<>();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        additionalProperties = readEnvironmentConfiguration(configuration, uuid);
+                        if (configuration != null) {
+                            String configurationContent = APIMgtDBUtil.getStringFromInputStream(configuration);
+                           Type mapType =
+                                    new TypeToken<Map<String, Object>>() {}.getType();
+                            Map<String, Object> parsedMap = new Gson().fromJson(configurationContent, mapType);
+                            if (parsedMap != null) {
+                                for (Map.Entry<String, Object> entry : parsedMap.entrySet()) {
+                                    additionalProperties.put(entry.getKey(),
+                                            entry.getValue() != null ? entry.getValue().toString() : null);
+                                }
+                            }
+                        }
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -16081,9 +16093,12 @@ public class ApiMgtDAO {
                     if (rs.wasNull()) {
                         scheduledTime = 0;
                     }
-                    Map<String, String> additionalProperties = new HashMap<>();
+                    Map<String, String> additionalProperties = new HashMap();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        additionalProperties = readEnvironmentConfiguration(configuration, uuid);
+                        if (configuration != null) {
+                            String configurationContent = IOUtils.toString(configuration);
+                            additionalProperties = new Gson().fromJson(configurationContent, Map.class);
+                        }
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -16150,7 +16165,10 @@ public class ApiMgtDAO {
                     }
                     Map<String, String> additionalProperties = new HashMap<>();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        additionalProperties = readEnvironmentConfiguration(configuration, uuid);
+                        if (configuration != null) {
+                            String configurationContent = IOUtils.toString(configuration);
+                            additionalProperties = new Gson().fromJson(configurationContent, Map.class);
+                        }
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -16213,8 +16231,8 @@ public class ApiMgtDAO {
                 prepStmt.setString(5, environment.getDescription());
                 prepStmt.setString(6, environment.getProvider());
                 prepStmt.setString(7, environment.getGatewayType());
-                byte[] configurationJson = buildEnvironmentConfiguration(environment);
-                prepStmt.setBinaryStream(8, new ByteArrayInputStream(configurationJson));
+                String configurationJson = new Gson().toJson(environment.getAdditionalProperties());
+                prepStmt.setBinaryStream(8, new ByteArrayInputStream(configurationJson.getBytes()));
                 prepStmt.setString(9, tenantDomain);
                 prepStmt.setString(10, (StringUtils.isEmpty(environment.getMode()) ?
                         GatewayMode.WRITE_ONLY.getMode() :
@@ -16372,52 +16390,6 @@ public class ApiMgtDAO {
         return vhosts;
     }
 
-    private Map<String, String> readEnvironmentConfiguration(InputStream configuration, String environmentUuid)
-            throws IOException {
-        Map<String, String> additionalProperties = new HashMap<>();
-        if (configuration == null) {
-            return additionalProperties;
-        }
-
-        String configurationContent = APIMgtDBUtil.getStringFromInputStream(configuration);
-        if (StringUtils.isBlank(configurationContent)) {
-            return additionalProperties;
-        }
-
-        try {
-            Map<String, Object> parsedMap = GSON.fromJson(configurationContent, ENV_CONFIG_MAP_TYPE);
-            if (parsedMap == null) {
-                return additionalProperties;
-            }
-
-            for (Map.Entry<String, Object> entry : parsedMap.entrySet()) {
-                additionalProperties.put(entry.getKey(), environmentConfigurationValueToString(entry.getValue()));
-            }
-        } catch (RuntimeException e) {
-            log.error("Error while converting configurations in " + environmentUuid, e);
-        }
-
-        return additionalProperties;
-    }
-
-    private static String environmentConfigurationValueToString(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof String) {
-            return (String) value;
-        }
-        return GSON.toJson(value);
-    }
-
-    private byte[] buildEnvironmentConfiguration(Environment environment) {
-        Map<String, Object> configurationMap = new HashMap<>();
-        if (environment.getAdditionalProperties() != null) {
-            configurationMap.putAll(environment.getAdditionalProperties());
-        }
-        return GSON.toJson(configurationMap).getBytes(StandardCharsets.UTF_8);
-    }
-
     /**
      * Delete an Environment
      *
@@ -16494,8 +16466,8 @@ public class ApiMgtDAO {
             try (PreparedStatement prepStmt = connection.prepareStatement(SQLConstants.UPDATE_ENVIRONMENT_SQL)) {
                 prepStmt.setString(1, environment.getDisplayName());
                 prepStmt.setString(2, environment.getDescription());
-                byte[] configurationJson = buildEnvironmentConfiguration(environment);
-                prepStmt.setBinaryStream(3, new ByteArrayInputStream(configurationJson));
+                String configurationJson = new Gson().toJson(environment.getAdditionalProperties());
+                prepStmt.setBinaryStream(3, new ByteArrayInputStream(configurationJson.getBytes()));
                 prepStmt.setInt(4, environment.getApiDiscoveryScheduledWindow());
                 prepStmt.setString(5, environment.getUuid());
                 prepStmt.executeUpdate();

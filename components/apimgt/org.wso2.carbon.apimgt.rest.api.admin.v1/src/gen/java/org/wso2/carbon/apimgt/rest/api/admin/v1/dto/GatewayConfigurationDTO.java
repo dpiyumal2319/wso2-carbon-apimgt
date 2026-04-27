@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.validation.constraints.*;
@@ -25,7 +26,7 @@ public class GatewayConfigurationDTO   {
   
     private String name = null;
     private String label = null;
-    private Map<String, String> labels = null;
+    private Map<String, String> labels = new HashMap<String, String>();
     private String type = null;
     private Boolean required = null;
     private Boolean mask = null;
@@ -75,6 +76,7 @@ public class GatewayConfigurationDTO   {
     return this;
   }
 
+  
   @ApiModelProperty(value = "")
   @JsonProperty("labels")
   public Map<String, String> getLabels() {
@@ -261,3 +263,4 @@ public class GatewayConfigurationDTO   {
     return o.toString().replace("\n", "\n    ");
   }
 }
+

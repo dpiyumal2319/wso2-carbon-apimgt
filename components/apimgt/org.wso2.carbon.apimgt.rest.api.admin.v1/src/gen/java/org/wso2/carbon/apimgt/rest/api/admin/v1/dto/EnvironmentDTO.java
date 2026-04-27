@@ -10,6 +10,7 @@ import java.util.List;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.AdditionalPropertyDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.EnvironmentPermissionsDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.GatewayEnvironmentProtocolURIDTO;
+import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.PlanMappingDTO;
 import org.wso2.carbon.apimgt.rest.api.admin.v1.dto.VHostDTO;
 import javax.validation.constraints.*;
 
@@ -72,6 +73,7 @@ return null;
     private List<VHostDTO> vhosts = new ArrayList<VHostDTO>();
     private List<GatewayEnvironmentProtocolURIDTO> endpointURIs = new ArrayList<GatewayEnvironmentProtocolURIDTO>();
     private List<AdditionalPropertyDTO> additionalProperties = new ArrayList<AdditionalPropertyDTO>();
+    private List<PlanMappingDTO> planMappings = new ArrayList<PlanMappingDTO>();
     private EnvironmentPermissionsDTO permissions = null;
 
     @XmlType(name="StatusEnum")
@@ -337,6 +339,25 @@ return null;
   }
 
   /**
+   * Gateway-specific plan mappings for subscription policy enforcement.
+   **/
+  public EnvironmentDTO planMappings(List<PlanMappingDTO> planMappings) {
+    this.planMappings = planMappings;
+    return this;
+  }
+
+  
+  @ApiModelProperty(value = "Gateway-specific plan mappings for subscription policy enforcement.")
+      @Valid
+  @JsonProperty("planMappings")
+  public List<PlanMappingDTO> getPlanMappings() {
+    return planMappings;
+  }
+  public void setPlanMappings(List<PlanMappingDTO> planMappings) {
+    this.planMappings = planMappings;
+  }
+
+  /**
    **/
   public EnvironmentDTO permissions(EnvironmentPermissionsDTO permissions) {
     this.permissions = permissions;
@@ -431,6 +452,7 @@ return null;
         Objects.equals(vhosts, environment.vhosts) &&
         Objects.equals(endpointURIs, environment.endpointURIs) &&
         Objects.equals(additionalProperties, environment.additionalProperties) &&
+        Objects.equals(planMappings, environment.planMappings) &&
         Objects.equals(permissions, environment.permissions) &&
         Objects.equals(status, environment.status) &&
         Objects.equals(vhost, environment.vhost) &&
@@ -439,7 +461,7 @@ return null;
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, displayName, provider, type, gatewayType, description, isReadOnly, mode, apiDiscoveryScheduledWindow, vhosts, endpointURIs, additionalProperties, permissions, status, vhost, platformGatewayVersions);
+    return Objects.hash(id, name, displayName, provider, type, gatewayType, description, isReadOnly, mode, apiDiscoveryScheduledWindow, vhosts, endpointURIs, additionalProperties, planMappings, permissions, status, vhost, platformGatewayVersions);
   }
 
   @Override
@@ -460,6 +482,7 @@ return null;
     sb.append("    vhosts: ").append(toIndentedString(vhosts)).append("\n");
     sb.append("    endpointURIs: ").append(toIndentedString(endpointURIs)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
+    sb.append("    planMappings: ").append(toIndentedString(planMappings)).append("\n");
     sb.append("    permissions: ").append(toIndentedString(permissions)).append("\n");
     sb.append("    status: ").append(toIndentedString(status)).append("\n");
     sb.append("    vhost: ").append(toIndentedString(vhost)).append("\n");

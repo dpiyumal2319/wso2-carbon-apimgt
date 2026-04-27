@@ -72,8 +72,7 @@ public class GatewayHolder {
         return null;
     }
 
-    public static FederatedApiKeyConnector getTenantApiKeyConnectorInstance(String organization,
-                                                                           Environment environment)
+    public static FederatedApiKeyConnector getTenantApiKeyConnectorInstance(Environment environment)
             throws APIManagementException {
 
         synchronized (environment.getUuid().intern()) {
@@ -92,8 +91,7 @@ public class GatewayHolder {
 
             try {
                 APIAdminImpl apiAdmin = new APIAdminImpl();
-                Environment resolvedEnvironment = apiAdmin.getEnvironmentWithoutPropertyMasking(
-                        organization, environment.getUuid());
+                Environment resolvedEnvironment = environment;
                 resolvedEnvironment = apiAdmin.decryptGatewayConfigurationValues(resolvedEnvironment);
 
                 Class<?> clazz = Class.forName(implementationClassName);
@@ -103,7 +101,7 @@ public class GatewayHolder {
                 }
                 FederatedApiKeyConnector connector = (FederatedApiKeyConnector) clazz.getDeclaredConstructor()
                         .newInstance();
-                connector.init(resolvedEnvironment, organization);
+                connector.init(resolvedEnvironment);
                 return connector;
             } catch (ReflectiveOperationException e) {
                 String msg = "Error while initializing Federated API Key Connector for type: "

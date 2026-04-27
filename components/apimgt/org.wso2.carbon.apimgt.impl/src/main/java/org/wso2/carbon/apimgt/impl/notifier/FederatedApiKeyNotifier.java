@@ -23,7 +23,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.FederatedApiKeyConnector;
-import org.wso2.carbon.apimgt.api.model.APIKeyInfo;
 import org.wso2.carbon.apimgt.api.model.Application;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.FederatedApiKeyContext;
@@ -31,7 +30,6 @@ import org.wso2.carbon.apimgt.api.model.FederatedApiKeyCreationResult;
 import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
 import org.wso2.carbon.apimgt.api.model.policy.SubscriptionPolicy;
 import org.wso2.carbon.apimgt.impl.APIConstants;
-import org.wso2.carbon.apimgt.impl.dao.ApiKeyMgtDAO;
 import org.wso2.carbon.apimgt.impl.dao.ApiMgtDAO;
 import org.wso2.carbon.apimgt.impl.factory.GatewayHolder;
 import org.wso2.carbon.apimgt.impl.notifier.events.APIKeyAssociationEvent;
@@ -59,9 +57,6 @@ public class FederatedApiKeyNotifier implements Notifier {
 
     @Override
     public boolean publishEvent(Event event) throws NotifierException {
-        if (!isFederatedApiKeyEvent(event)) {
-            return true;
-        }
         if (log.isDebugEnabled()) {
             log.debug("Processing federated API key event: " + event);
         }
@@ -135,65 +130,14 @@ public class FederatedApiKeyNotifier implements Notifier {
         return APIConstants.NotifierType.API_KEY.name();
     }
 
-    private boolean isFederatedApiKeyEvent(Event event) throws NotifierException {
-
-        try {
-            String apiUuid = resolveApiUuid(event);
-            return StringUtils.isNotBlank(apiUuid) && APIUtil.isFederatedGatewayApi(apiUuid);
-        } catch (APIManagementException e) {
-            throw new NotifierException("Failed to resolve API key event gateway type", e);
-        }
-    }
-
-    private String resolveApiUuid(Event event) throws APIManagementException {
-
-        if (event instanceof APIKeyEvent) {
-            APIKeyEvent apiKeyEvent = (APIKeyEvent) event;
-            String apiUuid = apiKeyEvent.getApiUUId();
-            if (StringUtils.isBlank(apiUuid)) {
-                apiUuid = resolveApiUuidFromKey(apiKeyEvent.getUuid(), apiKeyEvent.getTenantDomain());
-            }
-            return apiUuid;
-        }
-        if (event instanceof APIKeyAssociationEvent) {
-            APIKeyAssociationEvent associationEvent = (APIKeyAssociationEvent) event;
-            String apiUuid = associationEvent.getApiUUId();
-            if (StringUtils.isBlank(apiUuid)) {
-                apiUuid = resolveApiUuidFromKey(associationEvent.getApiKeyUUId(), associationEvent.getTenantDomain());
-            }
-            return apiUuid;
-        }
-        if (event instanceof APIKeyRegenerationEvent) {
-            APIKeyRegenerationEvent regenerationEvent = (APIKeyRegenerationEvent) event;
-            String apiUuid = regenerationEvent.getApiUuid();
-            if (StringUtils.isBlank(apiUuid)) {
-                apiUuid = resolveApiUuidFromKey(regenerationEvent.getNewApiKeyUuid(),
-                        regenerationEvent.getTenantDomain());
-            }
-            if (StringUtils.isBlank(apiUuid)) {
-                apiUuid = resolveApiUuidFromKey(regenerationEvent.getOldApiKeyUuid(),
-                        regenerationEvent.getTenantDomain());
-            }
-            return apiUuid;
-        }
-        return null;
-    }
-
-    private String resolveApiUuidFromKey(String apiKeyUuid, String tenantDomain) throws APIManagementException {
-
-        if (StringUtils.isAnyBlank(apiKeyUuid, tenantDomain)) {
-            return null;
-        }
-        APIKeyInfo apiKeyInfo = getApiKeyMgtDAO().getAPIKeyForTenantAnyStatus(apiKeyUuid, tenantDomain);
-        return apiKeyInfo != null ? apiKeyInfo.getApiUUId() : null;
-    }
-
     /**
      * Creates remote API-key credentials in each mapped external gateway and stores connector-owned reference artifacts.
      */
     private void handleCreate(APIKeyEvent event) throws APIManagementException {
-        APIKeyInfo keyInfo = getApiKeyMgtDAO().getAPIKey(event.getUuid(), event.getUser());
-        String apiUuid = resolveApiUuid(event, keyInfo);
+        String apiUuid = event.getApiUUId();
+        if (!isFederatedApi(apiUuid)) {
+            return;
+        }
         String organization = resolveOrganization(apiUuid);
         String apiKeyValue = event.getApiKey();
         if (StringUtils.isBlank(apiKeyValue)) {
@@ -204,9 +148,9 @@ public class FederatedApiKeyNotifier implements Notifier {
         Map<String, String> newlyCreatedReferenceArtifacts = new LinkedHashMap<>();
         try {
             for (GatewayEnvironmentContext gatewayEnvironment : gatewayEnvironments) {
-                FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment.getEnvironment());
+                FederatedApiKeyConnector connector = resolveConnector(gatewayEnvironment.getEnvironment());
                 FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getUuid(), event.getName(),
-                        apiKeyValue, null, resolveAuthUser(event, keyInfo), resolveApplicationUuid(event, keyInfo),
+                        apiKeyValue, null, event.getUser(), event.getApplicationUUId(),
                         organization, gatewayEnvironment, event.getValidityPeriod(), event.getPermittedIP(),
                         event.getPermittedReferer(), null);
                 FederatedApiKeyCreationResult result = connector.createApiKey(context);
@@ -217,8 +161,7 @@ public class FederatedApiKeyNotifier implements Notifier {
                 newlyCreatedReferenceArtifacts.put(gatewayEnvironment.getEnvironmentId(), result.getReferenceArtifact());
             }
         } catch (APIManagementException e) {
-            rollbackCreatedApiKeys(apiUuid, organization, event, keyInfo, gatewayEnvironments,
-                    newlyCreatedReferenceArtifacts);
+            rollbackCreatedApiKeys(apiUuid, organization, event, gatewayEnvironments, newlyCreatedReferenceArtifacts);
             throw e;
         }
 
@@ -229,8 +172,7 @@ public class FederatedApiKeyNotifier implements Notifier {
             }
         } catch (APIManagementException e) {
             getApiMgtDAO().deleteApiKeyExternalApiKeyMappings(event.getUuid());
-            rollbackCreatedApiKeys(apiUuid, organization, event, keyInfo, gatewayEnvironments,
-                    newlyCreatedReferenceArtifacts);
+            rollbackCreatedApiKeys(apiUuid, organization, event, gatewayEnvironments, newlyCreatedReferenceArtifacts);
             throw e;
         }
         log.info("Successfully created federated API key on " + newlyCreatedReferenceArtifacts.size()
@@ -241,9 +183,6 @@ public class FederatedApiKeyNotifier implements Notifier {
      * Revokes previously created remote API-key credentials using stored connector-owned reference artifacts.
      */
     private void handleRevoke(APIKeyEvent event) throws APIManagementException {
-        APIKeyInfo keyInfo = getApiKeyMgtDAO().getAPIKeyForTenantAnyStatus(event.getUuid(), event.getTenantDomain());
-        String apiUuid = resolveApiUuid(event, keyInfo);
-        String organization = resolveOrganization(apiUuid);
         Map<String, String> apiKeyReferenceArtifacts = getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getUuid());
         if (apiKeyReferenceArtifacts.isEmpty()) {
             log.warn("No per-environment remote API key reference artifacts found for federated API key UUID: "
@@ -253,7 +192,7 @@ public class FederatedApiKeyNotifier implements Notifier {
         }
 
         List<GatewayEnvironmentContext> gatewayEnvironments =
-                resolveGatewayEnvironments(apiUuid, organization, apiKeyReferenceArtifacts.keySet(), null);
+                resolveGatewayEnvironments(apiKeyReferenceArtifacts.keySet());
         for (GatewayEnvironmentContext gatewayEnvironment : gatewayEnvironments) {
             String apiKeyReferenceArtifact = apiKeyReferenceArtifacts.get(gatewayEnvironment.getEnvironmentId());
             if (StringUtils.isBlank(apiKeyReferenceArtifact)) {
@@ -262,10 +201,10 @@ public class FederatedApiKeyNotifier implements Notifier {
                 continue;
             }
 
-            FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment.getEnvironment());
-            FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getUuid(), event.getName(),
-                    null, apiKeyReferenceArtifact, resolveAuthUser(event, keyInfo),
-                    resolveApplicationUuid(event, keyInfo), organization, gatewayEnvironment, null, null, null, null);
+            FederatedApiKeyConnector connector = resolveConnector(gatewayEnvironment.getEnvironment());
+            FederatedApiKeyContext context = buildFederatedApiKeyContext(null, event.getUuid(), event.getName(),
+                    null, apiKeyReferenceArtifact, event.getUser(), event.getApplicationUUId(), null,
+                    gatewayEnvironment, null, null, null, null);
             connector.revokeApiKey(context);
         }
         getApiMgtDAO().deleteApiKeyExternalApiKeyMappings(event.getUuid());
@@ -278,11 +217,12 @@ public class FederatedApiKeyNotifier implements Notifier {
      * Applies the mapped remote plan to an existing remote credential when a local key is associated to an application.
      */
     private void handleApplyRateLimitPolicy(APIKeyAssociationEvent event) throws APIManagementException {
-        APIKeyInfo keyInfo = resolveAssociationKeyInfo(event);
-        String apiUuid = resolveApiUuid(event, keyInfo);
-        String applicationUuid = resolveApplicationUuid(event, keyInfo);
+        String apiUuid = event.getApiUUId();
+        if (!isFederatedApi(apiUuid)) {
+            return;
+        }
+        String applicationUuid = resolveApplicationUuid(event);
         String organization = resolveOrganization(apiUuid);
-        String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid);
         Map<String, String> apiKeyReferenceArtifacts =
                 getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getApiKeyUUId());
         if (apiKeyReferenceArtifacts.isEmpty()) {
@@ -291,6 +231,7 @@ public class FederatedApiKeyNotifier implements Notifier {
             return;
         }
 
+        String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid);
         Map<String, String> currentGatewayMappings = resolveApiExternalMappingsByEnvironmentId(apiUuid, organization);
         List<GatewayEnvironmentContext> gatewayEnvironments =
                 resolveGatewayEnvironments(apiUuid, organization, apiKeyReferenceArtifacts.keySet(),
@@ -305,10 +246,10 @@ public class FederatedApiKeyNotifier implements Notifier {
                 continue;
             }
 
-            FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment.getEnvironment());
+            FederatedApiKeyConnector connector = resolveConnector(gatewayEnvironment.getEnvironment());
             FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getApiKeyUUId(),
-                    keyInfo.getKeyName(), null, apiKeyReferenceArtifact, keyInfo.getAuthUser(), applicationUuid,
-                    organization, gatewayEnvironment, null, null, null, localPolicyId);
+                    null, null, apiKeyReferenceArtifact, null, applicationUuid, organization, gatewayEnvironment,
+                    null, null, null, localPolicyId);
             connector.applyRateLimitPolicy(context);
         }
 
@@ -320,11 +261,12 @@ public class FederatedApiKeyNotifier implements Notifier {
      * Removes the currently mapped remote plan from an existing remote credential when a local association is removed.
      */
     private void handleRemoveRateLimitPolicy(APIKeyAssociationEvent event) throws APIManagementException {
-        APIKeyInfo keyInfo = resolveAssociationKeyInfo(event);
-        String apiUuid = resolveApiUuid(event, keyInfo);
-        String applicationUuid = resolveApplicationUuid(event, keyInfo);
+        String apiUuid = event.getApiUUId();
+        if (!isFederatedApi(apiUuid)) {
+            return;
+        }
+        String applicationUuid = resolveApplicationUuid(event);
         String organization = resolveOrganization(apiUuid);
-        String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid);
         Map<String, String> apiKeyReferenceArtifacts =
                 getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getApiKeyUUId());
         if (apiKeyReferenceArtifacts.isEmpty()) {
@@ -334,6 +276,7 @@ public class FederatedApiKeyNotifier implements Notifier {
             return;
         }
 
+        String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid);
         Map<String, String> currentGatewayMappings = resolveApiExternalMappingsByEnvironmentId(apiUuid, organization);
         List<GatewayEnvironmentContext> gatewayEnvironments =
                 resolveGatewayEnvironments(apiUuid, organization, apiKeyReferenceArtifacts.keySet(),
@@ -348,10 +291,10 @@ public class FederatedApiKeyNotifier implements Notifier {
                 continue;
             }
 
-            FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment.getEnvironment());
+            FederatedApiKeyConnector connector = resolveConnector(gatewayEnvironment.getEnvironment());
             FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getApiKeyUUId(),
-                    keyInfo.getKeyName(), null, apiKeyReferenceArtifact, keyInfo.getAuthUser(), applicationUuid,
-                    organization, gatewayEnvironment, null, null, null, localPolicyId);
+                    null, null, apiKeyReferenceArtifact, null, applicationUuid, organization, gatewayEnvironment,
+                    null, null, null, localPolicyId);
             connector.removeRateLimitPolicy(context);
         }
 
@@ -362,7 +305,7 @@ public class FederatedApiKeyNotifier implements Notifier {
     /**
      * Revokes remote credentials created during a partially failed create operation.
      */
-    private void rollbackCreatedApiKeys(String apiUuid, String organization, APIKeyEvent event, APIKeyInfo keyInfo,
+    private void rollbackCreatedApiKeys(String apiUuid, String organization, APIKeyEvent event,
                                         List<GatewayEnvironmentContext> gatewayEnvironments,
                                         Map<String, String> apiKeyReferenceArtifacts) {
         if (apiKeyReferenceArtifacts.isEmpty()) {
@@ -381,11 +324,10 @@ public class FederatedApiKeyNotifier implements Notifier {
             }
 
             try {
-                FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment.getEnvironment());
+                FederatedApiKeyConnector connector = resolveConnector(gatewayEnvironment.getEnvironment());
                 FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getUuid(), event.getName(),
-                        null, referenceArtifactEntry.getValue(), resolveAuthUser(event, keyInfo),
-                        resolveApplicationUuid(event, keyInfo), organization, gatewayEnvironment, null, null, null,
-                        null);
+                        null, referenceArtifactEntry.getValue(), event.getUser(), event.getApplicationUUId(),
+                        organization, gatewayEnvironment, null, null, null, null);
                 connector.revokeApiKey(context);
             } catch (APIManagementException e) {
                 log.error("Failed to rollback federated API key creation in environment: "
@@ -398,6 +340,13 @@ public class FederatedApiKeyNotifier implements Notifier {
      * Replaces remote API-key credentials during local API-key regeneration and persists returned reference artifacts.
      */
     private void handleRegenerate(APIKeyRegenerationEvent event) throws APIManagementException {
+        Map<String, String> apiKeyReferenceArtifacts =
+                getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getOldApiKeyUuid());
+        if (apiKeyReferenceArtifacts.isEmpty()) {
+            log.warn("No per-environment remote API key reference artifacts found for federated API key UUID: "
+                    + event.getOldApiKeyUuid() + ". Skipping remote replacement.");
+            return;
+        }
         if (StringUtils.isBlank(event.getApiKey())) {
             throw new APIManagementException("Federated API key regenerate event is missing the generated key value");
         }
@@ -405,19 +354,12 @@ public class FederatedApiKeyNotifier implements Notifier {
             throw new APIManagementException("Federated API key regenerate event is missing key UUID context");
         }
 
-        APIKeyInfo oldKeyInfo = getApiKeyMgtDAO().getAPIKeyForTenantAnyStatus(event.getOldApiKeyUuid(),
-                event.getTenantDomain());
-        APIKeyInfo newKeyInfo = getApiKeyMgtDAO().getAPIKeyForTenantAnyStatus(event.getNewApiKeyUuid(),
-                event.getTenantDomain());
-        String apiUuid = resolveApiUuid(event, oldKeyInfo, newKeyInfo);
-        String applicationUuid = resolveApplicationUuid(event, oldKeyInfo, newKeyInfo);
-        String organization = resolveOrganization(apiUuid);
-        Map<String, String> apiKeyReferenceArtifacts =
-                getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getOldApiKeyUuid());
-        if (apiKeyReferenceArtifacts.isEmpty()) {
-            throw new APIManagementException("No per-environment remote API key reference artifacts found for "
-                    + "federated API key UUID: " + event.getOldApiKeyUuid());
+        String apiUuid = event.getApiUuid();
+        if (!isFederatedApi(apiUuid)) {
+            return;
         }
+        String applicationUuid = event.getApplicationUuid();
+        String organization = resolveOrganization(apiUuid);
 
         Map<String, String> currentGatewayMappings = resolveApiExternalMappingsByEnvironmentId(apiUuid, organization);
         List<GatewayEnvironmentContext> gatewayEnvironments =
@@ -436,12 +378,10 @@ public class FederatedApiKeyNotifier implements Notifier {
                 continue;
             }
 
-            FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment.getEnvironment());
+            FederatedApiKeyConnector connector = resolveConnector(gatewayEnvironment.getEnvironment());
             FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getNewApiKeyUuid(),
-                    resolveApiKeyName(newKeyInfo, oldKeyInfo), event.getApiKey(), apiKeyReferenceArtifact,
-                    resolveAuthUser(newKeyInfo, oldKeyInfo), applicationUuid, organization, gatewayEnvironment,
-                    resolveValidityPeriod(newKeyInfo, oldKeyInfo), resolvePermittedIP(newKeyInfo, oldKeyInfo),
-                    resolvePermittedReferer(newKeyInfo, oldKeyInfo), localPolicyId);
+                    null, event.getApiKey(), apiKeyReferenceArtifact, null, applicationUuid, organization,
+                    gatewayEnvironment, null, null, null, localPolicyId);
             FederatedApiKeyCreationResult result = connector.replaceApiKey(context);
             if (result == null || StringUtils.isBlank(result.getReferenceArtifact())) {
                 throw new APIManagementException("Federated API key replacement did not return a reference artifact "
@@ -521,11 +461,29 @@ public class FederatedApiKeyNotifier implements Notifier {
     }
 
     /**
+     * Loads gateway environments for operations that only need API-key reference artifacts.
+     */
+    private List<GatewayEnvironmentContext> resolveGatewayEnvironments(Set<String> environmentIds)
+            throws APIManagementException {
+        List<GatewayEnvironmentContext> gatewayEnvironments = new ArrayList<>();
+        for (String environmentId : new LinkedHashSet<>(environmentIds)) {
+            if (StringUtils.isBlank(environmentId)) {
+                continue;
+            }
+            Environment environment = getApiMgtDAO().getEnvironmentByUuid(environmentId);
+            if (environment == null) {
+                throw new APIManagementException("Gateway environment not found: " + environmentId);
+            }
+            gatewayEnvironments.add(new GatewayEnvironmentContext(environmentId, environment, null));
+        }
+        return gatewayEnvironments;
+    }
+
+    /**
      * Creates the connector instance for the selected external gateway environment.
      */
-    private FederatedApiKeyConnector resolveConnector(String organization, Environment environment)
-            throws APIManagementException {
-        return GatewayHolder.getTenantApiKeyConnectorInstance(organization, environment);
+    private FederatedApiKeyConnector resolveConnector(Environment environment) throws APIManagementException {
+        return GatewayHolder.getTenantApiKeyConnectorInstance(environment);
     }
 
     /**
@@ -571,153 +529,19 @@ public class FederatedApiKeyNotifier implements Notifier {
         return organization;
     }
 
-    /**
-     * Resolves the API UUID for API-key create/delete events from the event first, then persisted key details.
-     */
-    private String resolveApiUuid(APIKeyEvent event, APIKeyInfo keyInfo) throws APIManagementException {
-        String apiUuid = event.getApiUUId();
-        if (StringUtils.isBlank(apiUuid) && keyInfo != null) {
-            apiUuid = keyInfo.getApiUUId();
-        }
-        if (StringUtils.isBlank(apiUuid)) {
-            throw new APIManagementException("API UUID is required for federated API key event processing");
-        }
-        return apiUuid;
+    private boolean isFederatedApi(String apiUuid) throws APIManagementException {
+        return StringUtils.isNotBlank(apiUuid) && APIUtil.isFederatedGatewayApi(apiUuid);
     }
 
     /**
-     * Resolves the API UUID for association events from the event first, then persisted key details.
+     * Resolves the application UUID for association events.
      */
-    private String resolveApiUuid(APIKeyAssociationEvent event, APIKeyInfo keyInfo) throws APIManagementException {
-        String apiUuid = event.getApiUUId();
-        if (StringUtils.isBlank(apiUuid) && keyInfo != null) {
-            apiUuid = keyInfo.getApiUUId();
+    private String resolveApplicationUuid(APIKeyAssociationEvent event) throws APIManagementException {
+        String applicationUuid = event.getApplicationUUId();
+        if (StringUtils.isBlank(applicationUuid)) {
+            throw new APIManagementException("Application UUID is required for federated API key association");
         }
-        if (StringUtils.isBlank(apiUuid)) {
-            throw new APIManagementException("API UUID is required for federated API key event processing");
-        }
-        return apiUuid;
-    }
-
-    /**
-     * Resolves the API UUID for regeneration events from event context first, then old/new persisted key details.
-     */
-    private String resolveApiUuid(APIKeyRegenerationEvent event, APIKeyInfo oldKeyInfo, APIKeyInfo newKeyInfo)
-            throws APIManagementException {
-        String apiUuid = event.getApiUuid();
-        if (StringUtils.isBlank(apiUuid) && newKeyInfo != null) {
-            apiUuid = newKeyInfo.getApiUUId();
-        }
-        if (StringUtils.isBlank(apiUuid) && oldKeyInfo != null) {
-            apiUuid = oldKeyInfo.getApiUUId();
-        }
-        if (StringUtils.isBlank(apiUuid)) {
-            throw new APIManagementException("API UUID is required for federated API key regeneration processing");
-        }
-        return apiUuid;
-    }
-
-    /**
-     * Resolves the application UUID for API-key events from the event first, then persisted key details.
-     */
-    private String resolveApplicationUuid(APIKeyEvent event, APIKeyInfo keyInfo) {
-        if (StringUtils.isNotBlank(event.getApplicationUUId())) {
-            return event.getApplicationUUId();
-        }
-        return keyInfo != null ? keyInfo.getApplicationId() : null;
-    }
-
-    /**
-     * Resolves the application UUID for association events from the event first, then persisted key details.
-     */
-    private String resolveApplicationUuid(APIKeyAssociationEvent event, APIKeyInfo keyInfo) {
-        if (StringUtils.isNotBlank(event.getApplicationUUId())) {
-            return event.getApplicationUUId();
-        }
-        return keyInfo != null ? keyInfo.getApplicationId() : null;
-    }
-
-    /**
-     * Resolves the application UUID for regeneration events from event context first, then old/new key details.
-     */
-    private String resolveApplicationUuid(APIKeyRegenerationEvent event, APIKeyInfo oldKeyInfo,
-                                          APIKeyInfo newKeyInfo) {
-        if (StringUtils.isNotBlank(event.getApplicationUuid())) {
-            return event.getApplicationUuid();
-        }
-        if (newKeyInfo != null && StringUtils.isNotBlank(newKeyInfo.getApplicationId())) {
-            return newKeyInfo.getApplicationId();
-        }
-        return oldKeyInfo != null ? oldKeyInfo.getApplicationId() : null;
-    }
-
-    /**
-     * Resolves the authorized user for API-key events from the event first, then persisted key details.
-     */
-    private String resolveAuthUser(APIKeyEvent event, APIKeyInfo keyInfo) {
-        if (StringUtils.isNotBlank(event.getUser())) {
-            return event.getUser();
-        }
-        return keyInfo != null ? keyInfo.getAuthUser() : null;
-    }
-
-    /**
-     * Resolves the authorized user for regeneration from new key details first, then the old key snapshot.
-     */
-    private String resolveAuthUser(APIKeyInfo newKeyInfo, APIKeyInfo oldKeyInfo) {
-        if (newKeyInfo != null && StringUtils.isNotBlank(newKeyInfo.getAuthUser())) {
-            return newKeyInfo.getAuthUser();
-        }
-        return oldKeyInfo != null ? oldKeyInfo.getAuthUser() : null;
-    }
-
-    /**
-     * Resolves the regenerated key name from new key details first, then the old key snapshot.
-     */
-    private String resolveApiKeyName(APIKeyInfo newKeyInfo, APIKeyInfo oldKeyInfo) {
-        if (newKeyInfo != null && StringUtils.isNotBlank(newKeyInfo.getKeyName())) {
-            return newKeyInfo.getKeyName();
-        }
-        return oldKeyInfo != null ? oldKeyInfo.getKeyName() : null;
-    }
-
-    /**
-     * Resolves validity period from new key details first, then the old key snapshot.
-     */
-    private Long resolveValidityPeriod(APIKeyInfo newKeyInfo, APIKeyInfo oldKeyInfo) {
-        if (newKeyInfo != null) {
-            return newKeyInfo.getValidityPeriod();
-        }
-        return oldKeyInfo != null ? oldKeyInfo.getValidityPeriod() : null;
-    }
-
-    /**
-     * Resolves the permitted IP property from new key details first, then the old key snapshot.
-     */
-    private String resolvePermittedIP(APIKeyInfo newKeyInfo, APIKeyInfo oldKeyInfo) {
-        String permittedIP = resolveProperty(newKeyInfo, APIConstants.JwtTokenConstants.PERMITTED_IP);
-        if (StringUtils.isBlank(permittedIP)) {
-            permittedIP = resolveProperty(oldKeyInfo, APIConstants.JwtTokenConstants.PERMITTED_IP);
-        }
-        return permittedIP;
-    }
-
-    /**
-     * Resolves the permitted referer property from new key details first, then the old key snapshot.
-     */
-    private String resolvePermittedReferer(APIKeyInfo newKeyInfo, APIKeyInfo oldKeyInfo) {
-        String permittedReferer = resolveProperty(newKeyInfo, APIConstants.JwtTokenConstants.PERMITTED_REFERER);
-        if (StringUtils.isBlank(permittedReferer)) {
-            permittedReferer = resolveProperty(oldKeyInfo, APIConstants.JwtTokenConstants.PERMITTED_REFERER);
-        }
-        return permittedReferer;
-    }
-
-    private String resolveProperty(APIKeyInfo keyInfo, String propertyName) {
-        if (keyInfo == null || keyInfo.getProperties() == null) {
-            return null;
-        }
-        return keyInfo.getProperties().get(propertyName);
+        return applicationUuid;
     }
 
     /**
@@ -762,23 +586,6 @@ public class FederatedApiKeyNotifier implements Notifier {
             throw new APIManagementException("Subscription policy UUID not found for tier: " + policyName);
         }
         return subscriptionPolicies[0].getUUID();
-    }
-
-    /**
-     * Loads persisted API-key details required for association create/delete operations.
-     */
-    private APIKeyInfo resolveAssociationKeyInfo(APIKeyAssociationEvent event) throws APIManagementException {
-        if (StringUtils.isBlank(event.getApiKeyUUId())) {
-            throw new APIManagementException("API key UUID is required for federated API key association");
-        }
-        return getApiKeyMgtDAO().getAPIKeyForTenant(event.getApiKeyUUId(), event.getTenantDomain());
-    }
-
-    /**
-     * Returns the API-key management DAO singleton.
-     */
-    private ApiKeyMgtDAO getApiKeyMgtDAO() {
-        return ApiKeyMgtDAO.getInstance();
     }
 
     /**
