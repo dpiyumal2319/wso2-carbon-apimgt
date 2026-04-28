@@ -29,6 +29,7 @@ import org.wso2.carbon.apimgt.api.model.FederatedApiKeyCreationResult;
 import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
 import org.wso2.carbon.apimgt.api.model.policy.SubscriptionPolicy;
 import org.wso2.carbon.apimgt.impl.APIConstants;
+import org.wso2.carbon.apimgt.impl.dao.ApiKeyMgtDAO;
 import org.wso2.carbon.apimgt.impl.dao.ApiMgtDAO;
 import org.wso2.carbon.apimgt.impl.factory.GatewayHolder;
 import org.wso2.carbon.apimgt.impl.notifier.events.APIKeyAssociationEvent;
@@ -177,10 +178,10 @@ public class FederatedApiKeyNotifier implements Notifier {
 
         try {
             for (Map.Entry<String, String> entry : newlyCreatedReferenceArtifacts.entrySet()) {
-                getApiMgtDAO().addOrUpdateApiKeyExternalApiKeyMapping(event.getUuid(), entry.getKey(), entry.getValue());
+                getApiKeyMgtDAO().addOrUpdateApiKeyExternalApiKeyMapping(event.getUuid(), entry.getKey(), entry.getValue());
             }
         } catch (APIManagementException e) {
-            getApiMgtDAO().deleteApiKeyExternalApiKeyMappings(event.getUuid());
+            getApiKeyMgtDAO().deleteApiKeyExternalApiKeyMappings(event.getUuid());
             rollbackCreatedApiKeys(organization, newlyCreatedReferenceArtifacts);
             throw e;
         }
@@ -192,7 +193,7 @@ public class FederatedApiKeyNotifier implements Notifier {
      * Revokes previously created remote API-key credentials using stored connector-owned reference artifacts.
      */
     private void handleRevoke(APIKeyEvent event) throws APIManagementException {
-        Map<String, String> apiKeyReferenceArtifacts = getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getUuid());
+        Map<String, String> apiKeyReferenceArtifacts = getApiKeyMgtDAO().getApiKeyExternalApiKeyMappings(event.getUuid());
         if (apiKeyReferenceArtifacts.isEmpty()) {
             log.warn("No per-environment remote API key reference artifacts found for federated API key UUID: "
                     + event.getUuid() + ". Skipping remote revocation.");
@@ -210,7 +211,7 @@ public class FederatedApiKeyNotifier implements Notifier {
             FederatedApiKeyConnector connector = resolveConnector(organization, entry.getKey());
             connector.revokeApiKey(apiKeyReferenceArtifact);
         }
-        getApiMgtDAO().deleteApiKeyExternalApiKeyMappings(event.getUuid());
+        getApiKeyMgtDAO().deleteApiKeyExternalApiKeyMappings(event.getUuid());
 
         log.info("Successfully revoked federated API key on " + apiKeyReferenceArtifacts.size()
                 + " gateway environment(s). KeyUuid: " + event.getUuid());
@@ -224,7 +225,7 @@ public class FederatedApiKeyNotifier implements Notifier {
             throw new APIManagementException("Federated API key association event is missing API key UUID context");
         }
         Map<String, String> apiKeyReferenceArtifacts =
-                getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getApiKeyUUId());
+                getApiKeyMgtDAO().getApiKeyExternalApiKeyMappings(event.getApiKeyUUId());
         if (apiKeyReferenceArtifacts.isEmpty()) {
             log.warn("No per-environment remote API key reference artifacts found for federated API key UUID: "
                     + event.getApiKeyUUId() + ". Skipping remote policy application.");
@@ -273,7 +274,7 @@ public class FederatedApiKeyNotifier implements Notifier {
             throw new APIManagementException("Federated API key association event is missing API key UUID context");
         }
         Map<String, String> apiKeyReferenceArtifacts =
-                getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getApiKeyUUId());
+                getApiKeyMgtDAO().getApiKeyExternalApiKeyMappings(event.getApiKeyUUId());
         if (apiKeyReferenceArtifacts.isEmpty()) {
             log.warn("No per-environment remote API key reference artifacts found for federated API key UUID: "
                     + event.getApiKeyUUId() + ". Skipping remote policy removal.");
@@ -335,7 +336,7 @@ public class FederatedApiKeyNotifier implements Notifier {
             throw new APIManagementException("Federated API key regenerate event is missing UUID/API context");
         }
         Map<String, String> apiKeyReferenceArtifacts =
-                getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getOldApiKeyUuid());
+                getApiKeyMgtDAO().getApiKeyExternalApiKeyMappings(event.getOldApiKeyUuid());
         if (apiKeyReferenceArtifacts.isEmpty()) {
             log.warn("No per-environment remote API key reference artifacts found for federated API key UUID: "
                     + event.getOldApiKeyUuid() + ". Skipping remote replacement.");
@@ -381,12 +382,12 @@ public class FederatedApiKeyNotifier implements Notifier {
 
         try {
             for (Map.Entry<String, String> entry : replacementReferenceArtifacts.entrySet()) {
-                getApiMgtDAO().addOrUpdateApiKeyExternalApiKeyMapping(event.getNewApiKeyUuid(),
+                getApiKeyMgtDAO().addOrUpdateApiKeyExternalApiKeyMapping(event.getNewApiKeyUuid(),
                         entry.getKey(), entry.getValue());
             }
-            getApiMgtDAO().deleteApiKeyExternalApiKeyMappings(event.getOldApiKeyUuid());
+            getApiKeyMgtDAO().deleteApiKeyExternalApiKeyMappings(event.getOldApiKeyUuid());
         } catch (APIManagementException e) {
-            getApiMgtDAO().deleteApiKeyExternalApiKeyMappings(event.getNewApiKeyUuid());
+            getApiKeyMgtDAO().deleteApiKeyExternalApiKeyMappings(event.getNewApiKeyUuid());
             throw e;
         }
         log.info("Successfully regenerated federated API key on " + replacementReferenceArtifacts.size()
@@ -524,5 +525,12 @@ public class FederatedApiKeyNotifier implements Notifier {
      */
     private ApiMgtDAO getApiMgtDAO() {
         return ApiMgtDAO.getInstance();
+    }
+
+    /**
+     * Returns the API key management DAO singleton.
+     */
+    private ApiKeyMgtDAO getApiKeyMgtDAO() {
+        return ApiKeyMgtDAO.getInstance();
     }
 }
