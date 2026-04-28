@@ -72,47 +72,35 @@ public class GatewayHolder {
         return null;
     }
 
-    public static FederatedApiKeyConnector getTenantApiKeyConnectorInstance(Environment environment)
+    public static FederatedApiKeyConnector getTenantApiKeyConnectorInstance(String organization, String environmentUuid)
             throws APIManagementException {
 
-        synchronized (environment.getUuid().intern()) {
-            GatewayAgentConfiguration agentConfiguration = ServiceReferenceHolder.getInstance()
-                    .getExternalGatewayConnectorConfiguration(environment.getGatewayType());
-            if (agentConfiguration == null) {
-                throw new APIManagementException("Gateway Agent Configuration not found for type: "
-                        + environment.getGatewayType());
-            }
-
-            String implementationClassName = agentConfiguration.getApiKeyConnectorImplementation();
-            if (implementationClassName == null || implementationClassName.isEmpty()) {
-                throw new APIManagementException("API Key Connector Implementation class not found for gateway type: "
-                        + environment.getGatewayType());
-            }
-
+        synchronized (environmentUuid.intern()) {
             try {
                 APIAdminImpl apiAdmin = new APIAdminImpl();
-                Environment resolvedEnvironment = environment;
-                resolvedEnvironment = apiAdmin.decryptGatewayConfigurationValues(resolvedEnvironment);
+                Environment resolvedEnvironment = apiAdmin.getEnvironmentWithoutPropertyMasking(organization,
+                        environmentUuid);
+                if (resolvedEnvironment != null) {
+                    resolvedEnvironment = apiAdmin.decryptGatewayConfigurationValues(resolvedEnvironment);
 
-                Class<?> clazz = Class.forName(implementationClassName);
-                if (!FederatedApiKeyConnector.class.isAssignableFrom(clazz)) {
-                    throw new APIManagementException("Configured API Key Connector class " + implementationClassName
-                            + " does not implement " + FederatedApiKeyConnector.class.getName());
+                    GatewayAgentConfiguration gatewayAgentConfiguration = ServiceReferenceHolder.getInstance()
+                            .getExternalGatewayConnectorConfiguration(resolvedEnvironment.getGatewayType());
+                    if (gatewayAgentConfiguration != null) {
+                        FederatedApiKeyConnector connector = (FederatedApiKeyConnector) Class.forName(
+                                        gatewayAgentConfiguration.getApiKeyConnectorImplementation())
+                                .getDeclaredConstructor().newInstance();
+                        connector.init(resolvedEnvironment);
+                        return connector;
+                    }
+                    return null;
                 }
-                FederatedApiKeyConnector connector = (FederatedApiKeyConnector) clazz.getDeclaredConstructor()
-                        .newInstance();
-                connector.init(resolvedEnvironment);
-                return connector;
-            } catch (ReflectiveOperationException e) {
-                String msg = "Error while initializing Federated API Key Connector for type: "
-                        + environment.getGatewayType();
+            } catch (APIManagementException | ClassNotFoundException | NoSuchMethodException |
+                     InstantiationException | IllegalAccessException | InvocationTargetException e) {
+                String msg = "Error while loading environments for tenant " + organization;
                 log.error(msg, e);
-                throw new APIManagementException(msg, e);
-            } catch (RuntimeException e) {
-                String msg = "Error while instantiating Federated API Key Connector implementation: "
-                        + implementationClassName;
                 throw new APIManagementException(msg, e);
             }
         }
+        return null;
     }
 }

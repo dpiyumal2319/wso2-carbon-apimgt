@@ -24116,7 +24116,11 @@ public class ApiMgtDAO {
      * @throws APIManagementException if an error occurs while adding or updating the mapping
      */
     public void addOrUpdateApiKeyExternalApiKeyMapping(String apiKeyUuid, String environmentId,
-                                                       String referenceArtifact) throws APIManagementException {
+                                                        String referenceArtifact) throws APIManagementException {
+        if (StringUtils.isAnyBlank(apiKeyUuid, environmentId, referenceArtifact)) {
+            throw new APIManagementException("API key UUID, gateway environment ID, and reference artifact are "
+                    + "required to add or update API key - External API key mappings");
+        }
         try (Connection connection = APIMgtDBUtil.getConnection()) {
             connection.setAutoCommit(false);
             try (PreparedStatement updateStatement =

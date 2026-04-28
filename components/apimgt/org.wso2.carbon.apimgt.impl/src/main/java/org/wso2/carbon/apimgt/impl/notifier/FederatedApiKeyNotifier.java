@@ -138,17 +138,18 @@ public class FederatedApiKeyNotifier implements Notifier {
         if (!isFederatedApi(apiUuid)) {
             return;
         }
-        String organization = resolveOrganization(apiUuid);
+        String organization = resolveOrganization(event);
         String apiKeyValue = event.getApiKey();
         if (StringUtils.isBlank(apiKeyValue)) {
             throw new APIManagementException("Federated API key create event is missing the generated key value");
         }
 
-        List<GatewayEnvironmentContext> gatewayEnvironments = resolveMappedGatewayEnvironments(apiUuid, organization);
+        List<GatewayEnvironmentContext> gatewayEnvironments =
+                resolveGatewayEnvironments(organization, resolveApiExternalMappingsByEnvironmentName(apiUuid));
         Map<String, String> newlyCreatedReferenceArtifacts = new LinkedHashMap<>();
         try {
             for (GatewayEnvironmentContext gatewayEnvironment : gatewayEnvironments) {
-                FederatedApiKeyConnector connector = resolveConnector(gatewayEnvironment.getEnvironment());
+                FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment);
                 FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getUuid(), event.getName(),
                         apiKeyValue, null, event.getUser(), event.getApplicationUUId(),
                         organization, gatewayEnvironment, event.getValidityPeriod(), event.getPermittedIP(),
@@ -191,8 +192,9 @@ public class FederatedApiKeyNotifier implements Notifier {
             return;
         }
 
+        String organization = resolveOrganization(event);
         List<GatewayEnvironmentContext> gatewayEnvironments =
-                resolveGatewayEnvironments(apiKeyReferenceArtifacts.keySet());
+                resolveGatewayEnvironments(organization, apiKeyReferenceArtifacts.keySet());
         for (GatewayEnvironmentContext gatewayEnvironment : gatewayEnvironments) {
             String apiKeyReferenceArtifact = apiKeyReferenceArtifacts.get(gatewayEnvironment.getEnvironmentId());
             if (StringUtils.isBlank(apiKeyReferenceArtifact)) {
@@ -201,9 +203,9 @@ public class FederatedApiKeyNotifier implements Notifier {
                 continue;
             }
 
-            FederatedApiKeyConnector connector = resolveConnector(gatewayEnvironment.getEnvironment());
+            FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment);
             FederatedApiKeyContext context = buildFederatedApiKeyContext(null, event.getUuid(), event.getName(),
-                    null, apiKeyReferenceArtifact, event.getUser(), event.getApplicationUUId(), null,
+                    null, apiKeyReferenceArtifact, event.getUser(), event.getApplicationUUId(), organization,
                     gatewayEnvironment, null, null, null, null);
             connector.revokeApiKey(context);
         }
@@ -217,12 +219,9 @@ public class FederatedApiKeyNotifier implements Notifier {
      * Applies the mapped remote plan to an existing remote credential when a local key is associated to an application.
      */
     private void handleApplyRateLimitPolicy(APIKeyAssociationEvent event) throws APIManagementException {
-        String apiUuid = event.getApiUUId();
-        if (!isFederatedApi(apiUuid)) {
-            return;
+        if (StringUtils.isBlank(event.getApiKeyUUId())) {
+            throw new APIManagementException("Federated API key association event is missing API key UUID context");
         }
-        String applicationUuid = resolveApplicationUuid(event);
-        String organization = resolveOrganization(apiUuid);
         Map<String, String> apiKeyReferenceArtifacts =
                 getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getApiKeyUUId());
         if (apiKeyReferenceArtifacts.isEmpty()) {
@@ -231,10 +230,13 @@ public class FederatedApiKeyNotifier implements Notifier {
             return;
         }
 
+        String apiUuid = event.getApiUUId();
+        String applicationUuid = resolveApplicationUuid(event);
+        String organization = resolveOrganization(event);
         String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid);
-        Map<String, String> currentGatewayMappings = resolveApiExternalMappingsByEnvironmentId(apiUuid, organization);
+        Map<String, String> currentGatewayMappings = resolveApiExternalMappingsByEnvironmentName(apiUuid);
         List<GatewayEnvironmentContext> gatewayEnvironments =
-                resolveGatewayEnvironments(apiUuid, organization, apiKeyReferenceArtifacts.keySet(),
+                resolveGatewayEnvironments(organization, apiKeyReferenceArtifacts.keySet(),
                         currentGatewayMappings);
         for (GatewayEnvironmentContext gatewayEnvironment : gatewayEnvironments) {
             String apiKeyReferenceArtifact = apiKeyReferenceArtifacts.get(gatewayEnvironment.getEnvironmentId());
@@ -246,7 +248,7 @@ public class FederatedApiKeyNotifier implements Notifier {
                 continue;
             }
 
-            FederatedApiKeyConnector connector = resolveConnector(gatewayEnvironment.getEnvironment());
+            FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment);
             FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getApiKeyUUId(),
                     null, null, apiKeyReferenceArtifact, null, applicationUuid, organization, gatewayEnvironment,
                     null, null, null, localPolicyId);
@@ -261,12 +263,9 @@ public class FederatedApiKeyNotifier implements Notifier {
      * Removes the currently mapped remote plan from an existing remote credential when a local association is removed.
      */
     private void handleRemoveRateLimitPolicy(APIKeyAssociationEvent event) throws APIManagementException {
-        String apiUuid = event.getApiUUId();
-        if (!isFederatedApi(apiUuid)) {
-            return;
+        if (StringUtils.isBlank(event.getApiKeyUUId())) {
+            throw new APIManagementException("Federated API key association event is missing API key UUID context");
         }
-        String applicationUuid = resolveApplicationUuid(event);
-        String organization = resolveOrganization(apiUuid);
         Map<String, String> apiKeyReferenceArtifacts =
                 getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getApiKeyUUId());
         if (apiKeyReferenceArtifacts.isEmpty()) {
@@ -276,10 +275,13 @@ public class FederatedApiKeyNotifier implements Notifier {
             return;
         }
 
+        String apiUuid = event.getApiUUId();
+        String applicationUuid = resolveApplicationUuid(event);
+        String organization = resolveOrganization(event);
         String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid);
-        Map<String, String> currentGatewayMappings = resolveApiExternalMappingsByEnvironmentId(apiUuid, organization);
+        Map<String, String> currentGatewayMappings = resolveApiExternalMappingsByEnvironmentName(apiUuid);
         List<GatewayEnvironmentContext> gatewayEnvironments =
-                resolveGatewayEnvironments(apiUuid, organization, apiKeyReferenceArtifacts.keySet(),
+                resolveGatewayEnvironments(organization, apiKeyReferenceArtifacts.keySet(),
                         currentGatewayMappings);
         for (GatewayEnvironmentContext gatewayEnvironment : gatewayEnvironments) {
             String apiKeyReferenceArtifact = apiKeyReferenceArtifacts.get(gatewayEnvironment.getEnvironmentId());
@@ -291,7 +293,7 @@ public class FederatedApiKeyNotifier implements Notifier {
                 continue;
             }
 
-            FederatedApiKeyConnector connector = resolveConnector(gatewayEnvironment.getEnvironment());
+            FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment);
             FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getApiKeyUUId(),
                     null, null, apiKeyReferenceArtifact, null, applicationUuid, organization, gatewayEnvironment,
                     null, null, null, localPolicyId);
@@ -324,7 +326,7 @@ public class FederatedApiKeyNotifier implements Notifier {
             }
 
             try {
-                FederatedApiKeyConnector connector = resolveConnector(gatewayEnvironment.getEnvironment());
+                FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment);
                 FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getUuid(), event.getName(),
                         null, referenceArtifactEntry.getValue(), event.getUser(), event.getApplicationUUId(),
                         organization, gatewayEnvironment, null, null, null, null);
@@ -340,6 +342,10 @@ public class FederatedApiKeyNotifier implements Notifier {
      * Replaces remote API-key credentials during local API-key regeneration and persists returned reference artifacts.
      */
     private void handleRegenerate(APIKeyRegenerationEvent event) throws APIManagementException {
+        if (StringUtils.isBlank(event.getApiKey()) || StringUtils.isBlank(event.getOldApiKeyUuid())
+                || StringUtils.isBlank(event.getNewApiKeyUuid()) || StringUtils.isBlank(event.getApiUuid())) {
+            throw new APIManagementException("Federated API key regenerate event is missing UUID/API context");
+        }
         Map<String, String> apiKeyReferenceArtifacts =
                 getApiMgtDAO().getApiKeyExternalApiKeyMappings(event.getOldApiKeyUuid());
         if (apiKeyReferenceArtifacts.isEmpty()) {
@@ -347,23 +353,13 @@ public class FederatedApiKeyNotifier implements Notifier {
                     + event.getOldApiKeyUuid() + ". Skipping remote replacement.");
             return;
         }
-        if (StringUtils.isBlank(event.getApiKey())) {
-            throw new APIManagementException("Federated API key regenerate event is missing the generated key value");
-        }
-        if (StringUtils.isAnyBlank(event.getOldApiKeyUuid(), event.getNewApiKeyUuid())) {
-            throw new APIManagementException("Federated API key regenerate event is missing key UUID context");
-        }
-
         String apiUuid = event.getApiUuid();
-        if (!isFederatedApi(apiUuid)) {
-            return;
-        }
         String applicationUuid = event.getApplicationUuid();
-        String organization = resolveOrganization(apiUuid);
+        String organization = resolveOrganization(event);
 
-        Map<String, String> currentGatewayMappings = resolveApiExternalMappingsByEnvironmentId(apiUuid, organization);
+        Map<String, String> currentGatewayMappings = resolveApiExternalMappingsByEnvironmentName(apiUuid);
         List<GatewayEnvironmentContext> gatewayEnvironments =
-                resolveGatewayEnvironments(apiUuid, organization, apiKeyReferenceArtifacts.keySet(),
+                resolveGatewayEnvironments(organization, apiKeyReferenceArtifacts.keySet(),
                         currentGatewayMappings);
         Map<String, String> replacementReferenceArtifacts = new LinkedHashMap<>();
         String localPolicyId = StringUtils.isNotBlank(applicationUuid) ?
@@ -378,7 +374,7 @@ public class FederatedApiKeyNotifier implements Notifier {
                 continue;
             }
 
-            FederatedApiKeyConnector connector = resolveConnector(gatewayEnvironment.getEnvironment());
+            FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment);
             FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getNewApiKeyUuid(),
                     null, event.getApiKey(), apiKeyReferenceArtifact, null, applicationUuid, organization,
                     gatewayEnvironment, null, null, null, localPolicyId);
@@ -405,76 +401,81 @@ public class FederatedApiKeyNotifier implements Notifier {
                 + event.getNewApiKeyUuid());
     }
 
-    /**
-     * Resolves all external gateway environments currently mapped to the API.
-     */
-    private List<GatewayEnvironmentContext> resolveMappedGatewayEnvironments(String apiUuid, String organization)
+    private Map<String, String> resolveApiExternalMappingsByEnvironmentName(String apiUuid)
             throws APIManagementException {
-        Map<String, String> gatewayMappings = resolveApiExternalMappingsByEnvironmentId(apiUuid, organization);
-        if (gatewayMappings.isEmpty()) {
-            throw new APIManagementException("No external gateway environment mappings found for federated API: "
-                    + apiUuid);
-        }
-        return resolveGatewayEnvironments(apiUuid, organization, gatewayMappings.keySet(), gatewayMappings);
-    }
-
-    private Map<String, String> resolveApiExternalMappingsByEnvironmentId(String apiUuid, String organization)
-            throws APIManagementException {
-        Map<String, String> referencesByEnvironmentName =
-                APIUtil.getApiExternalApiMappingReferenceByApiId(apiUuid);
-        Map<String, Environment> environments = APIUtil.getEnvironments(organization);
-        Map<String, String> referencesByEnvironmentId = new LinkedHashMap<>();
-        for (Map.Entry<String, String> entry : referencesByEnvironmentName.entrySet()) {
-            Environment environment = environments.get(entry.getKey());
-            if (environment == null) {
-                throw new APIManagementException("Gateway environment not found for external API mapping: "
-                        + entry.getKey());
-            }
-            referencesByEnvironmentId.put(environment.getUuid(), entry.getValue());
-        }
-        return referencesByEnvironmentId;
+        return new LinkedHashMap<>(APIUtil.getApiExternalApiMappingReferenceByApiId(apiUuid));
     }
 
     /**
-     * Loads gateway environments and the connector-owned API reference artifact for each requested environment.
+     * Used by create flows that start from AM_API_EXTERNAL_API_MAPPING, where the source data is keyed by
+     * environment name. This bridges the existing name-based API mapping model to the UUID-based context used for
+     * API-key persistence and connector calls.
      */
-    private List<GatewayEnvironmentContext> resolveGatewayEnvironments(String apiUuid, String organization,
-                                                                       Set<String> environmentIds,
+    private List<GatewayEnvironmentContext> resolveGatewayEnvironments(String organization,
                                                                        Map<String, String> gatewayMappings)
             throws APIManagementException {
+        if (gatewayMappings.isEmpty()) {
+            throw new APIManagementException("No external gateway environment mappings found for the federated API");
+        }
         List<GatewayEnvironmentContext> gatewayEnvironments = new ArrayList<>();
-        for (String environmentId : new LinkedHashSet<>(environmentIds)) {
-            if (StringUtils.isBlank(environmentId)) {
-                continue;
-            }
-            Environment environment = getApiMgtDAO().getEnvironment(organization, environmentId);
+        Map<String, Environment> environments = APIUtil.getEnvironments(organization);
+        for (Map.Entry<String, String> gatewayMapping : gatewayMappings.entrySet()) {
+            Environment environment = environments.get(gatewayMapping.getKey());
             if (environment == null) {
-                throw new APIManagementException("Gateway environment not found: " + environmentId);
+                throw new APIManagementException("Gateway environment not found for external API mapping: "
+                        + gatewayMapping.getKey());
             }
-            String referenceArtifact = gatewayMappings != null ? gatewayMappings.get(environmentId) : null;
-            if (referenceArtifact == null) {
-                referenceArtifact = getApiMgtDAO().getApiExternalApiMappingReference(apiUuid, environmentId);
-            }
-            gatewayEnvironments.add(new GatewayEnvironmentContext(environmentId, environment, referenceArtifact));
+            gatewayEnvironments.add(new GatewayEnvironmentContext(environment.getUuid(), gatewayMapping.getValue()));
         }
         return gatewayEnvironments;
     }
 
     /**
-     * Loads gateway environments for operations that only need API-key reference artifacts.
+     * Used by apply/remove/replace flows that start from API-key mappings keyed by environment UUID. These flows
+     * still need the API reference artifact from AM_API_EXTERNAL_API_MAPPING, so this helper resolves UUID back to
+     * environment name and then attaches the corresponding API reference artifact for connector operations.
      */
-    private List<GatewayEnvironmentContext> resolveGatewayEnvironments(Set<String> environmentIds)
+    private List<GatewayEnvironmentContext> resolveGatewayEnvironments(String organization,
+                                                                       Set<String> environmentIds,
+                                                                       Map<String, String> gatewayMappings)
             throws APIManagementException {
         List<GatewayEnvironmentContext> gatewayEnvironments = new ArrayList<>();
+        Map<String, Environment> environments = APIUtil.getEnvironments(organization);
         for (String environmentId : new LinkedHashSet<>(environmentIds)) {
             if (StringUtils.isBlank(environmentId)) {
                 continue;
             }
-            Environment environment = getApiMgtDAO().getEnvironmentByUuid(environmentId);
+            Environment environment = resolveEnvironmentById(environments, environmentId);
             if (environment == null) {
                 throw new APIManagementException("Gateway environment not found: " + environmentId);
             }
-            gatewayEnvironments.add(new GatewayEnvironmentContext(environmentId, environment, null));
+            String referenceArtifact = gatewayMappings.get(environment.getName());
+            if (referenceArtifact == null) {
+                throw new APIManagementException("API external mapping not found for environment: "
+                        + environment.getName());
+            }
+            gatewayEnvironments.add(new GatewayEnvironmentContext(environmentId, referenceArtifact));
+        }
+        return gatewayEnvironments;
+    }
+
+    /**
+     * Used by revoke flows that only need to locate the gateway environment by UUID. No API reference artifact is
+     * required here because remote revocation is driven only by the stored API-key reference artifact.
+     */
+    private List<GatewayEnvironmentContext> resolveGatewayEnvironments(String organization, Set<String> environmentIds)
+            throws APIManagementException {
+        List<GatewayEnvironmentContext> gatewayEnvironments = new ArrayList<>();
+        Map<String, Environment> environments = APIUtil.getEnvironments(organization);
+        for (String environmentId : new LinkedHashSet<>(environmentIds)) {
+            if (StringUtils.isBlank(environmentId)) {
+                continue;
+            }
+            Environment environment = resolveEnvironmentById(environments, environmentId);
+            if (environment == null) {
+                throw new APIManagementException("Gateway environment not found: " + environmentId);
+            }
+            gatewayEnvironments.add(new GatewayEnvironmentContext(environmentId, null));
         }
         return gatewayEnvironments;
     }
@@ -482,8 +483,18 @@ public class FederatedApiKeyNotifier implements Notifier {
     /**
      * Creates the connector instance for the selected external gateway environment.
      */
-    private FederatedApiKeyConnector resolveConnector(Environment environment) throws APIManagementException {
-        return GatewayHolder.getTenantApiKeyConnectorInstance(environment);
+    private FederatedApiKeyConnector resolveConnector(String organization, GatewayEnvironmentContext environment)
+            throws APIManagementException {
+        return GatewayHolder.getTenantApiKeyConnectorInstance(organization, environment.getEnvironmentId());
+    }
+
+    private Environment resolveEnvironmentById(Map<String, Environment> environments, String environmentId) {
+        for (Environment environment : environments.values()) {
+            if (StringUtils.equals(environmentId, environment.getUuid())) {
+                return environment;
+            }
+        }
+        return null;
     }
 
     /**
@@ -515,18 +526,11 @@ public class FederatedApiKeyNotifier implements Notifier {
                 .build();
     }
 
-    /**
-     * Resolves the organization that owns the federated API.
-     */
-    private String resolveOrganization(String apiUuid) throws APIManagementException {
-        if (StringUtils.isBlank(apiUuid)) {
-            throw new APIManagementException("API UUID is required for federated API key event processing");
+    private String resolveOrganization(Event event) throws APIManagementException {
+        if (StringUtils.isBlank(event.getTenantDomain())) {
+            throw new APIManagementException("Tenant domain is required for federated API key event processing");
         }
-        String organization = getApiMgtDAO().getOrganizationByAPIUUID(apiUuid);
-        if (StringUtils.isBlank(organization)) {
-            throw new APIManagementException("Unable to resolve organization for federated API UUID: " + apiUuid);
-        }
-        return organization;
+        return event.getTenantDomain();
     }
 
     private boolean isFederatedApi(String apiUuid) throws APIManagementException {
@@ -600,21 +604,15 @@ public class FederatedApiKeyNotifier implements Notifier {
      */
     private static class GatewayEnvironmentContext {
         private final String environmentId;
-        private final Environment environment;
         private final String referenceArtifact;
 
-        private GatewayEnvironmentContext(String environmentId, Environment environment, String referenceArtifact) {
+        private GatewayEnvironmentContext(String environmentId, String referenceArtifact) {
             this.environmentId = environmentId;
-            this.environment = environment;
             this.referenceArtifact = referenceArtifact;
         }
 
         private String getEnvironmentId() {
             return environmentId;
-        }
-
-        private Environment getEnvironment() {
-            return environment;
         }
 
         private String getReferenceArtifact() {
