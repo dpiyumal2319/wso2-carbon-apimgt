@@ -23,9 +23,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.FederatedApiKeyConnector;
+import org.wso2.carbon.apimgt.api.FederatedApiKeyConnectorPropertyKeys;
 import org.wso2.carbon.apimgt.api.model.Application;
 import org.wso2.carbon.apimgt.api.model.Environment;
-import org.wso2.carbon.apimgt.api.model.FederatedApiKeyContext;
 import org.wso2.carbon.apimgt.api.model.FederatedApiKeyCreationResult;
 import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
 import org.wso2.carbon.apimgt.api.model.policy.SubscriptionPolicy;
@@ -40,6 +40,7 @@ import org.wso2.carbon.apimgt.impl.notifier.exceptions.NotifierException;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -150,11 +151,10 @@ public class FederatedApiKeyNotifier implements Notifier {
         try {
             for (GatewayEnvironmentContext gatewayEnvironment : gatewayEnvironments) {
                 FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment);
-                FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getUuid(), event.getName(),
-                        apiKeyValue, null, event.getUser(), event.getApplicationUUId(),
-                        organization, gatewayEnvironment, event.getValidityPeriod(), event.getPermittedIP(),
-                        event.getPermittedReferer(), null);
-                FederatedApiKeyCreationResult result = connector.createApiKey(context);
+                FederatedApiKeyCreationResult result = connector.createApiKey(gatewayEnvironment.getReferenceArtifact(),
+                        event.getUuid(), event.getName(), apiKeyValue,
+                        buildConnectorProperties(apiUuid, event.getUser(), organization, event.getValidityPeriod(),
+                                event.getPermittedIP(), event.getPermittedReferer()));
                 if (result == null || StringUtils.isBlank(result.getReferenceArtifact())) {
                     throw new APIManagementException("Federated API key creation did not return a reference artifact "
                             + "for environment: " + gatewayEnvironment.getEnvironmentId());
@@ -204,10 +204,7 @@ public class FederatedApiKeyNotifier implements Notifier {
             }
 
             FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment);
-            FederatedApiKeyContext context = buildFederatedApiKeyContext(null, event.getUuid(), event.getName(),
-                    null, apiKeyReferenceArtifact, event.getUser(), event.getApplicationUUId(), organization,
-                    gatewayEnvironment, null, null, null, null);
-            connector.revokeApiKey(context);
+            connector.revokeApiKey(apiKeyReferenceArtifact);
         }
         getApiMgtDAO().deleteApiKeyExternalApiKeyMappings(event.getUuid());
 
@@ -249,10 +246,8 @@ public class FederatedApiKeyNotifier implements Notifier {
             }
 
             FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment);
-            FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getApiKeyUUId(),
-                    null, null, apiKeyReferenceArtifact, null, applicationUuid, organization, gatewayEnvironment,
-                    null, null, null, localPolicyId);
-            connector.applyRateLimitPolicy(context);
+            connector.applyRateLimitPolicy(gatewayEnvironment.getReferenceArtifact(), apiKeyReferenceArtifact,
+                    localPolicyId, Collections.emptyMap());
         }
 
         log.info("Successfully applied rate limit policy to federated API key across "
@@ -294,10 +289,8 @@ public class FederatedApiKeyNotifier implements Notifier {
             }
 
             FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment);
-            FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getApiKeyUUId(),
-                    null, null, apiKeyReferenceArtifact, null, applicationUuid, organization, gatewayEnvironment,
-                    null, null, null, localPolicyId);
-            connector.removeRateLimitPolicy(context);
+            connector.removeRateLimitPolicy(gatewayEnvironment.getReferenceArtifact(), apiKeyReferenceArtifact,
+                    localPolicyId, Collections.emptyMap());
         }
 
         log.info("Successfully removed rate limit policy from federated API key across "
@@ -327,10 +320,7 @@ public class FederatedApiKeyNotifier implements Notifier {
 
             try {
                 FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment);
-                FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getUuid(), event.getName(),
-                        null, referenceArtifactEntry.getValue(), event.getUser(), event.getApplicationUUId(),
-                        organization, gatewayEnvironment, null, null, null, null);
-                connector.revokeApiKey(context);
+                connector.revokeApiKey(referenceArtifactEntry.getValue());
             } catch (APIManagementException e) {
                 log.error("Failed to rollback federated API key creation in environment: "
                         + gatewayEnvironment.getEnvironmentId() + " for key UUID: " + event.getUuid(), e);
@@ -375,10 +365,9 @@ public class FederatedApiKeyNotifier implements Notifier {
             }
 
             FederatedApiKeyConnector connector = resolveConnector(organization, gatewayEnvironment);
-            FederatedApiKeyContext context = buildFederatedApiKeyContext(apiUuid, event.getNewApiKeyUuid(),
-                    null, event.getApiKey(), apiKeyReferenceArtifact, null, applicationUuid, organization,
-                    gatewayEnvironment, null, null, null, localPolicyId);
-            FederatedApiKeyCreationResult result = connector.replaceApiKey(context);
+            FederatedApiKeyCreationResult result = connector.replaceApiKey(gatewayEnvironment.getReferenceArtifact(),
+                    event.getNewApiKeyUuid(), event.getApiKey(), apiKeyReferenceArtifact,
+                    buildConnectorProperties(apiUuid, null, organization, null, null, null, localPolicyId));
             if (result == null || StringUtils.isBlank(result.getReferenceArtifact())) {
                 throw new APIManagementException("Federated API key replacement did not return a reference artifact "
                         + "for environment: " + gatewayEnvironment.getEnvironmentId());
@@ -497,33 +486,33 @@ public class FederatedApiKeyNotifier implements Notifier {
         return null;
     }
 
-    /**
-     * Builds the connector operation context shared by create, revoke, and plan association operations.
-     */
-    private FederatedApiKeyContext buildFederatedApiKeyContext(String apiUuid, String apiKeyUuid, String apiKeyName,
-                                                               String apiKeyValue, String apiKeyReferenceArtifact,
-                                                               String authzUser, String applicationUuid,
-                                                               String organization, GatewayEnvironmentContext env,
-                                                               Long validityPeriod, String permittedIP,
-                                                               String permittedReferer,
-                                                               String localPolicyId) {
-        return FederatedApiKeyContext.builder()
-                .apiUuid(apiUuid)
-                .apiName(null)
-                .apiReferenceArtifact(env.getReferenceArtifact())
-                .apiKeyUuid(apiKeyUuid)
-                .apiKeyName(apiKeyName)
-                .apiKeyValue(apiKeyValue)
-                .apiKeyReferenceArtifact(apiKeyReferenceArtifact)
-                .localPolicyId(localPolicyId)
-                .authzUser(authzUser)
-                .applicationUuid(applicationUuid)
-                .organizationId(organization)
-                .environmentId(env.getEnvironmentId())
-                .validityPeriod(validityPeriod)
-                .permittedIP(permittedIP)
-                .permittedReferer(permittedReferer)
-                .build();
+    private Map<String, String> buildConnectorProperties(String apiUuid, String authzUser, String organization,
+                                                         Long validityPeriod, String permittedIP,
+                                                         String permittedReferer) {
+        return buildConnectorProperties(apiUuid, authzUser, organization, validityPeriod, permittedIP,
+                permittedReferer, null);
+    }
+
+    private Map<String, String> buildConnectorProperties(String apiUuid, String authzUser, String organization,
+                                                         Long validityPeriod, String permittedIP,
+                                                         String permittedReferer, String localPolicyId) {
+        Map<String, String> properties = new LinkedHashMap<>();
+        putIfNotBlank(properties, FederatedApiKeyConnectorPropertyKeys.API_UUID, apiUuid);
+        putIfNotBlank(properties, FederatedApiKeyConnectorPropertyKeys.AUTHZ_USER, authzUser);
+        putIfNotBlank(properties, FederatedApiKeyConnectorPropertyKeys.ORGANIZATION_ID, organization);
+        putIfNotBlank(properties, FederatedApiKeyConnectorPropertyKeys.PERMITTED_IP, permittedIP);
+        putIfNotBlank(properties, FederatedApiKeyConnectorPropertyKeys.PERMITTED_REFERER, permittedReferer);
+        putIfNotBlank(properties, FederatedApiKeyConnectorPropertyKeys.LOCAL_POLICY_ID, localPolicyId);
+        if (validityPeriod != null) {
+            properties.put(FederatedApiKeyConnectorPropertyKeys.VALIDITY_PERIOD, String.valueOf(validityPeriod));
+        }
+        return properties;
+    }
+
+    private void putIfNotBlank(Map<String, String> properties, String key, String value) {
+        if (StringUtils.isNotBlank(value)) {
+            properties.put(key, value);
+        }
     }
 
     private String resolveOrganization(Event event) throws APIManagementException {
