@@ -17,7 +17,6 @@
 
 package org.wso2.carbon.apimgt.rest.api.admin.v1.utils.mappings;
 
-import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.dto.GatewayVisibilityPermissionConfigurationDTO;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.PlatformGateway;
@@ -212,8 +211,7 @@ public class EnvironmentMappingUtil {
      * @param envListDto EnvironmentListDTO
      * @return EnvironmentListDTO containing Environment list
      */
-    public static List<Environment> fromEnvListDtoToEnvList(EnvironmentListDTO envListDto)
-            throws APIManagementException {
+    public static List<Environment> fromEnvListDtoToEnvList(EnvironmentListDTO envListDto) {
         List<Environment> envList = new ArrayList<>(envListDto.getCount());
         for (EnvironmentDTO envDto : envListDto.getList()) {
             envList.add(fromEnvDtoToEnv(envDto));
@@ -227,7 +225,7 @@ public class EnvironmentMappingUtil {
      * @param envDTO EnvironmentDTO
      * @return Environment
      */
-    public static Environment fromEnvDtoToEnv(EnvironmentDTO envDTO) throws APIManagementException {
+    public static Environment fromEnvDtoToEnv(EnvironmentDTO envDTO) {
         Environment env = new Environment();
         env.setUuid(envDTO.getId());
         env.setName(envDTO.getName());
@@ -296,8 +294,8 @@ public class EnvironmentMappingUtil {
      * @return Map<String, String> of Additional properties
      */
     public static Map<String, String> fromAdditionalPropertiesDTOToAdditionalProperties(List<AdditionalPropertyDTO>
-                                                                                                 additionalPropertiesDTOs)
-            throws APIManagementException {
+                                                                                                  additionalPropertiesDTOs)
+            {
         Map<String,String> additionalProperties = new HashMap<>();
         if (additionalPropertiesDTOs == null) {
             return additionalProperties;
