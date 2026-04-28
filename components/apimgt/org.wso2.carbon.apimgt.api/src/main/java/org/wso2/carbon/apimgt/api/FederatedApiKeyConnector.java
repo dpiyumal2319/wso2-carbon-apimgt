@@ -19,11 +19,13 @@
 package org.wso2.carbon.apimgt.api;
 
 import org.wso2.carbon.apimgt.api.model.Environment;
-import org.wso2.carbon.apimgt.api.model.FederatedApiKeyContext;
 import org.wso2.carbon.apimgt.api.model.FederatedApiKeyCreationResult;
+
+import java.util.Map;
 
 /**
  * Interface for managing API-bound API keys in external gateways.
+ * Follows tight input patterns similar to {@link org.wso2.carbon.apimgt.api.model.GatewayDeployer}.
  */
 public interface FederatedApiKeyConnector {
 
@@ -38,50 +40,62 @@ public interface FederatedApiKeyConnector {
     /**
      * Creates/pushes an API key in the external gateway.
      *
-     * @param context API key operation context
-     * @return credential creation result containing connector-owned reference artifact and metadata
+     * @param apiKeyUuid           local API key UUID
+     * @param apiKeyValue          the generated API key value to push
+     * @param apiReferenceArtifact connector-owned API reference artifact
+     * @param localPolicyId        local subscription policy UUID for plan mapping (nullable)
+     * @param properties           additional metadata (apiKeyName, authzUser, validityPeriod, permittedIP, etc.)
+     * @return credential creation result containing connector-owned reference artifact
      * @throws APIManagementException if operation fails
      */
-    FederatedApiKeyCreationResult createApiKey(FederatedApiKeyContext context) throws APIManagementException;
+    FederatedApiKeyCreationResult createApiKey(String apiKeyUuid, String apiKeyValue, String apiReferenceArtifact,
+                                               String localPolicyId, Map<String, String> properties)
+            throws APIManagementException;
 
     /**
      * Replaces/regenerates an API key in the external gateway.
-     * Implementations may update the existing remote credential in place, or create a new remote credential and migrate
-     * connector-owned associations before deleting the old one.
      *
-     * @param context API key operation context containing the old connector-owned reference artifact and new key value
-     * @return credential creation result containing the retained or newly created connector-owned reference artifact
+     * @param apiKeyReferenceArtifact connector-owned API key reference artifact of the key to replace
+     * @param newApiKeyValue          the new API key value
+     * @param apiReferenceArtifact    connector-owned API reference artifact
+     * @param localPolicyId           local subscription policy UUID for plan mapping (nullable)
+     * @param properties              additional metadata (apiKeyName, validityPeriod, etc.)
+     * @return credential creation result containing the retained or newly created reference artifact
      * @throws APIManagementException if operation fails
      */
-    FederatedApiKeyCreationResult replaceApiKey(FederatedApiKeyContext context) throws APIManagementException;
+    FederatedApiKeyCreationResult replaceApiKey(String apiKeyReferenceArtifact, String newApiKeyValue,
+                                                String apiReferenceArtifact, String localPolicyId,
+                                                Map<String, String> properties) throws APIManagementException;
 
     /**
      * Revokes/deletes an API key in the external gateway.
      *
-     * @param context API key operation context
+     * @param apiKeyReferenceArtifact connector-owned API key reference artifact
      * @throws APIManagementException if operation fails
      */
-    void revokeApiKey(FederatedApiKeyContext context) throws APIManagementException;
+    void revokeApiKey(String apiKeyReferenceArtifact) throws APIManagementException;
 
     /**
      * Applies a rate limiting policy to an API key.
-     * Different gateways implement this differently:
-     * - AWS: Associates key with usage plan
-     * - Kong: Adds consumer to consumer group and ACL
-     * - Azure: Associates subscription with tier
      *
-     * @param context API key operation context
+     * @param apiKeyReferenceArtifact connector-owned API key reference artifact
+     * @param apiReferenceArtifact    connector-owned API reference artifact
+     * @param localPolicyId           local subscription policy UUID for plan mapping
      * @throws APIManagementException if operation fails
      */
-    void applyRateLimitPolicy(FederatedApiKeyContext context) throws APIManagementException;
+    void applyRateLimitPolicy(String apiKeyReferenceArtifact, String apiReferenceArtifact, String localPolicyId)
+            throws APIManagementException;
 
     /**
      * Removes rate limiting policy from an API key.
      *
-     * @param context API key operation context
+     * @param apiKeyReferenceArtifact connector-owned API key reference artifact
+     * @param apiReferenceArtifact    connector-owned API reference artifact (nullable for cleanup)
+     * @param localPolicyId           local subscription policy UUID for plan mapping
      * @throws APIManagementException if operation fails
      */
-    void removeRateLimitPolicy(FederatedApiKeyContext context) throws APIManagementException;
+    void removeRateLimitPolicy(String apiKeyReferenceArtifact, String apiReferenceArtifact, String localPolicyId)
+            throws APIManagementException;
 
     /**
      * Gets gateway type identifier.
