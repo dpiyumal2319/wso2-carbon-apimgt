@@ -22,6 +22,7 @@ import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.policy.SubscriptionPolicy;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -88,7 +89,12 @@ public interface GatewayAgentConfiguration {
         return getConnectionConfigurations();
     }
 
-    GatewayEnvironmentValidationResult validateEnvironment(Environment environment);
+    default GatewayEnvironmentValidationResult validateEnvironment(Environment environment) {
+        GatewayEnvironmentValidationResult validationResult = new GatewayEnvironmentValidationResult();
+        validationResult.setValid(true);
+        validationResult.setErrors(Collections.emptyList());
+        return validationResult;
+    }
 
     /**
      * This method returns the Gateway Feature Catalog
