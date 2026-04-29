@@ -57,15 +57,14 @@ public interface FederatedApiKeyConnector {
      *
      * @param apiKeyReferenceArtifact connector-owned API key reference artifact of the key to replace
      * @param newApiKeyValue          the new API key value
-     * @param apiReferenceArtifact    connector-owned API reference artifact
      * @param localPolicyId           local subscription policy UUID for plan mapping (nullable)
      * @param properties              additional metadata (apiKeyName, validityPeriod, etc.)
      * @return credential creation result containing the retained or newly created reference artifact
      * @throws APIManagementException if operation fails
      */
     FederatedApiKeyCreationResult replaceApiKey(String apiKeyReferenceArtifact, String newApiKeyValue,
-                                                String apiReferenceArtifact, String localPolicyId,
-                                                Map<String, String> properties) throws APIManagementException;
+                                                String localPolicyId, Map<String, String> properties)
+            throws APIManagementException;
 
     /**
      * Revokes/deletes an API key in the external gateway.
@@ -79,22 +78,20 @@ public interface FederatedApiKeyConnector {
      * Applies a rate limiting policy to an API key.
      *
      * @param apiKeyReferenceArtifact connector-owned API key reference artifact
-     * @param apiReferenceArtifact    connector-owned API reference artifact
      * @param localPolicyId           local subscription policy UUID for plan mapping
      * @throws APIManagementException if operation fails
      */
-    void applyRateLimitPolicy(String apiKeyReferenceArtifact, String apiReferenceArtifact, String localPolicyId)
+    void applyRateLimitPolicy(String apiKeyReferenceArtifact, String localPolicyId)
             throws APIManagementException;
 
     /**
      * Removes rate limiting policy from an API key.
      *
      * @param apiKeyReferenceArtifact connector-owned API key reference artifact
-     * @param apiReferenceArtifact    connector-owned API reference artifact (nullable for cleanup)
      * @param localPolicyId           local subscription policy UUID for plan mapping
      * @throws APIManagementException if operation fails
      */
-    void removeRateLimitPolicy(String apiKeyReferenceArtifact, String apiReferenceArtifact, String localPolicyId)
+    void removeRateLimitPolicy(String apiKeyReferenceArtifact, String localPolicyId)
             throws APIManagementException;
 
     /**

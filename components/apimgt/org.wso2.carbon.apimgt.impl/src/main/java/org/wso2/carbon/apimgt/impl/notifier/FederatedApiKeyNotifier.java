@@ -236,9 +236,6 @@ public class FederatedApiKeyNotifier implements Notifier {
         String applicationUuid = resolveApplicationUuid(event);
         String organization = resolveOrganization(event);
         String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid);
-        Map<String, String> apiMappings = resolveApiExternalMappingsByEnvironmentName(apiUuid);
-        Map<String, Environment> environments = APIUtil.getEnvironments(organization);
-        Map<String, String> envIdToApiRef = resolveEnvIdToApiRefMap(environments, apiMappings);
 
         int successCount = 0;
         for (Map.Entry<String, String> entry : apiKeyReferenceArtifacts.entrySet()) {
@@ -250,15 +247,9 @@ public class FederatedApiKeyNotifier implements Notifier {
                         + ". Skipping rate limit policy application.");
                 continue;
             }
-            String apiReferenceArtifact = envIdToApiRef.get(environmentId);
-            if (StringUtils.isBlank(apiReferenceArtifact)) {
-                log.warn("API external mapping not found for environment: " + environmentId
-                        + ". Skipping rate limit policy application.");
-                continue;
-            }
 
             FederatedApiKeyConnector connector = resolveConnector(organization, environmentId);
-            connector.applyRateLimitPolicy(apiKeyReferenceArtifact, apiReferenceArtifact, localPolicyId);
+            connector.applyRateLimitPolicy(apiKeyReferenceArtifact, localPolicyId);
             successCount++;
         }
 
@@ -285,9 +276,6 @@ public class FederatedApiKeyNotifier implements Notifier {
         String applicationUuid = resolveApplicationUuid(event);
         String organization = resolveOrganization(event);
         String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid);
-        Map<String, String> apiMappings = resolveApiExternalMappingsByEnvironmentName(apiUuid);
-        Map<String, Environment> environments = APIUtil.getEnvironments(organization);
-        Map<String, String> envIdToApiRef = resolveEnvIdToApiRefMap(environments, apiMappings);
 
         int successCount = 0;
         for (Map.Entry<String, String> entry : apiKeyReferenceArtifacts.entrySet()) {
@@ -299,10 +287,9 @@ public class FederatedApiKeyNotifier implements Notifier {
                         + ". Skipping remote policy removal.");
                 continue;
             }
-            String apiReferenceArtifact = envIdToApiRef.get(environmentId);
 
             FederatedApiKeyConnector connector = resolveConnector(organization, environmentId);
-            connector.removeRateLimitPolicy(apiKeyReferenceArtifact, apiReferenceArtifact, localPolicyId);
+            connector.removeRateLimitPolicy(apiKeyReferenceArtifact, localPolicyId);
             successCount++;
         }
 
@@ -345,10 +332,6 @@ public class FederatedApiKeyNotifier implements Notifier {
         String apiUuid = event.getApiUuid();
         String applicationUuid = event.getApplicationUuid();
         String organization = resolveOrganization(event);
-
-        Map<String, String> apiMappings = resolveApiExternalMappingsByEnvironmentName(apiUuid);
-        Map<String, Environment> environments = APIUtil.getEnvironments(organization);
-        Map<String, String> envIdToApiRef = resolveEnvIdToApiRefMap(environments, apiMappings);
         Map<String, String> replacementReferenceArtifacts = new LinkedHashMap<>();
         String localPolicyId = StringUtils.isNotBlank(applicationUuid) ?
                 resolveSubscriptionPolicyId(applicationUuid, apiUuid) : null;
@@ -363,16 +346,10 @@ public class FederatedApiKeyNotifier implements Notifier {
                         + ". Skipping remote replacement.");
                 continue;
             }
-            String apiReferenceArtifact = envIdToApiRef.get(environmentId);
-            if (StringUtils.isBlank(apiReferenceArtifact)) {
-                log.warn("API external mapping not found for environment: " + environmentId
-                        + ". Skipping remote replacement.");
-                continue;
-            }
 
             FederatedApiKeyConnector connector = resolveConnector(organization, environmentId);
             FederatedApiKeyCreationResult result = connector.replaceApiKey(apiKeyReferenceArtifact, event.getApiKey(),
-                    apiReferenceArtifact, localPolicyId, properties);
+                    localPolicyId, properties);
             if (result == null || StringUtils.isBlank(result.getReferenceArtifact())) {
                 throw new APIManagementException("Federated API key replacement did not return a reference artifact "
                         + "for environment: " + environmentId);
