@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
  * This class manage Environment mapping to EnvironmentDTO
  */
 public class EnvironmentMappingUtil {
+
     /**
      * Convert list of Environment to EnvironmentListDTO
      *
@@ -187,7 +188,6 @@ public class EnvironmentMappingUtil {
         }
         return additionalPropertyDTOList;
     }
-
     /**
      * Convert VHost to VHostDTO
      *
@@ -245,9 +245,8 @@ public class EnvironmentMappingUtil {
         env.setApiDiscoveryScheduledWindow(envDTO.getApiDiscoveryScheduledWindow());
         env.setVhosts(envDTO.getVhosts().stream().map(EnvironmentMappingUtil::fromVHostDtoToVHost)
                 .collect(Collectors.toList()));
-        Map<String, String> additionalProperties = fromAdditionalPropertiesDTOToAdditionalProperties(
-                envDTO.getAdditionalProperties());
-        env.setAdditionalProperties(additionalProperties);
+        env.setAdditionalProperties(fromAdditionalPropertiesDTOToAdditionalProperties
+                (envDTO.getAdditionalProperties()));
         EnvironmentPermissionsDTO permissions = envDTO.getPermissions();
         if (permissions != null && permissions.getPermissionType() != null) {
             GatewayVisibilityPermissionConfigurationDTO permissionsConfiguration = new GatewayVisibilityPermissionConfigurationDTO();
@@ -293,13 +292,9 @@ public class EnvironmentMappingUtil {
      * @param additionalPropertiesDTOs Set of additional propertyDTOs
      * @return Map<String, String> of Additional properties
      */
-    public static Map<String, String> fromAdditionalPropertiesDTOToAdditionalProperties(List<AdditionalPropertyDTO>
-                                                                                                  additionalPropertiesDTOs)
-            {
+    public static Map<String, String>  fromAdditionalPropertiesDTOToAdditionalProperties(List<AdditionalPropertyDTO>
+                                                                                                 additionalPropertiesDTOs) {
         Map<String,String> additionalProperties = new HashMap<>();
-        if (additionalPropertiesDTOs == null) {
-            return additionalProperties;
-        }
         for (AdditionalPropertyDTO entry : additionalPropertiesDTOs) {
             additionalProperties.putIfAbsent(entry.getKey(),entry.getValue());
         }

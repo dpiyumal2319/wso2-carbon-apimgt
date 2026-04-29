@@ -55,6 +55,7 @@ import org.wso2.carbon.apimgt.api.model.ApplicationInfoKeyManager;
 import org.wso2.carbon.apimgt.api.model.ConfigurationDto;
 import org.wso2.carbon.apimgt.api.model.Environment;
 import org.wso2.carbon.apimgt.api.model.GatewayAgentConfiguration;
+import org.wso2.carbon.apimgt.api.model.GatewayEnvironmentValidationResult;
 import org.wso2.carbon.apimgt.api.model.KeyManagerApplicationUsages;
 import org.wso2.carbon.apimgt.api.model.KeyManagerConfiguration;
 import org.wso2.carbon.apimgt.api.model.KeyManagerConnectorConfiguration;
@@ -1016,12 +1017,12 @@ public class APIAdminImpl implements APIAdmin {
                 restoreMaskedGatewayConfiguration(configurationDto, additionalProperties, retrievedGatewayConfigurationDTO);
             }
         }
-        try {
-            gatewayConfiguration.validateEnvironment(validationEnvironment);
-        } catch (APIManagementException e) {
-            throw new APIManagementException(e.getMessage(), e,
+        GatewayEnvironmentValidationResult validationResult = gatewayConfiguration.validateEnvironment(validationEnvironment);
+        if (!validationResult.isValid()) {
+            String errorMessage = String.join(", ", validationResult.getErrors());
+            throw new APIManagementException(errorMessage,
                     ExceptionCodes.from(ExceptionCodes.FEDERATED_GATEWAY_ONBOARDING_VALIDATION_FAILED,
-                            updatedGatewayConfigurationDto.getGatewayType(), e.getMessage()));
+                            updatedGatewayConfigurationDto.getGatewayType(), errorMessage));
         }
     }
 

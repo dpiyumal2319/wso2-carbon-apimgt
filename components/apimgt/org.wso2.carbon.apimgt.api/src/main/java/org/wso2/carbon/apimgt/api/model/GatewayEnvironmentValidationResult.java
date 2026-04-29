@@ -11,30 +11,32 @@
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
+ * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
  */
 
 package org.wso2.carbon.apimgt.api.model;
 
-import org.wso2.carbon.apimgt.api.model.policy.SubscriptionPolicy;
-
-import java.util.Collections;
 import java.util.List;
 
-/**
- * WSO2-local context used to enrich external gateway configuration schemas.
- */
-public class GatewayConfigurationContext {
+public class GatewayEnvironmentValidationResult {
+    boolean isValid;
+    List<String> errors;
 
-    private final List<SubscriptionPolicy> subscriptionPolicies;
-
-    public GatewayConfigurationContext(List<SubscriptionPolicy> subscriptionPolicies) {
-        this.subscriptionPolicies = subscriptionPolicies != null ? subscriptionPolicies : Collections.emptyList();
+    public boolean isValid() {
+        return isValid;
     }
 
-    public List<SubscriptionPolicy> getSubscriptionPolicies() {
-        return subscriptionPolicies;
+    public void setValid(boolean valid) {
+        isValid = valid;
+    }
+
+    public List<String> getErrors() {
+        return errors;
+    }
+
+    public void setErrors(List<String> errors) {
+        this.errors = errors;
     }
 }

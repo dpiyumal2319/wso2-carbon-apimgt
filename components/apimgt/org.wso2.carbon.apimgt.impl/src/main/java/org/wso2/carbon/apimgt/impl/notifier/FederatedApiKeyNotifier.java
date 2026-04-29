@@ -124,6 +124,10 @@ public class FederatedApiKeyNotifier implements Notifier {
 
     private APIConstants.EventType resolveEventType(String type) {
 
+        if (type == null) {
+            return null;
+        }
+
         try {
             return APIConstants.EventType.valueOf(type);
         } catch (IllegalArgumentException e) {
@@ -382,7 +386,14 @@ public class FederatedApiKeyNotifier implements Notifier {
      */
     private FederatedApiKeyConnector resolveConnector(String organization, String environmentId)
             throws APIManagementException {
-        return GatewayHolder.getTenantApiKeyConnectorInstance(organization, environmentId);
+        FederatedApiKeyConnector connector =
+                GatewayHolder.getTenantApiKeyConnectorInstance(organization, environmentId);
+        // Current GatewayHolder implementation throws on lookup failures; kept this as a defensive guard.
+        if (connector == null) {
+            throw new APIManagementException("Federated API key connector resolution returned null for organization: "
+                    + organization + ", environmentId: " + environmentId);
+        }
+        return connector;
     }
 
     /**

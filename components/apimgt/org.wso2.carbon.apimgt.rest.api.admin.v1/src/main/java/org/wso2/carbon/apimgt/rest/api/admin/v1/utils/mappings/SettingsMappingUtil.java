@@ -192,7 +192,7 @@ public class SettingsMappingUtil {
 
     private static List<SettingsGatewayConfigurationDTO> getSettingsGatewayConfigurationDTOList() {
         List<SettingsGatewayConfigurationDTO> list = new ArrayList<>();
-        GatewayConfigurationContext context = buildGatewayConfigurationContext();
+        List<SubscriptionPolicy> subscriptionPolicies = buildSubscriptionPolicies();
         Map<String, GatewayAgentConfiguration> gatewayConfigurations =
                 ServiceReferenceHolder.getInstance().getExternalGatewayConnectorConfigurations();
         gatewayConfigurations.forEach((gatewayName, gatewayConfiguration) -> {
@@ -210,7 +210,8 @@ public class SettingsMappingUtil {
                 effectiveModes.add(GatewayMode.WRITE_ONLY.getMode());
             }
             settingsFederatedGatewayConfigurationDTO.setSupportedModes(effectiveModes);
-            List<ConfigurationDto> connectionConfigurations = gatewayConfiguration.getConnectionConfigurations(context);
+            List<ConfigurationDto> connectionConfigurations =
+                    gatewayConfiguration.getConnectionConfigurations(subscriptionPolicies);
             if (connectionConfigurations != null) {
                 for (ConfigurationDto dto : connectionConfigurations) {
                     settingsFederatedGatewayConfigurationDTO.getConfigurations().add(fromConfigurationToConfigurationDTO(dto));
@@ -256,10 +257,10 @@ public class SettingsMappingUtil {
         return dto;
     }
 
-    private static GatewayConfigurationContext buildGatewayConfigurationContext() {
+    private static List<SubscriptionPolicy> buildSubscriptionPolicies() {
         String tenantDomain = CarbonContext.getThreadLocalCarbonContext().getTenantDomain();
         if (tenantDomain == null) {
-            return new GatewayConfigurationContext(new ArrayList<>());
+            return new ArrayList<>();
         }
         try {
             int tenantId = APIUtil.getTenantIdFromTenantDomain(tenantDomain);
@@ -268,10 +269,10 @@ public class SettingsMappingUtil {
             if (policies != null) {
                 policyList.addAll(Arrays.asList(policies));
             }
-            return new GatewayConfigurationContext(policyList);
+            return policyList;
         } catch (APIManagementException e) {
-            log.warn("Failed to load subscription policies for gateway configuration context", e);
-            return new GatewayConfigurationContext(new ArrayList<>());
+            log.warn("Failed to load subscription policies for gateway configuration enrichment", e);
+            return new ArrayList<>();
         }
     }
 

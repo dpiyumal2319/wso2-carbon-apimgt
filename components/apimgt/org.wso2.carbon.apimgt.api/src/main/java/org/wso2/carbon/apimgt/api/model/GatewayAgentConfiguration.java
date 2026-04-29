@@ -19,6 +19,7 @@
 package org.wso2.carbon.apimgt.api.model;
 
 import org.wso2.carbon.apimgt.api.APIManagementException;
+import org.wso2.carbon.apimgt.api.model.policy.SubscriptionPolicy;
 
 import java.util.Arrays;
 import java.util.List;
@@ -78,23 +79,16 @@ public interface GatewayAgentConfiguration {
     List<ConfigurationDto> getConnectionConfigurations();
 
     /**
-     * This method returns the Configurations related to external gateway with WSO2-local context when needed.
+     * This method returns the Configurations related to external gateway with subscription policies when needed.
      *
-     * @param context WSO2-local context for connector configuration generation
+     * @param subscriptionPolicies tenant subscription policies used for connector-owned configuration generation
      * @return List<ConfigurationDto> connectionConfigurations
      */
-    default List<ConfigurationDto> getConnectionConfigurations(GatewayConfigurationContext context) {
+    default List<ConfigurationDto> getConnectionConfigurations(List<SubscriptionPolicy> subscriptionPolicies) {
         return getConnectionConfigurations();
     }
 
-    /**
-     * Validate the external gateway environment configuration before persisting it.
-     *
-     * @param environment external gateway environment with plain text connector configurations
-     * @throws APIManagementException if the environment cannot be validated
-     */
-    default void validateEnvironment(Environment environment) throws APIManagementException {
-    }
+    GatewayEnvironmentValidationResult validateEnvironment(Environment environment);
 
     /**
      * This method returns the Gateway Feature Catalog

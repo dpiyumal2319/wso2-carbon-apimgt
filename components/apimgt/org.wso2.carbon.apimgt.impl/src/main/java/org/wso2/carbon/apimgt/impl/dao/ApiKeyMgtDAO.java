@@ -842,33 +842,39 @@ public class ApiKeyMgtDAO {
             throw new APIManagementException("API key UUID, gateway environment ID, and reference artifact are "
                     + "required to add or update API key - External API key mappings");
         }
-        try (Connection connection = APIMgtDBUtil.getConnection()) {
+        Connection connection = null;
+        PreparedStatement updateStatement = null;
+        PreparedStatement insertStatement = null;
+        try {
+            connection = APIMgtDBUtil.getConnection();
             connection.setAutoCommit(false);
-            try (PreparedStatement updateStatement =
-                         connection.prepareStatement(SQLConstants.UPDATE_API_KEY_EXTERNAL_API_KEY_MAPPING_SQL)) {
-                byte[] referenceBytes = referenceArtifact.getBytes(StandardCharsets.UTF_8);
-                updateStatement.setBinaryStream(1, new ByteArrayInputStream(referenceBytes), referenceBytes.length);
-                updateStatement.setString(2, apiKeyUuid);
-                updateStatement.setString(3, environmentId);
-                if (updateStatement.executeUpdate() == 0) {
-                    try (PreparedStatement insertStatement =
-                                 connection.prepareStatement(SQLConstants.ADD_API_KEY_EXTERNAL_API_KEY_MAPPING_SQL)) {
-                        insertStatement.setString(1, apiKeyUuid);
-                        insertStatement.setString(2, environmentId);
-                        insertStatement.setBinaryStream(3, new ByteArrayInputStream(referenceBytes),
-                                referenceBytes.length);
-                        insertStatement.executeUpdate();
-                    }
-                }
-                connection.commit();
-            } catch (SQLException e) {
-                connection.rollback();
-                handleException("Failed to add or update API key - External API key mapping for API key UUID: "
-                        + apiKeyUuid, e);
+            updateStatement = connection.prepareStatement(SQLConstants.UPDATE_API_KEY_EXTERNAL_API_KEY_MAPPING_SQL);
+            byte[] referenceBytes = referenceArtifact.getBytes(StandardCharsets.UTF_8);
+            updateStatement.setBinaryStream(1, new ByteArrayInputStream(referenceBytes), referenceBytes.length);
+            updateStatement.setString(2, apiKeyUuid);
+            updateStatement.setString(3, environmentId);
+            if (updateStatement.executeUpdate() == 0) {
+                insertStatement = connection.prepareStatement(SQLConstants.ADD_API_KEY_EXTERNAL_API_KEY_MAPPING_SQL);
+                insertStatement.setString(1, apiKeyUuid);
+                insertStatement.setString(2, environmentId);
+                insertStatement.setBinaryStream(3, new ByteArrayInputStream(referenceBytes), referenceBytes.length);
+                insertStatement.executeUpdate();
             }
+            connection.commit();
         } catch (SQLException e) {
+            try {
+                if (connection != null) {
+                    connection.rollback();
+                }
+            } catch (SQLException ex) {
+                log.error("Failed to rollback the add or update API key - External API key mapping for API key UUID: "
+                        + apiKeyUuid, ex);
+            }
             handleException("Failed to add or update API key - External API key mapping for API key UUID: "
                     + apiKeyUuid, e);
+        } finally {
+            APIMgtDBUtil.closeStatement(insertStatement);
+            APIMgtDBUtil.closeAllConnections(updateStatement, connection, null);
         }
     }
 
@@ -911,13 +917,27 @@ public class ApiKeyMgtDAO {
      */
     public void deleteApiKeyExternalApiKeyMappings(String apiKeyUuid) throws APIManagementException {
 
-        try (Connection connection = APIMgtDBUtil.getConnection();
-             PreparedStatement statement =
-                     connection.prepareStatement(SQLConstants.DELETE_API_KEY_EXTERNAL_API_KEY_MAPPINGS_SQL)) {
+        Connection connection = null;
+        PreparedStatement statement = null;
+        try {
+            connection = APIMgtDBUtil.getConnection();
+            connection.setAutoCommit(false);
+            statement = connection.prepareStatement(SQLConstants.DELETE_API_KEY_EXTERNAL_API_KEY_MAPPINGS_SQL);
             statement.setString(1, apiKeyUuid);
             statement.executeUpdate();
+            connection.commit();
         } catch (SQLException e) {
+            try {
+                if (connection != null) {
+                    connection.rollback();
+                }
+            } catch (SQLException ex) {
+                log.error("Failed to rollback the delete API key - External API key mappings for API key UUID: "
+                        + apiKeyUuid, ex);
+            }
             handleException("Failed to delete API key - External API key mappings for API key UUID: " + apiKeyUuid, e);
+        } finally {
+            APIMgtDBUtil.closeAllConnections(statement, connection, null);
         }
     }
 

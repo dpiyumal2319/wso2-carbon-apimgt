@@ -4751,7 +4751,7 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
                 new APIKeyAssociationEvent(APIConstants.EventType.API_KEY_ASSOCIATION_DELETE.name(),
                         apiKeyInfo.getApiKeyHash(), application.getUUID(), application.getId(), tenantId, tenantDomain);
         apiKeyAssociationEvent.setApiKeyUUId(keyUUId);
-        apiKeyAssociationEvent.setApiUUId(apiUUId);
+        apiKeyAssociationEvent.setApiUUId(apiKeyInfo.getApiUUId());
         APIUtil.sendNotification(apiKeyAssociationEvent, APIConstants.NotifierType.API_KEY.name());
     }
 

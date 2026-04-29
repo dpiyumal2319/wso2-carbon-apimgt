@@ -86,21 +86,28 @@ public class GatewayHolder {
                     GatewayAgentConfiguration gatewayAgentConfiguration = ServiceReferenceHolder.getInstance()
                             .getExternalGatewayConnectorConfiguration(resolvedEnvironment.getGatewayType());
                     if (gatewayAgentConfiguration != null) {
+                        String connectorImplementation =
+                                gatewayAgentConfiguration.getApiKeyConnectorImplementation();
+                        if (connectorImplementation == null) {
+                            throw new APIManagementException("No federated API key connector implementation is "
+                                    + "configured for gateway type: " + resolvedEnvironment.getGatewayType());
+                        }
                         FederatedApiKeyConnector connector = (FederatedApiKeyConnector) Class.forName(
-                                        gatewayAgentConfiguration.getApiKeyConnectorImplementation())
+                                        connectorImplementation)
                                 .getDeclaredConstructor().newInstance();
                         connector.init(resolvedEnvironment);
                         return connector;
                     }
-                    return null;
+                    throw new APIManagementException("No gateway agent configuration found for gateway type: "
+                            + resolvedEnvironment.getGatewayType());
                 }
-            } catch (APIManagementException | ClassNotFoundException | NoSuchMethodException |
-                     InstantiationException | IllegalAccessException | InvocationTargetException e) {
+                throw new APIManagementException("Gateway environment not found for UUID: " + environmentUuid);
+            } catch (ClassNotFoundException | NoSuchMethodException | InstantiationException |
+                     IllegalAccessException | InvocationTargetException e) {
                 String msg = "Error while loading environments for tenant " + organization;
                 log.error(msg, e);
                 throw new APIManagementException(msg, e);
             }
         }
-        return null;
     }
 }
