@@ -4366,6 +4366,9 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
                 new APIKeyRegenerationEvent(UUID.randomUUID().toString(), System.currentTimeMillis(),
                         APIConstants.EventType.API_KEY_REGENERATE.name(), tenantId, tenantDomain,
                         apiKeyInfo.getApiKeyHash(), apiKeyDTO.getApikeyHash());
+        apiKeyRegenerationEvent.setOldApiKeyUuid(keyUUId);
+        apiKeyRegenerationEvent.setNewApiKeyUuid(apiKeyDTO.getKeyId());
+        apiKeyRegenerationEvent.setApiKey(apiKeyDTO.getApiKey());
         APIUtil.sendNotification(apiKeyRegenerationEvent, APIConstants.NotifierType.API_KEY.name());
         return regeneratedApiKeyInfo;
     }
@@ -4641,8 +4644,6 @@ public class APIConsumerImpl extends AbstractAPIManager implements APIConsumer {
                         apiKeyInfo.getApiKeyHash(), apiKeyDTO.getApikeyHash());
         apiKeyRegenerationEvent.setOldApiKeyUuid(keyUUId);
         apiKeyRegenerationEvent.setNewApiKeyUuid(apiKeyDTO.getKeyId());
-        apiKeyRegenerationEvent.setApiUuid(api.getUuid());
-        apiKeyRegenerationEvent.setApplicationUuid(apiKeyInfo.getApplicationId());
         apiKeyRegenerationEvent.setApiKey(apiKeyDTO.getApiKey());
         APIUtil.sendNotification(apiKeyRegenerationEvent, APIConstants.NotifierType.API_KEY.name());
         APIKeyInfo regeneratedApiKeyInfo = new APIKeyInfo();

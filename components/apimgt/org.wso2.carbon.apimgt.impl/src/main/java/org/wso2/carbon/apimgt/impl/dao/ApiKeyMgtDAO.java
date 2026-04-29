@@ -22,16 +22,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TimeZone;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.model.APIKeyInfo;
 import org.wso2.carbon.apimgt.impl.APIConstants;
@@ -47,6 +43,10 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.List;
+import java.util.TimeZone;
 
 /**
  * This class represents the ApiKeyMgtDAO
@@ -828,38 +828,31 @@ public class ApiKeyMgtDAO {
     }
 
     /**
-     * Add or update external API-key reference artifact for a local API key and gateway environment.
+     * Add external API-key reference artifact for a local API key and gateway environment.
      *
      * @param apiKeyUuid UUID of the local API key
      * @param environmentId gateway environment UUID
      * @param referenceArtifact connector-owned opaque reference artifact
-     * @throws APIManagementException if an error occurs while adding or updating the mapping
+     * @throws APIManagementException if an error occurs while adding the mapping
      */
-    public void addOrUpdateApiKeyExternalApiKeyMapping(String apiKeyUuid, String environmentId,
-                                                       String referenceArtifact) throws APIManagementException {
+    public void addApiKeyExternalApiKeyMapping(String apiKeyUuid, String environmentId,
+                                               String referenceArtifact) throws APIManagementException {
 
         if (StringUtils.isAnyBlank(apiKeyUuid, environmentId, referenceArtifact)) {
             throw new APIManagementException("API key UUID, gateway environment ID, and reference artifact are "
-                    + "required to add or update API key - External API key mappings");
+                    + "required to add API key - External API key mappings");
         }
         Connection connection = null;
-        PreparedStatement updateStatement = null;
         PreparedStatement insertStatement = null;
         try {
             connection = APIMgtDBUtil.getConnection();
             connection.setAutoCommit(false);
-            updateStatement = connection.prepareStatement(SQLConstants.UPDATE_API_KEY_EXTERNAL_API_KEY_MAPPING_SQL);
             byte[] referenceBytes = referenceArtifact.getBytes(StandardCharsets.UTF_8);
-            updateStatement.setBinaryStream(1, new ByteArrayInputStream(referenceBytes), referenceBytes.length);
-            updateStatement.setString(2, apiKeyUuid);
-            updateStatement.setString(3, environmentId);
-            if (updateStatement.executeUpdate() == 0) {
-                insertStatement = connection.prepareStatement(SQLConstants.ADD_API_KEY_EXTERNAL_API_KEY_MAPPING_SQL);
-                insertStatement.setString(1, apiKeyUuid);
-                insertStatement.setString(2, environmentId);
-                insertStatement.setBinaryStream(3, new ByteArrayInputStream(referenceBytes), referenceBytes.length);
-                insertStatement.executeUpdate();
-            }
+            insertStatement = connection.prepareStatement(SQLConstants.ADD_API_KEY_EXTERNAL_API_KEY_MAPPING_SQL);
+            insertStatement.setString(1, apiKeyUuid);
+            insertStatement.setString(2, environmentId);
+            insertStatement.setBinaryStream(3, new ByteArrayInputStream(referenceBytes), referenceBytes.length);
+            insertStatement.executeUpdate();
             connection.commit();
         } catch (SQLException e) {
             try {
@@ -867,14 +860,13 @@ public class ApiKeyMgtDAO {
                     connection.rollback();
                 }
             } catch (SQLException ex) {
-                log.error("Failed to rollback the add or update API key - External API key mapping for API key UUID: "
+                log.error("Failed to rollback the add API key - External API key mapping for API key UUID: "
                         + apiKeyUuid, ex);
             }
-            handleException("Failed to add or update API key - External API key mapping for API key UUID: "
+            handleException("Failed to add API key - External API key mapping for API key UUID: "
                     + apiKeyUuid, e);
         } finally {
-            APIMgtDBUtil.closeStatement(insertStatement);
-            APIMgtDBUtil.closeAllConnections(updateStatement, connection, null);
+            APIMgtDBUtil.closeAllConnections(insertStatement, connection, null);
         }
     }
 

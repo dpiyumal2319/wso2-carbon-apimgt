@@ -19,7 +19,6 @@
 package org.wso2.carbon.apimgt.api;
 
 import org.wso2.carbon.apimgt.api.model.Environment;
-import org.wso2.carbon.apimgt.api.model.FederatedApiKeyCreationResult;
 
 import java.util.Map;
 
@@ -45,11 +44,11 @@ public interface FederatedApiKeyConnector {
      * @param apiReferenceArtifact connector-owned API reference artifact
      * @param localPolicyId        local subscription policy UUID for plan mapping (nullable)
      * @param properties           additional metadata (apiKeyName, authzUser, validityPeriod, permittedIP, etc.)
-     * @return credential creation result containing connector-owned reference artifact
+     * @return connector-owned reference artifact
      * @throws APIManagementException if operation fails
      */
-    FederatedApiKeyCreationResult createApiKey(String apiKeyUuid, String apiKeyValue, String apiReferenceArtifact,
-                                               String localPolicyId, Map<String, String> properties)
+    String createApiKey(String apiKeyUuid, String apiKeyValue, String apiReferenceArtifact,
+                        String localPolicyId, Map<String, String> properties)
             throws APIManagementException;
 
     /**
@@ -57,13 +56,11 @@ public interface FederatedApiKeyConnector {
      *
      * @param apiKeyReferenceArtifact connector-owned API key reference artifact of the key to replace
      * @param newApiKeyValue          the new API key value
-     * @param localPolicyId           local subscription policy UUID for plan mapping (nullable)
      * @param properties              additional metadata (apiKeyName, validityPeriod, etc.)
-     * @return credential creation result containing the retained or newly created reference artifact
+     * @return retained or newly created connector-owned reference artifact
      * @throws APIManagementException if operation fails
      */
-    FederatedApiKeyCreationResult replaceApiKey(String apiKeyReferenceArtifact, String newApiKeyValue,
-                                                String localPolicyId, Map<String, String> properties)
+    String replaceApiKey(String apiKeyReferenceArtifact, String newApiKeyValue, Map<String, String> properties)
             throws APIManagementException;
 
     /**
@@ -81,7 +78,7 @@ public interface FederatedApiKeyConnector {
      * @param localPolicyId           local subscription policy UUID for plan mapping
      * @throws APIManagementException if operation fails
      */
-    void applyRateLimitPolicy(String apiKeyReferenceArtifact, String localPolicyId)
+    void associateSubscriptionPolicy(String apiKeyReferenceArtifact, String localPolicyId)
             throws APIManagementException;
 
     /**
@@ -91,7 +88,7 @@ public interface FederatedApiKeyConnector {
      * @param localPolicyId           local subscription policy UUID for plan mapping
      * @throws APIManagementException if operation fails
      */
-    void removeRateLimitPolicy(String apiKeyReferenceArtifact, String localPolicyId)
+    void dissociateSubscriptionPolicy(String apiKeyReferenceArtifact, String localPolicyId)
             throws APIManagementException;
 
     /**

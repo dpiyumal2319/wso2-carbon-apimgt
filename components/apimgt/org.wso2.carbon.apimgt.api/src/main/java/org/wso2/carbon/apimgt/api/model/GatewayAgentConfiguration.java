@@ -86,9 +86,16 @@ public interface GatewayAgentConfiguration {
      * @return List<ConfigurationDto> connectionConfigurations
      */
     default List<ConfigurationDto> getConnectionConfigurations(List<SubscriptionPolicy> subscriptionPolicies) {
+        // Default to normal implementation.
         return getConnectionConfigurations();
     }
 
+    /**
+     * Validate the configured gateway environment before it is used.
+     *
+     * @param environment gateway environment configuration
+     * @return validation result for the given environment
+     */
     default GatewayEnvironmentValidationResult validateEnvironment(Environment environment) {
         GatewayEnvironmentValidationResult validationResult = new GatewayEnvironmentValidationResult();
         validationResult.setValid(true);

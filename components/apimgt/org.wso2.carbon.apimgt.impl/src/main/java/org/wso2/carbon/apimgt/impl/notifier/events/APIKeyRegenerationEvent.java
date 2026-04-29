@@ -27,8 +27,6 @@ public class APIKeyRegenerationEvent extends Event {
     private String newApiKeyHash;
     private String oldApiKeyUuid;
     private String newApiKeyUuid;
-    private String apiUuid;
-    private String applicationUuid;
     private transient String apiKey;
 
     public APIKeyRegenerationEvent(String eventId, long timeStamp, String type, int tenantId, String tenantDomain,
@@ -71,22 +69,6 @@ public class APIKeyRegenerationEvent extends Event {
 
     public void setNewApiKeyUuid(String newApiKeyUuid) {
         this.newApiKeyUuid = newApiKeyUuid;
-    }
-
-    public String getApiUuid() {
-        return apiUuid;
-    }
-
-    public void setApiUuid(String apiUuid) {
-        this.apiUuid = apiUuid;
-    }
-
-    public String getApplicationUuid() {
-        return applicationUuid;
-    }
-
-    public void setApplicationUuid(String applicationUuid) {
-        this.applicationUuid = applicationUuid;
     }
 
     public String getApiKey() {

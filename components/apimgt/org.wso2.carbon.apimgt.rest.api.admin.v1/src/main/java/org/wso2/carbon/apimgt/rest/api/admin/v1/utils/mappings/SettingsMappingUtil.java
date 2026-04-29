@@ -45,6 +45,7 @@ import java.util.Set;
 public class SettingsMappingUtil {
 
     private static final Log log = LogFactory.getLog(SettingsMappingUtil.class);
+
     /**
      * This method feeds data into the settingsDTO
      *

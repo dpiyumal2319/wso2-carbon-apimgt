@@ -25,7 +25,6 @@ import org.wso2.carbon.apimgt.api.APIManagementException;
 import org.wso2.carbon.apimgt.api.FederatedApiKeyConnector;
 import org.wso2.carbon.apimgt.api.model.Application;
 import org.wso2.carbon.apimgt.api.model.Environment;
-import org.wso2.carbon.apimgt.api.model.FederatedApiKeyCreationResult;
 import org.wso2.carbon.apimgt.api.model.SubscribedAPI;
 import org.wso2.carbon.apimgt.api.model.policy.SubscriptionPolicy;
 import org.wso2.carbon.apimgt.impl.APIConstants;
@@ -38,10 +37,10 @@ import org.wso2.carbon.apimgt.impl.notifier.events.APIKeyRegenerationEvent;
 import org.wso2.carbon.apimgt.impl.notifier.events.Event;
 import org.wso2.carbon.apimgt.impl.notifier.exceptions.NotifierException;
 import org.wso2.carbon.apimgt.impl.utils.APIUtil;
+import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -112,10 +111,10 @@ public class FederatedApiKeyNotifier implements Notifier {
 
         switch (eventType) {
             case API_KEY_ASSOCIATION_CREATE:
-                handleApplyRateLimitPolicy(associationEvent);
+                handleAssociateSubscriptionPolicy(associationEvent);
                 break;
             case API_KEY_ASSOCIATION_DELETE:
-                handleRemoveRateLimitPolicy(associationEvent);
+                handleDissociateSubscriptionPolicy(associationEvent);
                 break;
             default:
                 log.warn("Unsupported federated API key association event type: " + eventType.name());
@@ -167,13 +166,13 @@ public class FederatedApiKeyNotifier implements Notifier {
                     throw new APIManagementException("Gateway environment not found: " + apiMapping.getKey());
                 }
                 FederatedApiKeyConnector connector = resolveConnector(organization, environment.getUuid());
-                FederatedApiKeyCreationResult result = connector.createApiKey(event.getUuid(), apiKeyValue,
+                String referenceArtifact = connector.createApiKey(event.getUuid(), apiKeyValue,
                         apiMapping.getValue(), null, properties);
-                if (result == null || StringUtils.isBlank(result.getReferenceArtifact())) {
+                if (StringUtils.isBlank(referenceArtifact)) {
                     throw new APIManagementException("Federated API key creation did not return a reference artifact "
                             + "for environment: " + environment.getUuid());
                 }
-                newlyCreatedReferenceArtifacts.put(environment.getUuid(), result.getReferenceArtifact());
+                newlyCreatedReferenceArtifacts.put(environment.getUuid(), referenceArtifact);
             }
         } catch (APIManagementException e) {
             rollbackCreatedApiKeys(organization, newlyCreatedReferenceArtifacts);
@@ -182,7 +181,7 @@ public class FederatedApiKeyNotifier implements Notifier {
 
         try {
             for (Map.Entry<String, String> entry : newlyCreatedReferenceArtifacts.entrySet()) {
-                getApiKeyMgtDAO().addOrUpdateApiKeyExternalApiKeyMapping(event.getUuid(), entry.getKey(), entry.getValue());
+                getApiKeyMgtDAO().addApiKeyExternalApiKeyMapping(event.getUuid(), entry.getKey(), entry.getValue());
             }
         } catch (APIManagementException e) {
             getApiKeyMgtDAO().deleteApiKeyExternalApiKeyMappings(event.getUuid());
@@ -222,9 +221,10 @@ public class FederatedApiKeyNotifier implements Notifier {
     }
 
     /**
-     * Applies the mapped remote plan to an existing remote credential when a local key is associated to an application.
+     * Associates the mapped remote subscription policy/plan with an existing remote credential when a local key is
+     * associated to an application.
      */
-    private void handleApplyRateLimitPolicy(APIKeyAssociationEvent event) throws APIManagementException {
+    private void handleAssociateSubscriptionPolicy(APIKeyAssociationEvent event) throws APIManagementException {
         if (StringUtils.isBlank(event.getApiKeyUUId())) {
             throw new APIManagementException("Federated API key association event is missing API key UUID context");
         }
@@ -232,14 +232,14 @@ public class FederatedApiKeyNotifier implements Notifier {
                 getApiKeyMgtDAO().getApiKeyExternalApiKeyMappings(event.getApiKeyUUId());
         if (apiKeyReferenceArtifacts.isEmpty()) {
             log.warn("No per-environment remote API key reference artifacts found for federated API key UUID: "
-                    + event.getApiKeyUUId() + ". Skipping remote policy application.");
+                    + event.getApiKeyUUId() + ". Skipping remote subscription policy association.");
             return;
         }
 
         String apiUuid = event.getApiUUId();
         String applicationUuid = resolveApplicationUuid(event);
         String organization = resolveOrganization(event);
-        String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid);
+        String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid, event.getTenantId());
 
         int successCount = 0;
         for (Map.Entry<String, String> entry : apiKeyReferenceArtifacts.entrySet()) {
@@ -248,23 +248,24 @@ public class FederatedApiKeyNotifier implements Notifier {
             if (StringUtils.isBlank(apiKeyReferenceArtifact)) {
                 log.warn("Remote API key reference artifact is missing for federated API key UUID: "
                         + event.getApiKeyUUId() + " in environment: " + environmentId
-                        + ". Skipping rate limit policy application.");
+                        + ". Skipping subscription policy association.");
                 continue;
             }
 
             FederatedApiKeyConnector connector = resolveConnector(organization, environmentId);
-            connector.applyRateLimitPolicy(apiKeyReferenceArtifact, localPolicyId);
+            connector.associateSubscriptionPolicy(apiKeyReferenceArtifact, localPolicyId);
             successCount++;
         }
 
-        log.info("Successfully applied rate limit policy to federated API key across "
+        log.info("Successfully associated subscription policy with federated API key across "
                 + successCount + " gateway environment(s). KeyUuid: " + event.getApiKeyUUId());
     }
 
     /**
-     * Removes the currently mapped remote plan from an existing remote credential when a local association is removed.
+     * Dissociates the mapped remote subscription policy from an existing remote credential when a local association is
+     * removed.
      */
-    private void handleRemoveRateLimitPolicy(APIKeyAssociationEvent event) throws APIManagementException {
+    private void handleDissociateSubscriptionPolicy(APIKeyAssociationEvent event) throws APIManagementException {
         if (StringUtils.isBlank(event.getApiKeyUUId())) {
             throw new APIManagementException("Federated API key association event is missing API key UUID context");
         }
@@ -272,14 +273,14 @@ public class FederatedApiKeyNotifier implements Notifier {
                 getApiKeyMgtDAO().getApiKeyExternalApiKeyMappings(event.getApiKeyUUId());
         if (apiKeyReferenceArtifacts.isEmpty()) {
             log.warn("No per-environment remote API key reference artifacts found for federated API key UUID: "
-                    + event.getApiKeyUUId() + ". Skipping remote policy removal.");
+                    + event.getApiKeyUUId() + ". Skipping remote subscription policy dissociation.");
             return;
         }
 
         String apiUuid = event.getApiUUId();
         String applicationUuid = resolveApplicationUuid(event);
         String organization = resolveOrganization(event);
-        String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid);
+        String localPolicyId = resolveSubscriptionPolicyId(applicationUuid, apiUuid, event.getTenantId());
 
         int successCount = 0;
         for (Map.Entry<String, String> entry : apiKeyReferenceArtifacts.entrySet()) {
@@ -288,16 +289,16 @@ public class FederatedApiKeyNotifier implements Notifier {
             if (StringUtils.isBlank(apiKeyReferenceArtifact)) {
                 log.warn("Remote API key reference artifact is missing for federated API key UUID: "
                         + event.getApiKeyUUId() + " in environment: " + environmentId
-                        + ". Skipping remote policy removal.");
+                        + ". Skipping remote subscription policy dissociation.");
                 continue;
             }
 
             FederatedApiKeyConnector connector = resolveConnector(organization, environmentId);
-            connector.removeRateLimitPolicy(apiKeyReferenceArtifact, localPolicyId);
+            connector.dissociateSubscriptionPolicy(apiKeyReferenceArtifact, localPolicyId);
             successCount++;
         }
 
-        log.info("Successfully removed rate limit policy from federated API key across "
+        log.info("Successfully dissociated subscription policy from federated API key across "
                 + successCount + " gateway environment(s). KeyUuid: " + event.getApiKeyUUId());
     }
 
@@ -323,8 +324,8 @@ public class FederatedApiKeyNotifier implements Notifier {
      */
     private void handleRegenerate(APIKeyRegenerationEvent event) throws APIManagementException {
         if (StringUtils.isBlank(event.getApiKey()) || StringUtils.isBlank(event.getOldApiKeyUuid())
-                || StringUtils.isBlank(event.getNewApiKeyUuid()) || StringUtils.isBlank(event.getApiUuid())) {
-            throw new APIManagementException("Federated API key regenerate event is missing UUID/API context");
+                || StringUtils.isBlank(event.getNewApiKeyUuid())) {
+            throw new APIManagementException("Federated API key regenerate event is missing key context");
         }
         Map<String, String> apiKeyReferenceArtifacts =
                 getApiKeyMgtDAO().getApiKeyExternalApiKeyMappings(event.getOldApiKeyUuid());
@@ -333,13 +334,9 @@ public class FederatedApiKeyNotifier implements Notifier {
                     + event.getOldApiKeyUuid() + ". Skipping remote replacement.");
             return;
         }
-        String apiUuid = event.getApiUuid();
-        String applicationUuid = event.getApplicationUuid();
         String organization = resolveOrganization(event);
         Map<String, String> replacementReferenceArtifacts = new LinkedHashMap<>();
-        String localPolicyId = StringUtils.isNotBlank(applicationUuid) ?
-                resolveSubscriptionPolicyId(applicationUuid, apiUuid) : null;
-        Map<String, String> properties = buildProperties(apiUuid, null, null, organization, null, null, null);
+        Map<String, String> properties = buildProperties(null, null, null, organization, null, null, null);
 
         for (Map.Entry<String, String> entry : apiKeyReferenceArtifacts.entrySet()) {
             String environmentId = entry.getKey();
@@ -352,18 +349,17 @@ public class FederatedApiKeyNotifier implements Notifier {
             }
 
             FederatedApiKeyConnector connector = resolveConnector(organization, environmentId);
-            FederatedApiKeyCreationResult result = connector.replaceApiKey(apiKeyReferenceArtifact, event.getApiKey(),
-                    localPolicyId, properties);
-            if (result == null || StringUtils.isBlank(result.getReferenceArtifact())) {
+            String referenceArtifact = connector.replaceApiKey(apiKeyReferenceArtifact, event.getApiKey(), properties);
+            if (StringUtils.isBlank(referenceArtifact)) {
                 throw new APIManagementException("Federated API key replacement did not return a reference artifact "
                         + "for environment: " + environmentId);
             }
-            replacementReferenceArtifacts.put(environmentId, result.getReferenceArtifact());
+            replacementReferenceArtifacts.put(environmentId, referenceArtifact);
         }
 
         try {
             for (Map.Entry<String, String> entry : replacementReferenceArtifacts.entrySet()) {
-                getApiKeyMgtDAO().addOrUpdateApiKeyExternalApiKeyMapping(event.getNewApiKeyUuid(),
+                getApiKeyMgtDAO().addApiKeyExternalApiKeyMapping(event.getNewApiKeyUuid(),
                         entry.getKey(), entry.getValue());
             }
             getApiKeyMgtDAO().deleteApiKeyExternalApiKeyMappings(event.getOldApiKeyUuid());
@@ -467,7 +463,8 @@ public class FederatedApiKeyNotifier implements Notifier {
     /**
      * Resolves the active local subscription policy UUID for the application and API pair.
      */
-    private String resolveSubscriptionPolicyId(String applicationUuid, String apiUuid) throws APIManagementException {
+    private String resolveSubscriptionPolicyId(String applicationUuid, String apiUuid, int tenantId)
+            throws APIManagementException {
         if (StringUtils.isBlank(applicationUuid)) {
             throw new APIManagementException("Application UUID is required for federated API key association");
         }
@@ -487,25 +484,21 @@ public class FederatedApiKeyNotifier implements Notifier {
             if (subscribedAPI.getTier() == null || StringUtils.isBlank(subscribedAPI.getTier().getName())) {
                 throw new APIManagementException("Subscription tier is required for federated external plan mapping");
             }
-            return resolveSubscriptionPolicyId(application, subscribedAPI.getTier().getName());
+            return resolveSubscriptionPolicyId(subscribedAPI.getTier().getName(), tenantId);
         }
         throw new APIManagementException("No active subscription found for application " + applicationUuid
                 + " and API " + apiUuid);
     }
 
-    private String resolveSubscriptionPolicyId(Application application, String policyName)
-            throws APIManagementException {
-
-        int tenantId = application.getSubscriber() != null && application.getSubscriber().getTenantId() > 0
-                ? application.getSubscriber().getTenantId()
-                : APIUtil.getTenantId(application.getSubscriber() != null ? application.getSubscriber().getName() : null);
-        SubscriptionPolicy[] subscriptionPolicies =
-                getApiMgtDAO().getSubscriptionPolicies(new String[] { policyName }, tenantId);
-        if (subscriptionPolicies == null || subscriptionPolicies.length == 0
-                || StringUtils.isBlank(subscriptionPolicies[0].getUUID())) {
+    private String resolveSubscriptionPolicyId(String policyName, int tenantId) throws APIManagementException {
+        if (tenantId == MultitenantConstants.INVALID_TENANT_ID) {
+            throw new APIManagementException("Tenant ID is required for federated API key association");
+        }
+        SubscriptionPolicy subscriptionPolicy = getApiMgtDAO().getSubscriptionPolicy(policyName, tenantId);
+        if (subscriptionPolicy == null || StringUtils.isBlank(subscriptionPolicy.getUUID())) {
             throw new APIManagementException("Subscription policy UUID not found for tier: " + policyName);
         }
-        return subscriptionPolicies[0].getUUID();
+        return subscriptionPolicy.getUUID();
     }
 
     /**
