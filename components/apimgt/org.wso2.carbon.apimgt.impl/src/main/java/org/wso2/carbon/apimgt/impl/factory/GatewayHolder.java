@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.apimgt.impl.factory;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.apimgt.api.APIManagementException;
@@ -87,15 +88,14 @@ public class GatewayHolder {
                     GatewayAgentConfiguration gatewayAgentConfiguration = ServiceReferenceHolder.getInstance()
                             .getExternalGatewayConnectorConfiguration(resolvedEnvironment.getGatewayType());
                     if (gatewayAgentConfiguration != null) {
-                        String connectorImplementation =
-                                gatewayAgentConfiguration.getApiKeyConnectorImplementation();
+                        String connectorImplementation = StringUtils.trimToNull(
+                                gatewayAgentConfiguration.getApiKeyConnectorImplementation());
                         if (connectorImplementation == null) {
                             throw new APIManagementException("No federated API key connector implementation is "
                                     + "configured for gateway type: " + resolvedEnvironment.getGatewayType());
                         }
                         FederatedApiKeyConnector connector = (FederatedApiKeyConnector) Class.forName(
-                                        connectorImplementation)
-                                .getDeclaredConstructor().newInstance();
+                                connectorImplementation).getDeclaredConstructor().newInstance();
                         connector.init(resolvedEnvironment);
                         return connector;
                     }
@@ -104,7 +104,7 @@ public class GatewayHolder {
                 }
                 throw new APIManagementException("Gateway environment not found for UUID: " + environmentUuid);
             } catch (ClassNotFoundException | NoSuchMethodException | InstantiationException |
-                     IllegalAccessException | InvocationTargetException e) {
+                     IllegalAccessException | InvocationTargetException | ClassCastException e) {
                 String msg = "Error while loading environments for tenant " + organization;
                 log.error(msg, e);
                 throw new APIManagementException(msg, e);

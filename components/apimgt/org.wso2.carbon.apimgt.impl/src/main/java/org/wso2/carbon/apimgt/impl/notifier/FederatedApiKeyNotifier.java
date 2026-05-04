@@ -207,9 +207,8 @@ public class FederatedApiKeyNotifier implements Notifier {
         for (Map.Entry<String, String> entry : apiKeyReferenceArtifacts.entrySet()) {
             String apiKeyReferenceArtifact = entry.getValue();
             if (StringUtils.isBlank(apiKeyReferenceArtifact)) {
-                log.warn("Remote API key reference artifact is missing for federated API key UUID: " + event.getUuid()
-                        + " in environment: " + entry.getKey() + ". Skipping remote revocation.");
-                continue;
+                throw new APIManagementException("Remote API key reference artifact is missing for federated API key "
+                        + "UUID: " + event.getUuid() + " in environment: " + entry.getKey());
             }
             FederatedApiKeyConnector connector = resolveConnector(organization, entry.getKey());
             connector.revokeApiKey(apiKeyReferenceArtifact);
@@ -342,10 +341,8 @@ public class FederatedApiKeyNotifier implements Notifier {
             String environmentId = entry.getKey();
             String apiKeyReferenceArtifact = entry.getValue();
             if (StringUtils.isBlank(apiKeyReferenceArtifact)) {
-                log.warn("Remote API key reference artifact is missing for federated API key UUID: "
-                        + event.getOldApiKeyUuid() + " in environment: " + environmentId
-                        + ". Skipping remote replacement.");
-                continue;
+                throw new APIManagementException("Remote API key reference artifact is missing for federated API key "
+                        + "UUID: " + event.getOldApiKeyUuid() + " in environment: " + environmentId);
             }
 
             FederatedApiKeyConnector connector = resolveConnector(organization, environmentId);
