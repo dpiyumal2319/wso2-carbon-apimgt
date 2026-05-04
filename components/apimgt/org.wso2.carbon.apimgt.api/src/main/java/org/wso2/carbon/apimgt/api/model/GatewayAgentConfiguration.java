@@ -99,7 +99,7 @@ public interface GatewayAgentConfiguration {
     default GatewayEnvironmentValidationResult validateEnvironment(Environment environment) {
         GatewayEnvironmentValidationResult validationResult = new GatewayEnvironmentValidationResult();
         validationResult.setValid(true);
-        validationResult.setErrors(Collections.emptyList());
+        validationResult.setErrors(Collections.emptyMap());
         return validationResult;
     }
 

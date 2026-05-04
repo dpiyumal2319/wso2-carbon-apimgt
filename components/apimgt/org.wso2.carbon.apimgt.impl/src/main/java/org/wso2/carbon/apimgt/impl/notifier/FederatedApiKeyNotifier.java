@@ -482,7 +482,7 @@ public class FederatedApiKeyNotifier implements Notifier {
                         + apiUuid);
             }
             if (subscribedAPI.getTier() == null || StringUtils.isBlank(subscribedAPI.getTier().getName())) {
-                throw new APIManagementException("Subscription tier is required for federated external plan mapping");
+                throw new APIManagementException("Subscription tier is required for federated external plan assignment");
             }
             return resolveSubscriptionPolicyId(subscribedAPI.getTier().getName(), tenantId);
         }

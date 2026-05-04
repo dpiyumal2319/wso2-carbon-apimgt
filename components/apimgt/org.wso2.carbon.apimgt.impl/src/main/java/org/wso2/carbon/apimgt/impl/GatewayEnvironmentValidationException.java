@@ -16,36 +16,28 @@
  * under the License.
  */
 
-package org.wso2.carbon.apimgt.api.model;
+package org.wso2.carbon.apimgt.impl;
+
+import org.wso2.carbon.apimgt.api.APIManagementException;
+import org.wso2.carbon.apimgt.api.ErrorHandler;
 
 import java.util.Map;
 
-public class GatewayEnvironmentValidationResult {
-    boolean isValid;
-    String description;
-    Map<String, String> errors;
+/**
+ * Carries gateway environment validation field keys for environment create/update responses.
+ */
+public class GatewayEnvironmentValidationException extends APIManagementException {
 
-    public boolean isValid() {
-        return isValid;
-    }
+    private final Map<String, String> errors;
 
-    public void setValid(boolean valid) {
-        isValid = valid;
-    }
+    public GatewayEnvironmentValidationException(String message, ErrorHandler code,
+            Map<String, String> errors) {
 
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
+        super(message, code);
+        this.errors = errors;
     }
 
     public Map<String, String> getErrors() {
         return errors;
-    }
-
-    public void setErrors(Map<String, String> errors) {
-        this.errors = errors;
     }
 }

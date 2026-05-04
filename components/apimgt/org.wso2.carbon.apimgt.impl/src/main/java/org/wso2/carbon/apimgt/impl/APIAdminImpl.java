@@ -1019,10 +1019,11 @@ public class APIAdminImpl implements APIAdmin {
         }
         GatewayEnvironmentValidationResult validationResult = gatewayConfiguration.validateEnvironment(validationEnvironment);
         if (!validationResult.isValid()) {
-            String errorMessage = String.join(", ", validationResult.getErrors());
-            throw new APIManagementException(errorMessage,
-                    ExceptionCodes.from(ExceptionCodes.FEDERATED_GATEWAY_ONBOARDING_VALIDATION_FAILED,
-                            updatedGatewayConfigurationDto.getGatewayType(), errorMessage));
+            String errorMessage = StringUtils.defaultIfBlank(validationResult.getDescription(),
+                    "Gateway environment validation failed.");
+            throw new GatewayEnvironmentValidationException(errorMessage,
+                    ExceptionCodes.from(ExceptionCodes.FEDERATED_GATEWAY_ONBOARDING_VALIDATION_FAILED, errorMessage),
+                    validationResult.getErrors());
         }
     }
 
