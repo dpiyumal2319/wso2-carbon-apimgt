@@ -3259,7 +3259,8 @@ public final class APIConstants {
         LLM_PROVIDER,
         LABEL,
         TENANT,
-        API_KEY
+        API_KEY,
+        FEDERATED_API_KEY
     }
 
     // Supported Event Types

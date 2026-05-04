@@ -41,6 +41,7 @@ public class APIKeyDTO implements Serializable {
     private String permittedIP;
     private String permittedReferer;
     private String apikeyHash;
+    private String status;
 
     public String getKeyId() {
         return keyId;
@@ -152,5 +153,13 @@ public class APIKeyDTO implements Serializable {
 
     public void setApikeyHash(String apikeyHash) {
         this.apikeyHash = apikeyHash;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

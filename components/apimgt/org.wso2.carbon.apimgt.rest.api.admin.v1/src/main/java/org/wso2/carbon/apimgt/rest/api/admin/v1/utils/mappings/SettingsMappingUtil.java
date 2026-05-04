@@ -17,6 +17,8 @@
 
 package org.wso2.carbon.apimgt.rest.api.admin.v1.utils.mappings;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -198,6 +200,9 @@ public class SettingsMappingUtil {
             settingsFederatedGatewayConfigurationDTO.setType(gatewayConfiguration.getType());
             settingsFederatedGatewayConfigurationDTO.setDisplayName(gatewayConfiguration.getType());
             settingsFederatedGatewayConfigurationDTO.setDefaultHostnameTemplate(gatewayConfiguration.getDefaultHostnameTemplate());
+            settingsFederatedGatewayConfigurationDTO.setSupportedApiTypes(resolveSupportedApiTypes(gatewayConfiguration));
+            settingsFederatedGatewayConfigurationDTO.setPlanMappingSupported(
+                    resolvePlanMappingSupport(gatewayConfiguration));
             List<String> supportedModes = gatewayConfiguration.getSupportedModes();
             List<String> effectiveModes = (supportedModes == null) ? new ArrayList<>() : new ArrayList<>(supportedModes);
             if (effectiveModes.isEmpty()) {
@@ -231,11 +236,61 @@ public class SettingsMappingUtil {
                 }
                 gateway.setSupportedModes(supportedModes);
             }
+            gateway.setSupportedApiTypes(new ArrayList<>());
+            gateway.setPlanMappingSupported(false);
             if (list.stream().noneMatch(obj -> obj.getType().equals(type))) {
                 list.add(gateway);
             }
         }
         return list;
+    }
+
+    private static List<String> resolveSupportedApiTypes(GatewayAgentConfiguration gatewayConfiguration) {
+        try {
+            GatewayPortalConfiguration featureCatalog = gatewayConfiguration.getGatewayFeatureCatalog();
+            if (featureCatalog != null && featureCatalog.getSupportedAPITypes() != null) {
+                return new ArrayList<>(featureCatalog.getSupportedAPITypes());
+            }
+        } catch (APIManagementException e) {
+            log.warn(String.format("Failed to resolve supported API types for gateway '%s'",
+                    gatewayConfiguration.getType()), e);
+        }
+        return new ArrayList<>();
+    }
+
+    private static boolean resolvePlanMappingSupport(GatewayAgentConfiguration gatewayConfiguration) {
+        return resolveSubscriptionsCapability(gatewayConfiguration);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean resolveSubscriptionsCapability(GatewayAgentConfiguration gatewayConfiguration) {
+        try {
+            GatewayPortalConfiguration featureCatalog = gatewayConfiguration.getGatewayFeatureCatalog();
+            if (featureCatalog == null || featureCatalog.getSupportedFeatures() == null) {
+                return false;
+            }
+
+            Object supportedFeatures = featureCatalog.getSupportedFeatures();
+            Map<String, Object> supportedFeaturesMap = null;
+            if (supportedFeatures instanceof JsonObject) {
+                supportedFeaturesMap = new Gson().fromJson((JsonObject) supportedFeatures, Map.class);
+            } else if (supportedFeatures instanceof Map) {
+                supportedFeaturesMap = (Map<String, Object>) supportedFeatures;
+            }
+
+            if (supportedFeaturesMap == null) {
+                return false;
+            }
+            Object subscriptions = supportedFeaturesMap.get("subscriptions");
+            if (!(subscriptions instanceof List)) {
+                return false;
+            }
+            return ((List<?>) subscriptions).contains("subscriptions");
+        } catch (APIManagementException | RuntimeException e) {
+            log.warn(String.format("Failed to resolve subscriptions capability for gateway '%s'",
+                    gatewayConfiguration.getType()), e);
+            return false;
+        }
     }
 
     private static GatewayConfigurationDTO fromConfigurationToConfigurationDTO(ConfigurationDto configuration) {

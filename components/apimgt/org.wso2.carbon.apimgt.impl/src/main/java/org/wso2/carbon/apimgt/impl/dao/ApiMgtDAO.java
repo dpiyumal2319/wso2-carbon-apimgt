@@ -72,6 +72,7 @@ import org.wso2.carbon.apimgt.api.model.Comment;
 import org.wso2.carbon.apimgt.api.model.CommentList;
 import org.wso2.carbon.apimgt.api.model.DeployedAPIRevision;
 import org.wso2.carbon.apimgt.api.model.Environment;
+import org.wso2.carbon.apimgt.api.model.GatewayTierMapping;
 import org.wso2.carbon.apimgt.api.model.GatewayMode;
 import org.wso2.carbon.apimgt.api.model.GatewayPolicyData;
 import org.wso2.carbon.apimgt.api.model.GatewayPolicyDeployment;
@@ -203,6 +204,10 @@ import static org.wso2.carbon.apimgt.impl.dao.constants.SQLConstants.APIRevision
 public class ApiMgtDAO {
 
     private static final Log log = LogFactory.getLog(ApiMgtDAO.class);
+    private static final Gson GSON = new Gson();
+    private static final String ENV_CONFIG_TIER_MAPPINGS_KEY = "__wso2_gateway_tier_mappings";
+    private static final Type ENV_CONFIG_MAP_TYPE = new TypeToken<Map<String, Object>>() { }.getType();
+    private static final Type ENV_TIER_MAPPINGS_TYPE = new TypeToken<List<GatewayTierMapping>>() { }.getType();
     private static ApiMgtDAO INSTANCE = null;
     private final Object scopeMutex = new Object();
     private boolean forceCaseInsensitiveComparisons = false;
@@ -688,6 +693,36 @@ public class ApiMgtDAO {
             handleException("Failed to add subscriber data ", e);
         }
         return subscriptionId;
+    }
+
+    /**
+     * Returns the subscription UUID for the given API integer ID and application integer ID.
+     *
+     * @param apiId integer API ID
+     * @param applicationId integer application ID
+     * @return subscription UUID, or null if not found
+     * @throws APIManagementException on DAO errors
+     */
+    public String getSubscriptionUuid(int apiId, int applicationId) throws APIManagementException {
+
+        try (Connection conn = APIMgtDBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(SQLConstants.GET_SUBSCRIPTION_UUID_SQL)) {
+            ps.setInt(1, apiId);
+            ps.setInt(2, applicationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("UUID");
+                }
+                if (log.isDebugEnabled()) {
+                    log.debug("No subscription found for apiId: " + apiId + " and applicationId: "
+                            + applicationId);
+                }
+            }
+        } catch (SQLException e) {
+            handleException("Error while retrieving subscription UUID for apiId: " + apiId
+                    + " and applicationId: " + applicationId, e);
+        }
+        return null;
     }
 
     public int updateSubscription(ApiTypeWrapper apiTypeWrapper, String inputSubscriptionUUId, String status,
@@ -15936,12 +15971,12 @@ public class ApiMgtDAO {
                     if (rs.wasNull()) {
                         scheduledTime = 0;
                     }
-                    Map<String, String> additionalProperties = new HashMap();
+                    Map<String, String> additionalProperties = new HashMap<>();
+                    List<GatewayTierMapping> tierMappings = new ArrayList<>();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        if (configuration != null) {
-                            String configurationContent = IOUtils.toString(configuration);
-                            additionalProperties = new Gson().fromJson(configurationContent, Map.class);
-                        }
+                        EnvironmentConfiguration envConfig = readEnvironmentConfiguration(configuration, uuid);
+                        additionalProperties = envConfig.getAdditionalProperties();
+                        tierMappings = envConfig.getTierMappings();
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -15967,6 +16002,7 @@ public class ApiMgtDAO {
                     env.setVhosts(getVhostGatewayEnvironments(connection, id));
                     env.setPermissions(getGatewayVisibilityPermissions(uuid));
                     env.setAdditionalProperties(additionalProperties);
+                    env.setTierMappings(tierMappings);
                     envList.add(env);
                 }
             }
@@ -16012,19 +16048,11 @@ public class ApiMgtDAO {
                         scheduledTime = 0;
                     }
                     Map<String, String> additionalProperties = new HashMap<>();
+                    List<GatewayTierMapping> tierMappings = new ArrayList<>();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        if (configuration != null) {
-                            String configurationContent = APIMgtDBUtil.getStringFromInputStream(configuration);
-                           Type mapType =
-                                    new TypeToken<Map<String, Object>>() {}.getType();
-                            Map<String, Object> parsedMap = new Gson().fromJson(configurationContent, mapType);
-                            if (parsedMap != null) {
-                                for (Map.Entry<String, Object> entry : parsedMap.entrySet()) {
-                                    additionalProperties.put(entry.getKey(),
-                                            entry.getValue() != null ? entry.getValue().toString() : null);
-                                }
-                            }
-                        }
+                        EnvironmentConfiguration envConfig = readEnvironmentConfiguration(configuration, uuid);
+                        additionalProperties = envConfig.getAdditionalProperties();
+                        tierMappings = envConfig.getTierMappings();
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -16043,6 +16071,7 @@ public class ApiMgtDAO {
                     env.setVhosts(getVhostGatewayEnvironments(connection, id));
                     env.setPermissions(getGatewayVisibilityPermissions(uuid));
                     env.setAdditionalProperties(additionalProperties);
+                    env.setTierMappings(tierMappings);
 
                     List<Environment> environments = envMap.computeIfAbsent(organization, k -> new ArrayList<>());
                     environments.add(env);
@@ -16085,12 +16114,12 @@ public class ApiMgtDAO {
                     if (rs.wasNull()) {
                         scheduledTime = 0;
                     }
-                    Map<String, String> additionalProperties = new HashMap();
+                    Map<String, String> additionalProperties = new HashMap<>();
+                    List<GatewayTierMapping> tierMappings = new ArrayList<>();
                     try (InputStream configuration = rs.getBinaryStream("CONFIGURATION")) {
-                        if (configuration != null) {
-                            String configurationContent = IOUtils.toString(configuration);
-                            additionalProperties = new Gson().fromJson(configurationContent, Map.class);
-                        }
+                        EnvironmentConfiguration envConfig = readEnvironmentConfiguration(configuration, uuid);
+                        additionalProperties = envConfig.getAdditionalProperties();
+                        tierMappings = envConfig.getTierMappings();
                     } catch (IOException e) {
                         log.error("Error while converting configurations in " + uuid, e);
                     }
@@ -16112,6 +16141,7 @@ public class ApiMgtDAO {
                     env.setVhosts(getVhostGatewayEnvironments(connection, id));
                     env.setPermissions(getGatewayVisibilityPermissions(uuid));
                     env.setAdditionalProperties(additionalProperties);
+                    env.setTierMappings(tierMappings);
                 }
             }
         } catch (SQLException e) {
@@ -16223,8 +16253,8 @@ public class ApiMgtDAO {
                 prepStmt.setString(5, environment.getDescription());
                 prepStmt.setString(6, environment.getProvider());
                 prepStmt.setString(7, environment.getGatewayType());
-                String configurationJson = new Gson().toJson(environment.getAdditionalProperties());
-                prepStmt.setBinaryStream(8, new ByteArrayInputStream(configurationJson.getBytes()));
+                byte[] configurationJson = buildEnvironmentConfiguration(environment);
+                prepStmt.setBinaryStream(8, new ByteArrayInputStream(configurationJson));
                 prepStmt.setString(9, tenantDomain);
                 prepStmt.setString(10, (StringUtils.isEmpty(environment.getMode()) ?
                         GatewayMode.WRITE_ONLY.getMode() :
@@ -16382,6 +16412,82 @@ public class ApiMgtDAO {
         return vhosts;
     }
 
+    private EnvironmentConfiguration readEnvironmentConfiguration(InputStream configuration, String environmentUuid)
+            throws IOException {
+        Map<String, String> additionalProperties = new HashMap<>();
+        List<GatewayTierMapping> tierMappings = new ArrayList<>();
+        if (configuration == null) {
+            return new EnvironmentConfiguration(additionalProperties, tierMappings);
+        }
+
+        String configurationContent = APIMgtDBUtil.getStringFromInputStream(configuration);
+        if (StringUtils.isBlank(configurationContent)) {
+            return new EnvironmentConfiguration(additionalProperties, tierMappings);
+        }
+
+        try {
+            Map<String, Object> parsedMap = GSON.fromJson(configurationContent, ENV_CONFIG_MAP_TYPE);
+            if (parsedMap == null) {
+                return new EnvironmentConfiguration(additionalProperties, tierMappings);
+            }
+
+            Object tierMappingsObject = parsedMap.remove(ENV_CONFIG_TIER_MAPPINGS_KEY);
+
+            for (Map.Entry<String, Object> entry : parsedMap.entrySet()) {
+                additionalProperties.put(entry.getKey(), entry.getValue() != null ? entry.getValue().toString() : null);
+            }
+            if (tierMappingsObject != null) {
+                try {
+                    List<GatewayTierMapping> parsedTierMappings = GSON.fromJson(GSON.toJson(tierMappingsObject),
+                            ENV_TIER_MAPPINGS_TYPE);
+                    if (parsedTierMappings != null) {
+                        tierMappings = parsedTierMappings;
+                    }
+                } catch (RuntimeException e) {
+                    log.error("Error while parsing gateway tier mappings in " + environmentUuid, e);
+                }
+            }
+        } catch (RuntimeException e) {
+            log.error("Error while converting configurations in " + environmentUuid, e);
+        }
+
+        return new EnvironmentConfiguration(additionalProperties, tierMappings);
+    }
+
+    private byte[] buildEnvironmentConfiguration(Environment environment) {
+        Map<String, Object> configurationMap = new HashMap<>();
+        if (environment.getAdditionalProperties() != null) {
+            configurationMap.putAll(environment.getAdditionalProperties());
+        }
+
+        List<GatewayTierMapping> tierMappings = environment.getTierMappings();
+        if (tierMappings != null && !tierMappings.isEmpty()) {
+            configurationMap.put(ENV_CONFIG_TIER_MAPPINGS_KEY, tierMappings);
+        } else {
+            configurationMap.remove(ENV_CONFIG_TIER_MAPPINGS_KEY);
+        }
+        return GSON.toJson(configurationMap).getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static class EnvironmentConfiguration {
+        private final Map<String, String> additionalProperties;
+        private final List<GatewayTierMapping> tierMappings;
+
+        private EnvironmentConfiguration(Map<String, String> additionalProperties,
+                List<GatewayTierMapping> tierMappings) {
+            this.additionalProperties = additionalProperties;
+            this.tierMappings = tierMappings;
+        }
+
+        private Map<String, String> getAdditionalProperties() {
+            return additionalProperties;
+        }
+
+        private List<GatewayTierMapping> getTierMappings() {
+            return tierMappings;
+        }
+    }
+
     /**
      * Delete an Environment
      *
@@ -16458,8 +16564,8 @@ public class ApiMgtDAO {
             try (PreparedStatement prepStmt = connection.prepareStatement(SQLConstants.UPDATE_ENVIRONMENT_SQL)) {
                 prepStmt.setString(1, environment.getDisplayName());
                 prepStmt.setString(2, environment.getDescription());
-                String configurationJson = new Gson().toJson(environment.getAdditionalProperties());
-                prepStmt.setBinaryStream(3, new ByteArrayInputStream(configurationJson.getBytes()));
+                byte[] configurationJson = buildEnvironmentConfiguration(environment);
+                prepStmt.setBinaryStream(3, new ByteArrayInputStream(configurationJson));
                 prepStmt.setInt(4, environment.getApiDiscoveryScheduledWindow());
                 prepStmt.setString(5, environment.getUuid());
                 prepStmt.executeUpdate();
@@ -24105,6 +24211,62 @@ public class ApiMgtDAO {
             handleException("Failed to fetch API - External API mapping for the API ID: " + apiId, e);
         }
         return references;
+    }
+
+    /**
+     * Get all external API mappings of an API keyed by gateway environment UUID.
+     *
+     * @param apiId UUID of the API
+     * @return Map of gateway environment UUID to reference artifact
+     * @throws APIManagementException if an error occurs while getting the mapping references
+     */
+    public Map<String, String> getApiExternalGatewayMappings(String apiId) throws APIManagementException {
+        Map<String, String> references = new HashMap<>();
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement statement =
+                     connection.prepareStatement(SQLConstants.GET_EXTERNAL_GATEWAY_MAPPINGS_BY_API_ID_SQL)) {
+            statement.setString(1, apiId);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    String reference = "";
+                    try (InputStream referenceArtifactStream = resultSet.getBinaryStream("REFERENCE_ARTIFACT")) {
+                        if (referenceArtifactStream != null) {
+                            reference = IOUtils.toString(referenceArtifactStream, StandardCharsets.UTF_8);
+                        }
+                    }
+                    references.put(resultSet.getString("GATEWAY_ENV_ID"), reference);
+                }
+            }
+        } catch (SQLException | IOException e) {
+            handleException("Failed to fetch API - External API mappings for the API ID: " + apiId, e);
+        }
+        return references;
+    }
+
+    /**
+     * Get the gateway environment UUID for a federated API from AM_API_EXTERNAL_API_MAPPING.
+     *
+     * @param apiId UUID of the API
+     * @return gateway environment UUID, or null if no mapping found
+     * @throws APIManagementException on DAO errors
+     */
+    public String getGatewayEnvironmentIdForExternalApi(String apiId) throws APIManagementException {
+        String gatewayEnvId = null;
+        try (Connection connection = APIMgtDBUtil.getConnection();
+             PreparedStatement statement =
+                     connection.prepareStatement(SQLConstants.GET_GATEWAY_ENV_ID_FROM_EXTERNAL_MAPPING_SQL)) {
+            statement.setString(1, apiId);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    gatewayEnvId = resultSet.getString("GATEWAY_ENV_ID");
+                }
+            }
+        } catch (SQLException e) {
+            handleException("Failed to fetch gateway environment ID for external API: " + apiId, e);
+        }
+        return gatewayEnvId;
     }
 
     /**

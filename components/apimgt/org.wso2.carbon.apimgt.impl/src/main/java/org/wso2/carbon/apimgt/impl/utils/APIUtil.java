@@ -676,6 +676,28 @@ public final class APIUtil {
 
     }
 
+    public static Map<String, String> createFederatedApiKeyEventProperties(String apiKeyValue,
+                                                                           Map<String, String> existingProperties) {
+        Map<String, String> properties = new HashMap<>();
+        if (existingProperties != null) {
+            properties.putAll(existingProperties);
+        }
+        properties.put("federated.apiKeyValue", apiKeyValue);
+        return properties;
+    }
+
+    public static boolean isFederatedGatewayApi(String apiUuid) throws APIManagementException {
+        if (StringUtils.isBlank(apiUuid)) {
+            if (log.isDebugEnabled()) {
+                log.debug("Skipping federated gateway API check because API UUID is blank. Assuming non-federated.");
+            }
+            return false;
+        }
+        String gatewayVendor = ApiMgtDAO.getInstance().getGatewayVendorByAPIUUID(apiUuid);
+        String normalizedGatewayVendor = handleGatewayVendorRetrieval(gatewayVendor);
+        return APIConstants.EXTERNAL_GATEWAY_VENDOR.equalsIgnoreCase(normalizedGatewayVendor);
+    }
+
     /**
      * This method used to extract environment list configured with non empty URLs.
      *
